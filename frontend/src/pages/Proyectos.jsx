@@ -64,7 +64,6 @@ export default function Proyectos() {
       data.append('vendors', JSON.stringify(formData.vendors))
 
       console.log('Enviando petición a:', `${API_URL}/proyectos`)
-      const response =       console.log('Enviando petición a:', `${API_URL}/proyectos`)
       
       const response = await axios.post(`${API_URL}/proyectos`, data, {
         headers: { 'Content-Type': 'multipart/form-data' },
