@@ -1,7 +1,5 @@
-import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
-import Onboarding from './components/Onboarding'
 import Proyectos from './pages/Proyectos'
 import ProyectoDetail from './pages/ProyectoDetail'
 import Locations from './pages/Locations'
@@ -30,25 +28,6 @@ function PrivateRoute({ children }) {
 }
 
 function App() {
-  const [showOnboarding, setShowOnboarding] = useState(true)
-
-  useEffect(() => {
-    // Verificar si el usuario ya ha visto el onboarding
-    const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding')
-    if (hasSeenOnboarding === 'true') {
-      setShowOnboarding(false)
-    }
-  }, [])
-
-  const handleOnboardingComplete = () => {
-    localStorage.setItem('hasSeenOnboarding', 'true')
-    setShowOnboarding(false)
-  }
-
-  if (showOnboarding) {
-    return <Onboarding onComplete={handleOnboardingComplete} />
-  }
-
   return (
     <AuthProvider>
       <Router>

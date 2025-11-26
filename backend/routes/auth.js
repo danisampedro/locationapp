@@ -26,10 +26,11 @@ router.post('/login', async (req, res) => {
 
     const token = generateToken(user)
 
+    // Cookie siempre preparada para uso cross-site (frontend en otro dominio)
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: true,          // Render sirve siempre sobre HTTPS
+      sameSite: 'none',      // Necesario para que viaje entre dominios distintos
       maxAge: 7 * 24 * 60 * 60 * 1000
     })
 
@@ -48,8 +49,8 @@ router.post('/login', async (req, res) => {
 router.post('/logout', (req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    secure: true,
+    sameSite: 'none'
   })
   res.json({ message: 'Sesión cerrada' })
 })
