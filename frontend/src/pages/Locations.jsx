@@ -68,16 +68,31 @@ export default function Locations() {
       })
 
       console.log('Enviando petición a:', `${API_URL}/locations`)
+      console.log('FormData:', {
+        nombre: formData.nombre,
+        direccion: formData.direccion,
+        descripcion: formData.descripcion,
+        imagenesCount: formData.imagenes.length
+      })
+      
       const response = await axios.post(`${API_URL}/locations`, data, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 30000 // 30 segundos
+        timeout: 60000 // 60 segundos (para subir imágenes)
       })
-      console.log('Respuesta recibida:', response)
       
-      console.log('Location creada:', response.data)
-      setShowModal(false)
-      setFormData({ nombre: '', direccion: '', descripcion: '', imagenes: [] })
-      loadLocations()
+      console.log('Respuesta recibida:', response)
+      console.log('Status:', response.status)
+      console.log('Data:', response.data)
+      
+      if (response.status === 201 || response.status === 200) {
+        console.log('Location creada exitosamente:', response.data)
+        setShowModal(false)
+        setFormData({ nombre: '', direccion: '', descripcion: '', imagenes: [] })
+        await loadLocations()
+        console.log('Locations recargadas')
+      } else {
+        throw new Error('Respuesta inesperada del servidor')
+      }
     } catch (error) {
       console.error('Error creando location:', error)
       console.error('Error response:', error.response)

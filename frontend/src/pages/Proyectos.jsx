@@ -64,14 +64,26 @@ export default function Proyectos() {
       data.append('vendors', JSON.stringify(formData.vendors))
 
       console.log('Enviando petición a:', `${API_URL}/proyectos`)
+      const response =       console.log('Enviando petición a:', `${API_URL}/proyectos`)
+      
       const response = await axios.post(`${API_URL}/proyectos`, data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000 // 60 segundos
       })
       
-      console.log('Proyecto creado:', response.data)
-      setShowModal(false)
-      setFormData({ nombre: '', descripcion: '', logo: null, locations: [], crew: [], vendors: [] })
-      loadProyectos()
+      console.log('Respuesta recibida:', response)
+      console.log('Status:', response.status)
+      console.log('Data:', response.data)
+      
+      if (response.status === 201 || response.status === 200) {
+        console.log('Proyecto creado exitosamente:', response.data)
+        setShowModal(false)
+        setFormData({ nombre: '', descripcion: '', logo: null, locations: [], crew: [], vendors: [] })
+        await loadProyectos()
+        console.log('Proyectos recargados')
+      } else {
+        throw new Error('Respuesta inesperada del servidor')
+      }
     } catch (error) {
       console.error('Error creando proyecto:', error)
       console.error('Error response:', error.response)

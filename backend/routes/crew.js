@@ -29,9 +29,13 @@ router.get('/:id', async (req, res) => {
 // POST create crew member
 router.post('/', async (req, res) => {
   try {
+    console.log('Creating crew member...')
+    console.log('Body:', req.body)
     const member = await Crew.create(req.body)
+    console.log('Crew member creado exitosamente:', member.id)
     res.status(201).json(member)
   } catch (error) {
+    console.error('Error creando crew member:', error)
     res.status(500).json({ error: error.message })
   }
 })

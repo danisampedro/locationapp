@@ -65,6 +65,9 @@ router.get('/:id', async (req, res) => {
 // POST create proyecto
 router.post('/', upload.single('logo'), async (req, res) => {
   try {
+    console.log('Creating proyecto...')
+    console.log('Body:', req.body)
+    console.log('File:', req.file)
     const { nombre, descripcion, locations, crew, vendors } = req.body
     
     const proyectoData = {

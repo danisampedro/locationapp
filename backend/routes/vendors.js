@@ -29,9 +29,13 @@ router.get('/:id', async (req, res) => {
 // POST create vendor
 router.post('/', async (req, res) => {
   try {
+    console.log('Creating vendor...')
+    console.log('Body:', req.body)
     const vendor = await Vendor.create(req.body)
+    console.log('Vendor creado exitosamente:', vendor.id)
     res.status(201).json(vendor)
   } catch (error) {
+    console.error('Error creando vendor:', error)
     res.status(500).json({ error: error.message })
   }
 })

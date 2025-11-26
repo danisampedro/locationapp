@@ -35,11 +35,22 @@ export default function Vendors() {
     
     try {
       console.log('Enviando petición a:', `${API_URL}/vendors`)
-      const response = await axios.post(`${API_URL}/vendors`, formData)
-      console.log('Vendor creado:', response.data)
-      setShowModal(false)
-      setFormData({ nombre: '', contacto: '', email: '', telefono: '', tipo: '', notas: '' })
-      loadVendors()
+      const response = await axios.post(`${API_URL}/vendors`, formData, {
+        timeout: 30000
+      })
+      console.log('Respuesta recibida:', response)
+      console.log('Status:', response.status)
+      console.log('Data:', response.data)
+      
+      if (response.status === 201 || response.status === 200) {
+        console.log('Vendor creado exitosamente:', response.data)
+        setShowModal(false)
+        setFormData({ nombre: '', contacto: '', email: '', telefono: '', tipo: '', notas: '' })
+        await loadVendors()
+        console.log('Vendors recargados')
+      } else {
+        throw new Error('Respuesta inesperada del servidor')
+      }
     } catch (error) {
       console.error('Error creando vendor:', error)
       console.error('Error response:', error.response)

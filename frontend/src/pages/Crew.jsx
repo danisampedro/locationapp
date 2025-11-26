@@ -34,11 +34,22 @@ export default function Crew() {
     
     try {
       console.log('Enviando petición a:', `${API_URL}/crew`)
-      const response = await axios.post(`${API_URL}/crew`, formData)
-      console.log('Crew creado:', response.data)
-      setShowModal(false)
-      setFormData({ nombre: '', email: '', telefono: '', rol: '', notas: '' })
-      loadCrew()
+      const response = await axios.post(`${API_URL}/crew`, formData, {
+        timeout: 30000
+      })
+      console.log('Respuesta recibida:', response)
+      console.log('Status:', response.status)
+      console.log('Data:', response.data)
+      
+      if (response.status === 201 || response.status === 200) {
+        console.log('Crew creado exitosamente:', response.data)
+        setShowModal(false)
+        setFormData({ nombre: '', email: '', telefono: '', rol: '', notas: '' })
+        await loadCrew()
+        console.log('Crew recargado')
+      } else {
+        throw new Error('Respuesta inesperada del servidor')
+      }
     } catch (error) {
       console.error('Error creando crew:', error)
       console.error('Error response:', error.response)
