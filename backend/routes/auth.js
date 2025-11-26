@@ -40,23 +40,22 @@ router.post('/login', async (req, res) => {
     const token = generateToken(user)
     console.log('✅ Token generado exitosamente')
 
-    // Cookie siempre preparada para uso cross-site (frontend en otro dominio)
-    console.log('🍪 Estableciendo cookie...')
+    // Intentar establecer cookie (por si funciona)
     res.cookie('token', token, {
       httpOnly: true,
-      secure: true,          // Render sirve siempre sobre HTTPS
-      sameSite: 'none',      // Necesario para que viaje entre dominios distintos
+      secure: true,
+      sameSite: 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000
-      // No especificar domain para que funcione cross-site
     })
-    console.log('✅ Cookie establecida correctamente')
 
+    // También devolver el token en el body para que el frontend lo guarde en localStorage
     const responseData = {
       id: user.id,
       username: user.username,
-      role: user.role
+      role: user.role,
+      token: token  // Enviar token en la respuesta para localStorage
     }
-    console.log('✅ Login exitoso, enviando respuesta:', responseData)
+    console.log('✅ Login exitoso, enviando respuesta con token')
     res.json(responseData)
   } catch (error) {
     console.error('❌ Error en /auth/login:', error.message)

@@ -2,18 +2,19 @@ import axios from 'axios'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://locationapp-backend.onrender.com/api'
 
-// Configurar axios por defecto
+// Configurar axios por defecto - FORZAR withCredentials en TODAS las peticiones
 axios.defaults.withCredentials = true
 
-// Interceptor de request para asegurar withCredentials en todas las peticiones
+// Interceptor de request para añadir token en header Authorization
 axios.interceptors.request.use(
   (config) => {
-    // Asegurar que withCredentials siempre esté activo
+    // FORZAR withCredentials siempre (por si las cookies funcionan)
     config.withCredentials = true
     
-    // Si la URL no es absoluta, añadir el baseURL
-    if (!config.url.startsWith('http')) {
-      config.url = `${API_URL}${config.url.startsWith('/') ? '' : '/'}${config.url}`
+    // Añadir token desde localStorage en el header Authorization
+    const token = localStorage.getItem('authToken')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
     }
     
     return config
@@ -33,6 +34,7 @@ axios.interceptors.response.use(
       console.error('❌ 401 Unauthorized - Cookie no enviada o token inválido')
       console.error('Request URL:', error.config?.url)
       console.error('withCredentials:', error.config?.withCredentials)
+      console.error('Cookies disponibles:', document.cookie)
     }
     return Promise.reject(error)
   }

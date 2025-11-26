@@ -1,7 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import axios from '../config/axios.js'
-
-const API_URL = import.meta.env.VITE_API_URL || 'https://locationapp-backend.onrender.com/api'
+import axios, { API_URL } from '../config/axios.js'
 
 const AuthContext = createContext(null)
 
@@ -16,6 +14,8 @@ export const AuthProvider = ({ children }) => {
         setUser(res.data)
       } catch {
         setUser(null)
+        // Limpiar token si no es válido
+        localStorage.removeItem('authToken')
       } finally {
         setLoading(false)
       }
@@ -30,7 +30,11 @@ export const AuthProvider = ({ children }) => {
       { username, password },
       { withCredentials: true }
     )
-    setUser(res.data)
+    // Guardar token en localStorage
+    if (res.data.token) {
+      localStorage.setItem('authToken', res.data.token)
+    }
+    setUser({ id: res.data.id, username: res.data.username, role: res.data.role })
   }
 
   const logout = async () => {
@@ -38,6 +42,7 @@ export const AuthProvider = ({ children }) => {
       await axios.post(`${API_URL}/auth/logout`, {}, { withCredentials: true })
     } finally {
       setUser(null)
+      localStorage.removeItem('authToken')
     }
   }
 

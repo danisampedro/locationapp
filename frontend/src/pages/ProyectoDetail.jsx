@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
-import axios from 'axios'
-
-const API_URL = import.meta.env.VITE_API_URL || 'https://locationapp-backend.onrender.com/api'
+import axios, { API_URL } from '../config/axios.js'
 
 export default function ProyectoDetail() {
   const { id } = useParams()
