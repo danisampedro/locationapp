@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const API_URL = import.meta.env.VITE_API_URL || 'https://locationapp-backend.onrender.com/api'
 
 export default function Crew() {
   const [crew, setCrew] = useState([])
@@ -64,7 +64,7 @@ export default function Crew() {
         <h1 className="text-3xl font-bold text-gray-800">Crew</h1>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light transition-colors"
         >
           + Nuevo Miembro
         </button>
@@ -72,19 +72,29 @@ export default function Crew() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {crew.map((member) => (
-          <div key={member.id} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">{member.nombre}</h2>
-            <p className="text-gray-600 mb-1">
-              <span className="font-medium">Rol:</span> {member.rol}
+          <div 
+            key={member.id} 
+            className="bg-white rounded-2xl shadow-md p-6 hover:shadow-2xl transition-shadow border border-gray-100 hover:border-accent-green/40"
+          >
+            <h2 className="text-lg font-semibold text-gray-900 mb-2 truncate">{member.nombre}</h2>
+            <p className="text-xs text-gray-600 mb-1">
+              <span className="font-semibold text-gray-800">Rol: </span>
+              {member.rol}
             </p>
-            <p className="text-gray-600 mb-1">
-              <span className="font-medium">Email:</span> {member.email}
-            </p>
-            <p className="text-gray-600 mb-2">
-              <span className="font-medium">Teléfono:</span> {member.telefono}
-            </p>
+            {member.email && (
+              <p className="text-xs text-gray-600 mb-1 truncate">
+                <span className="font-semibold text-gray-800">Email: </span>
+                {member.email}
+              </p>
+            )}
+            {member.telefono && (
+              <p className="text-xs text-gray-600 mb-2">
+                <span className="font-semibold text-gray-800">Teléfono: </span>
+                {member.telefono}
+              </p>
+            )}
             {member.notas && (
-              <p className="text-gray-500 text-sm">{member.notas}</p>
+              <p className="text-xs text-gray-500 line-clamp-2">{member.notas}</p>
             )}
           </div>
         ))}

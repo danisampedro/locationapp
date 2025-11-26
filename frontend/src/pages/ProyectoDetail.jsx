@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const API_URL = import.meta.env.VITE_API_URL || 'https://locationapp-backend.onrender.com/api'
 
 export default function ProyectoDetail() {
   const { id } = useParams()
@@ -21,6 +21,7 @@ export default function ProyectoDetail() {
     address: '',
     locationManager: '',
     locationCoordinator: '',
+    projectDate: '',
     locations: [],
     crew: [],
     vendors: []
@@ -48,6 +49,7 @@ export default function ProyectoDetail() {
         address: response.data.address || '',
         locationManager: response.data.locationManager || '',
         locationCoordinator: response.data.locationCoordinator || '',
+        projectDate: response.data.projectDate ? response.data.projectDate.slice(0, 10) : '',
         locations: response.data.Locations?.map(l => l.id.toString()) || [],
         crew: response.data.Crews?.map(c => c.id.toString()) || [],
         vendors: response.data.Vendors?.map(v => v.id.toString()) || []
@@ -105,6 +107,9 @@ export default function ProyectoDetail() {
       data.append('address', formData.address)
       data.append('locationManager', formData.locationManager)
       data.append('locationCoordinator', formData.locationCoordinator)
+      if (formData.projectDate) {
+        data.append('projectDate', formData.projectDate)
+      }
       if (formData.logo) {
         data.append('logo', formData.logo)
       }
@@ -199,6 +204,14 @@ export default function ProyectoDetail() {
       </div>
 
       <div className="bg-white rounded-xl shadow-md p-8 space-y-6">
+        {proyecto.projectDate && (
+          <div>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Fecha del proyecto</h3>
+            <p className="text-gray-800">
+              {new Date(proyecto.projectDate).toLocaleDateString('es-ES')}
+            </p>
+          </div>
+        )}
         {proyecto.descripcion && (
           <div>
             <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Descripción</h3>
@@ -468,6 +481,15 @@ export default function ProyectoDetail() {
                   type="text"
                   value={formData.locationCoordinator}
                   onChange={(e) => setFormData({ ...formData, locationCoordinator: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Fecha del proyecto</label>
+                <input
+                  type="date"
+                  value={formData.projectDate}
+                  onChange={(e) => setFormData({ ...formData, projectDate: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg"
                 />
               </div>

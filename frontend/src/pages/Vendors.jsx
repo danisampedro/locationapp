@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const API_URL = import.meta.env.VITE_API_URL || 'https://locationapp-backend.onrender.com/api'
 
 export default function Vendors() {
   const [vendors, setVendors] = useState([])
@@ -65,7 +65,7 @@ export default function Vendors() {
         <h1 className="text-3xl font-bold text-gray-800">Vendors</h1>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light transition-colors"
         >
           + Nuevo Vendor
         </button>
@@ -73,22 +73,37 @@ export default function Vendors() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {vendors.map((vendor) => (
-          <div key={vendor.id} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">{vendor.nombre}</h2>
-            <p className="text-gray-600 mb-1">
-              <span className="font-medium">Tipo:</span> {vendor.tipo}
-            </p>
-            <p className="text-gray-600 mb-1">
-              <span className="font-medium">Contacto:</span> {vendor.contacto}
-            </p>
-            <p className="text-gray-600 mb-1">
-              <span className="font-medium">Email:</span> {vendor.email}
-            </p>
-            <p className="text-gray-600 mb-2">
-              <span className="font-medium">Teléfono:</span> {vendor.telefono}
-            </p>
+          <div 
+            key={vendor.id} 
+            className="bg-white rounded-2xl shadow-md p-6 hover:shadow-2xl transition-shadow border border-gray-100 hover:border-accent-green/40"
+          >
+            <h2 className="text-lg font-semibold text-gray-900 mb-2 truncate">{vendor.nombre}</h2>
+            {vendor.tipo && (
+              <p className="text-xs text-gray-600 mb-1">
+                <span className="font-semibold text-gray-800">Tipo: </span>
+                {vendor.tipo}
+              </p>
+            )}
+            {vendor.contacto && (
+              <p className="text-xs text-gray-600 mb-1 truncate">
+                <span className="font-semibold text-gray-800">Contacto: </span>
+                {vendor.contacto}
+              </p>
+            )}
+            {vendor.email && (
+              <p className="text-xs text-gray-600 mb-1 truncate">
+                <span className="font-semibold text-gray-800">Email: </span>
+                {vendor.email}
+              </p>
+            )}
+            {vendor.telefono && (
+              <p className="text-xs text-gray-600 mb-2">
+                <span className="font-semibold text-gray-800">Teléfono: </span>
+                {vendor.telefono}
+              </p>
+            )}
             {vendor.notas && (
-              <p className="text-gray-500 text-sm">{vendor.notas}</p>
+              <p className="text-xs text-gray-500 line-clamp-2">{vendor.notas}</p>
             )}
           </div>
         ))}

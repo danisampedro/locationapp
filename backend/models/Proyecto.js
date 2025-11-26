@@ -48,6 +48,11 @@ const Proyecto = sequelize.define('Proyecto', {
     type: DataTypes.STRING,
     allowNull: true,
     defaultValue: ''
+  },
+  projectDate: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    defaultValue: null
   }
 }, {
   tableName: 'proyectos',

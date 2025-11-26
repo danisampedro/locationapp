@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const API_URL = import.meta.env.VITE_API_URL || 'https://locationapp-backend.onrender.com/api'
 
 export default function Locations() {
+  const navigate = useNavigate()
   const [locations, setLocations] = useState([])
   const [showModal, setShowModal] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     nombre: '',
     direccion: '',
@@ -67,7 +70,16 @@ export default function Locations() {
     e.stopPropagation()
     console.log('handleSubmit llamado', formData)
     
+    setIsSubmitting(true)
+    
     try {
+      // Primero, intentar "despertar" el backend con una petición simple
+      try {
+        await axios.get(`${API_URL.replace('/api', '')}/api/health`, { timeout: 10000 })
+      } catch (wakeError) {
+        console.log('Backend puede estar durmiendo, continuando...')
+      }
+
       const data = new FormData()
       data.append('nombre', formData.nombre)
       data.append('direccion', formData.direccion)
@@ -86,7 +98,7 @@ export default function Locations() {
       
       const response = await axios.post(`${API_URL}/locations`, data, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 60000 // 60 segundos (para subir imágenes)
+        timeout: 120000 // 120 segundos (2 minutos) para dar tiempo al backend de despertar y procesar
       })
       
       console.log('Respuesta recibida:', response)
@@ -109,15 +121,17 @@ export default function Locations() {
       console.error('Error code:', error.code)
       
       if (error.code === 'ECONNABORTED') {
-        alert('Error: La petición tardó demasiado. Verifica que el backend esté funcionando.')
+        alert('Error: La petición tardó demasiado. El backend puede estar "durmiendo" (plan gratuito de Render). Por favor, espera unos segundos y vuelve a intentar. La primera petición puede tardar hasta 2 minutos.')
       } else if (error.response) {
         const errorMessage = error.response?.data?.error || error.message || 'Error al crear la location'
         alert(`Error: ${errorMessage}`)
       } else if (error.request) {
-        alert('Error: No se recibió respuesta del servidor. Verifica que el backend esté funcionando.')
+        alert('Error: No se recibió respuesta del servidor. El backend puede estar "durmiendo". Por favor, espera unos segundos y vuelve a intentar.')
       } else {
         alert(`Error: ${error.message}`)
       }
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -127,34 +141,52 @@ export default function Locations() {
         <h1 className="text-3xl font-bold text-gray-800">Locations</h1>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light transition-colors"
         >
           + Nueva Location
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {locations.map((location) => (
-          <div key={location.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-            {location.imagenes && (Array.isArray(location.imagenes) ? location.imagenes : typeof location.imagenes === 'string' ? JSON.parse(location.imagenes) : []).length > 0 && (
-              <div className="grid grid-cols-2 gap-1 h-48">
-                {(Array.isArray(location.imagenes) ? location.imagenes : typeof location.imagenes === 'string' ? JSON.parse(location.imagenes) : []).slice(0, 2).map((img, idx) => (
+        {locations.map((location) => {
+          const imagenes = Array.isArray(location.imagenes) 
+            ? location.imagenes 
+            : typeof location.imagenes === 'string' 
+              ? JSON.parse(location.imagenes) 
+              : []
+          
+          return (
+            <div 
+              key={location.id} 
+              onClick={() => navigate(`/locations/${location.id}`)}
+              className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-2xl transition-shadow border border-gray-100 hover:border-accent-green/40 cursor-pointer"
+            >
+              {imagenes.length > 0 && (
+                <div className="w-full aspect-video overflow-hidden">
                   <img
-                    key={idx}
-                    src={img}
-                    alt={`${location.nombre} ${idx + 1}`}
+                    src={imagenes[0]}
+                    alt={location.nombre}
                     className="w-full h-full object-cover"
                   />
-                ))}
+                </div>
+              )}
+              <div className="p-5 space-y-2">
+                <h2 className="text-lg font-semibold text-gray-900 truncate">{location.nombre}</h2>
+                {location.direccion && (
+                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <span className="font-semibold text-gray-700">📍</span>
+                    <span className="truncate">{location.direccion}</span>
+                  </p>
+                )}
+                {location.descripcion && (
+                  <p className="text-sm text-gray-600 line-clamp-2">
+                    {location.descripcion}
+                  </p>
+                )}
               </div>
-            )}
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-2">{location.nombre}</h2>
-              <p className="text-gray-600 mb-2">{location.direccion}</p>
-              <p className="text-gray-500 text-sm">{location.descripcion}</p>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {showModal && (
@@ -196,12 +228,12 @@ export default function Locations() {
                 <div
                   {...getRootProps()}
                   className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                    isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                    isDragActive ? 'border-accent-green bg-accent-green/10' : 'border-gray-300 hover:border-gray-400'
                   }`}
                 >
                   <input {...getInputProps()} />
                   {isDragActive ? (
-                    <p className="text-blue-600">Suelta las imágenes aquí...</p>
+                    <p className="text-accent-green">Suelta las imágenes aquí...</p>
                   ) : (
                     <p className="text-gray-600">
                       Arrastra imágenes aquí o haz clic para seleccionar
@@ -237,9 +269,10 @@ export default function Locations() {
                     e.preventDefault()
                     handleSubmit(e)
                   }}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                  disabled={isSubmitting}
+                  className="bg-dark-blue text-white px-6 py-2 rounded-lg hover:bg-dark-blue-light disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Crear
+                  {isSubmitting ? 'Creando...' : 'Crear'}
                 </button>
                 <button
                   type="button"

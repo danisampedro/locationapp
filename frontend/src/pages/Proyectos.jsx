@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const API_URL = import.meta.env.VITE_API_URL || 'https://locationapp-backend.onrender.com/api'
 
 // Iconos monocromos para métricas del proyecto
 const LocationIcon = () => (
@@ -27,6 +27,14 @@ const VendorIcon = () => (
   </svg>
 )
 
+// Icono monocromo para dirección
+const AddressIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2a7 7 0 00-7 7c0 4.418 7 13 7 13s7-8.582 7-13a7 7 0 00-7-7z" />
+    <circle cx="12" cy="9" r="2.5" />
+  </svg>
+)
+
 export default function Proyectos() {
   const navigate = useNavigate()
   const [proyectos, setProyectos] = useState([])
@@ -40,6 +48,7 @@ export default function Proyectos() {
     address: '',
     locationManager: '',
     locationCoordinator: '',
+    projectDate: '',
     locations: [],
     crew: [],
     vendors: []
@@ -74,7 +83,12 @@ export default function Proyectos() {
   const loadProyectos = async () => {
     try {
       const response = await axios.get(`${API_URL}/proyectos`)
-      setProyectos(response.data)
+      const sorted = [...response.data].sort((a, b) => {
+        const dateA = new Date(a.projectDate || a.createdAt)
+        const dateB = new Date(b.projectDate || b.createdAt)
+        return dateB - dateA
+      })
+      setProyectos(sorted)
     } catch (error) {
       console.error('Error cargando proyectos:', error)
     }
@@ -109,6 +123,9 @@ export default function Proyectos() {
       data.append('address', formData.address)
       data.append('locationManager', formData.locationManager)
       data.append('locationCoordinator', formData.locationCoordinator)
+      if (formData.projectDate) {
+        data.append('projectDate', formData.projectDate)
+      }
       if (formData.logo) {
         data.append('logo', formData.logo)
       }
@@ -130,7 +147,7 @@ export default function Proyectos() {
       if (response.status === 201 || response.status === 200) {
         console.log('Proyecto creado exitosamente:', response.data)
         setShowModal(false)
-        setFormData({ nombre: '', descripcion: '', logo: null, company: '', cif: '', address: '', locationManager: '', locationCoordinator: '', locations: [], crew: [], vendors: [] })
+        setFormData({ nombre: '', descripcion: '', logo: null, company: '', cif: '', address: '', locationManager: '', locationCoordinator: '', projectDate: '', locations: [], crew: [], vendors: [] })
         await loadProyectos()
         console.log('Proyectos recargados')
       } else {
@@ -161,66 +178,73 @@ export default function Proyectos() {
           <div 
             key={proyecto.id} 
             onClick={() => navigate(`/proyectos/${proyecto.id}`)}
-            className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow border border-gray-100 cursor-pointer"
+            className="bg-white rounded-2xl shadow-md p-6 hover:shadow-2xl transition-shadow border border-gray-100 cursor-pointer hover:border-accent-green/40"
           >
             <div className="flex items-start gap-4 mb-4">
               {proyecto.logoUrl && (
                 <img
                   src={proyecto.logoUrl}
                   alt={proyecto.nombre}
-                  className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                  className="w-20 h-20 object-cover rounded-xl flex-shrink-0 border border-gray-200"
                 />
               )}
               <div className="flex-1 min-w-0">
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">{proyecto.nombre}</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-1 truncate">{proyecto.nombre}</h2>
                 {proyecto.company && (
-                  <p className="text-sm text-gray-600 mb-1">
-                    <span className="font-medium">Company:</span> {proyecto.company}
+                  <p className="text-xs text-gray-600 mb-0.5">
+                    <span className="font-semibold text-gray-800">Company: </span>
+                    <span className="truncate inline-block max-w-full align-middle">{proyecto.company}</span>
                   </p>
                 )}
                 {proyecto.cif && (
-                  <p className="text-sm text-gray-600 mb-1">
-                    <span className="font-medium">CIF:</span> {proyecto.cif}
+                  <p className="text-xs text-gray-500 mb-0.5">
+                    <span className="font-semibold text-gray-700">CIF: </span>
+                    {proyecto.cif}
                   </p>
                 )}
               </div>
             </div>
             
             {proyecto.descripcion && (
-              <p className="text-gray-600 mb-4 line-clamp-2 text-sm">{proyecto.descripcion}</p>
+              <p className="text-gray-600 mb-3 line-clamp-2 text-sm">{proyecto.descripcion}</p>
             )}
             
             {proyecto.address && (
-              <p className="text-sm text-gray-500 mb-3">
-                <span className="font-medium">📍</span> {proyecto.address}
+              <p className="text-xs text-gray-500 mb-3 flex items-center gap-1">
+                <span className="text-gray-700">
+                  <AddressIcon />
+                </span>
+                <span className="truncate">{proyecto.address}</span>
               </p>
             )}
             
             {(proyecto.locationManager || proyecto.locationCoordinator) && (
-              <div className="mb-4 space-y-1">
+              <div className="mb-3 space-y-0.5">
                 {proyecto.locationManager && (
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium">Manager:</span> {proyecto.locationManager}
+                  <p className="text-xs text-gray-600">
+                    <span className="font-semibold text-gray-800">Manager: </span>
+                    {proyecto.locationManager}
                   </p>
                 )}
                 {proyecto.locationCoordinator && (
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium">Coordinator:</span> {proyecto.locationCoordinator}
+                  <p className="text-xs text-gray-600">
+                    <span className="font-semibold text-gray-800">Coordinator: </span>
+                    {proyecto.locationCoordinator}
                   </p>
                 )}
               </div>
             )}
             
-            <div className="flex gap-4 text-sm text-gray-500 pt-4 border-t border-gray-200">
-              <div className="flex items-center gap-1">
+            <div className="flex gap-4 text-xs text-gray-500 pt-3 border-t border-gray-100">
+              <div className="flex items-center gap-1.5">
                 <LocationIcon />
                 <span>{proyecto.Locations?.length || 0}</span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <CrewIcon />
                 <span>{proyecto.Crews?.length || 0}</span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <VendorIcon />
                 <span>{proyecto.Vendors?.length || 0}</span>
               </div>
@@ -303,6 +327,15 @@ export default function Proyectos() {
                   type="text"
                   value={formData.cif}
                   onChange={(e) => setFormData({ ...formData, cif: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Fecha del proyecto</label>
+                <input
+                  type="date"
+                  value={formData.projectDate}
+                  onChange={(e) => setFormData({ ...formData, projectDate: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg"
                 />
               </div>
