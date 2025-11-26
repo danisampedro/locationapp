@@ -21,7 +21,16 @@ export default function Locations() {
   const loadLocations = async () => {
     try {
       const response = await axios.get(`${API_URL}/locations`)
-      setLocations(response.data)
+      // Asegurar que imagenes sea siempre un array
+      const locations = response.data.map(loc => ({
+        ...loc,
+        imagenes: Array.isArray(loc.imagenes) 
+          ? loc.imagenes 
+          : typeof loc.imagenes === 'string' 
+            ? JSON.parse(loc.imagenes) 
+            : []
+      }))
+      setLocations(locations)
     } catch (error) {
       console.error('Error cargando locations:', error)
     }
@@ -127,9 +136,9 @@ export default function Locations() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {locations.map((location) => (
           <div key={location.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-            {location.imagenes && location.imagenes.length > 0 && (
+            {location.imagenes && (Array.isArray(location.imagenes) ? location.imagenes : typeof location.imagenes === 'string' ? JSON.parse(location.imagenes) : []).length > 0 && (
               <div className="grid grid-cols-2 gap-1 h-48">
-                {location.imagenes.slice(0, 2).map((img, idx) => (
+                {(Array.isArray(location.imagenes) ? location.imagenes : typeof location.imagenes === 'string' ? JSON.parse(location.imagenes) : []).slice(0, 2).map((img, idx) => (
                   <img
                     key={idx}
                     src={img}

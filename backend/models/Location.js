@@ -23,7 +23,18 @@ const Location = sequelize.define('Location', {
   imagenes: {
     type: DataTypes.JSON,
     allowNull: true,
-    defaultValue: []
+    defaultValue: [],
+    get() {
+      const value = this.getDataValue('imagenes')
+      if (typeof value === 'string') {
+        try {
+          return JSON.parse(value)
+        } catch (e) {
+          return []
+        }
+      }
+      return value || []
+    }
   }
 }, {
   tableName: 'locations',
