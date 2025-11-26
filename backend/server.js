@@ -90,6 +90,42 @@ const migrateLocationTable = async () => {
   }
 }
 
+// Migración: Añadir columnas faltantes a la tabla proyectos
+const migrateProyectoTable = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface()
+    const tableDescription = await queryInterface.describeTable('proyectos')
+    
+    const requiredColumns = {
+      descripcion: { type: sequelize.Sequelize.TEXT, allowNull: true, defaultValue: '' },
+      logoUrl: { type: sequelize.Sequelize.STRING, allowNull: true, defaultValue: '' },
+      company: { type: sequelize.Sequelize.STRING, allowNull: true, defaultValue: '' },
+      cif: { type: sequelize.Sequelize.STRING, allowNull: true, defaultValue: '' },
+      address: { type: sequelize.Sequelize.STRING, allowNull: true, defaultValue: '' },
+      locationManager: { type: sequelize.Sequelize.STRING, allowNull: true, defaultValue: '' },
+      locationCoordinator: { type: sequelize.Sequelize.STRING, allowNull: true, defaultValue: '' },
+      projectDate: { type: sequelize.Sequelize.DATE, allowNull: true, defaultValue: null }
+    }
+
+    for (const [columnName, columnDefinition] of Object.entries(requiredColumns)) {
+      if (!tableDescription[columnName]) {
+        console.log(`🔄 Añadiendo columna ${columnName} a la tabla proyectos...`)
+        await queryInterface.addColumn('proyectos', columnName, columnDefinition)
+        console.log(`✅ Columna ${columnName} añadida exitosamente`)
+      } else {
+        console.log(`ℹ️  Columna ${columnName} ya existe`)
+      }
+    }
+  } catch (error) {
+    // Si la tabla no existe, se creará con sync
+    if (error.name === 'SequelizeDatabaseError' && error.message.includes("doesn't exist")) {
+      console.log('ℹ️  Tabla proyectos no existe aún, se creará con sync')
+    } else {
+      console.error('⚠️  Error en migración de proyectos:', error.message)
+    }
+  }
+}
+
 // Crear o actualizar usuario admin inicial
 const seedAdminUser = async () => {
   const adminUsername = process.env.INIT_ADMIN_USERNAME || 'danisampedro'
@@ -134,6 +170,7 @@ const connectDB = async () => {
     
     // Ejecutar migraciones para añadir columnas nuevas
     await migrateLocationTable()
+    await migrateProyectoTable()
     
     await seedAdminUser()
     console.log('✅ Database models synchronized')
