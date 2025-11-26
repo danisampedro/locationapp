@@ -50,6 +50,29 @@ router.post('/', authMiddleware, requireAdmin, async (req, res) => {
   }
 })
 
+// Eliminar usuario (solo admin)
+router.delete('/:id', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id)
+    
+    // No permitir eliminar el propio usuario
+    if (userId === req.user.id) {
+      return res.status(400).json({ error: 'No puedes eliminar tu propio usuario' })
+    }
+
+    const user = await User.findByPk(userId)
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' })
+    }
+
+    await user.destroy()
+    res.json({ message: 'Usuario eliminado exitosamente' })
+  } catch (error) {
+    console.error('Error eliminando usuario:', error)
+    res.status(500).json({ error: 'Error interno en el servidor' })
+  }
+})
+
 export default router
 
 

@@ -15,6 +15,9 @@ axios.interceptors.request.use(
     const token = localStorage.getItem('authToken')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+      console.log('✅ Token añadido al header Authorization')
+    } else {
+      console.log('⚠️ No hay token en localStorage')
     }
     
     return config
