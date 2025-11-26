@@ -58,6 +58,11 @@ router.post('/', upload.array('imagenes', 2), async (req, res) => {
     console.log('Creating location...')
     console.log('Body:', req.body)
     console.log('Files:', req.files)
+    console.log('Cloudinary config:', {
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME ? 'Set' : 'Missing',
+      api_key: process.env.CLOUDINARY_API_KEY ? 'Set' : 'Missing',
+      api_secret: process.env.CLOUDINARY_API_SECRET ? 'Set' : 'Missing'
+    })
     
     const { nombre, direccion, descripcion } = req.body
     
@@ -75,13 +80,14 @@ router.post('/', upload.array('imagenes', 2), async (req, res) => {
       imagenes
     })
     
-    console.log('Location creada:', location)
+    console.log('Location creada exitosamente:', location.id)
     res.status(201).json(location)
   } catch (error) {
     console.error('Error creando location:', error)
+    console.error('Error stack:', error.stack)
     res.status(500).json({ 
       error: error.message,
-      details: error.stack 
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     })
   }
 })

@@ -69,8 +69,10 @@ export default function Locations() {
 
       console.log('Enviando petición a:', `${API_URL}/locations`)
       const response = await axios.post(`${API_URL}/locations`, data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 30000 // 30 segundos
       })
+      console.log('Respuesta recibida:', response)
       
       console.log('Location creada:', response.data)
       setShowModal(false)
@@ -79,8 +81,19 @@ export default function Locations() {
     } catch (error) {
       console.error('Error creando location:', error)
       console.error('Error response:', error.response)
-      const errorMessage = error.response?.data?.error || error.message || 'Error al crear la location'
-      alert(`Error: ${errorMessage}`)
+      console.error('Error message:', error.message)
+      console.error('Error code:', error.code)
+      
+      if (error.code === 'ECONNABORTED') {
+        alert('Error: La petición tardó demasiado. Verifica que el backend esté funcionando.')
+      } else if (error.response) {
+        const errorMessage = error.response?.data?.error || error.message || 'Error al crear la location'
+        alert(`Error: ${errorMessage}`)
+      } else if (error.request) {
+        alert('Error: No se recibió respuesta del servidor. Verifica que el backend esté funcionando.')
+      } else {
+        alert(`Error: ${error.message}`)
+      }
     }
   }
 
