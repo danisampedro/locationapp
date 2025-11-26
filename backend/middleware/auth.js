@@ -14,8 +14,11 @@ export const generateToken = (user) => {
 export const authMiddleware = async (req, res, next) => {
   try {
     // Logging detallado para diagnóstico
+    console.log('🔐 authMiddleware - Método:', req.method)
     console.log('🔐 authMiddleware - Ruta:', req.path)
-    console.log('🔐 authMiddleware - Cookies recibidas:', req.cookies)
+    console.log('🔐 authMiddleware - URL completa:', req.url)
+    console.log('🔐 authMiddleware - Cookies recibidas:', JSON.stringify(req.cookies))
+    console.log('🔐 authMiddleware - Headers cookie:', req.headers.cookie)
     console.log('🔐 authMiddleware - Headers authorization:', req.headers.authorization)
     console.log('🔐 authMiddleware - Origin:', req.headers.origin)
     console.log('🔐 authMiddleware - Referer:', req.headers.referer)
@@ -24,6 +27,8 @@ export const authMiddleware = async (req, res, next) => {
 
     if (!token) {
       console.log('❌ authMiddleware - No se encontró token')
+      console.log('❌ authMiddleware - req.cookies:', req.cookies)
+      console.log('❌ authMiddleware - req.headers.cookie:', req.headers.cookie)
       return res.status(401).json({ error: 'No autorizado' })
     }
 
