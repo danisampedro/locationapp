@@ -9,31 +9,39 @@ const router = express.Router()
 router.post('/login', async (req, res) => {
   try {
     console.log('🔑 POST /auth/login - Iniciando login')
+    console.log('🔑 Body recibido:', { username: req.body.username, password: '***' })
     console.log('🔑 Origin:', req.headers.origin)
     console.log('🔑 Referer:', req.headers.referer)
     
     const { username, password } = req.body
 
     if (!username || !password) {
+      console.log('❌ Login fallido - Faltan credenciales')
       return res.status(400).json({ error: 'Usuario y contraseña son obligatorios' })
     }
 
+    console.log('🔍 Buscando usuario en BD:', username)
     const user = await User.findOne({ where: { username } })
+    
     if (!user) {
       console.log('❌ Login fallido - Usuario no encontrado:', username)
       return res.status(401).json({ error: 'Credenciales inválidas' })
     }
 
+    console.log('✅ Usuario encontrado, verificando contraseña...')
     const isValid = await bcrypt.compare(password, user.passwordHash)
+    
     if (!isValid) {
       console.log('❌ Login fallido - Contraseña incorrecta para:', username)
       return res.status(401).json({ error: 'Credenciales inválidas' })
     }
 
+    console.log('✅ Contraseña correcta, generando token...')
     const token = generateToken(user)
-    console.log('✅ Login exitoso - Generando token para:', username)
+    console.log('✅ Token generado exitosamente')
 
     // Cookie siempre preparada para uso cross-site (frontend en otro dominio)
+    console.log('🍪 Estableciendo cookie...')
     res.cookie('token', token, {
       httpOnly: true,
       secure: true,          // Render sirve siempre sobre HTTPS
@@ -43,17 +51,20 @@ router.post('/login', async (req, res) => {
     })
     console.log('✅ Cookie establecida correctamente')
 
-    res.json({
+    const responseData = {
       id: user.id,
       username: user.username,
       role: user.role
-    })
+    }
+    console.log('✅ Login exitoso, enviando respuesta:', responseData)
+    res.json(responseData)
   } catch (error) {
-    console.error('❌ Error en /auth/login:', error)
-    console.error('❌ Stack:', error.stack)
+    console.error('❌ Error en /auth/login:', error.message)
+    console.error('❌ Error name:', error.name)
+    console.error('❌ Error stack:', error.stack)
     res.status(500).json({ 
       error: 'Error interno en el servidor',
-      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: error.message
     })
   }
 })
