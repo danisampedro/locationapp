@@ -6,6 +6,7 @@ import axios, { API_URL } from '../config/axios.js'
 export default function Locations() {
   const navigate = useNavigate()
   const [locations, setLocations] = useState([])
+  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
@@ -27,6 +28,7 @@ export default function Locations() {
 
   const loadLocations = async () => {
     try {
+      setLoading(true)
       const response = await axios.get(`${API_URL}/locations`, { withCredentials: true })
       // Asegurar que imagenes sea siempre un array
       const locations = response.data.map(loc => ({
@@ -40,6 +42,8 @@ export default function Locations() {
       setLocations(locations)
     } catch (error) {
       console.error('Error cargando locations:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -246,7 +250,15 @@ export default function Locations() {
         </button>
       </div>
 
-      {locations.length === 0 ? (
+      {loading ? (
+        <div className="bg-white rounded-xl shadow-md p-12 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-dark-blue"></div>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Cargando locations...</h3>
+          <p className="text-gray-500">Por favor espera</p>
+        </div>
+      ) : locations.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

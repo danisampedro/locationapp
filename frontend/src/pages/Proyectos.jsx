@@ -42,6 +42,7 @@ const AddressIcon = () => (
 export default function Proyectos() {
   const navigate = useNavigate()
   const [proyectos, setProyectos] = useState([])
+  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [formData, setFormData] = useState({
     nombre: '',
@@ -86,6 +87,7 @@ export default function Proyectos() {
 
   const loadProyectos = async () => {
     try {
+      setLoading(true)
       const response = await axios.get(`${API_URL}/proyectos`, { withCredentials: true })
       const sorted = [...response.data].sort((a, b) => {
         const dateA = new Date(a.projectDate || a.createdAt)
@@ -95,6 +97,8 @@ export default function Proyectos() {
       setProyectos(sorted)
     } catch (error) {
       console.error('Error cargando proyectos:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -188,7 +192,15 @@ export default function Proyectos() {
         </button>
       </div>
 
-      {proyectos.length === 0 ? (
+      {loading ? (
+        <div className="bg-white rounded-xl shadow-md p-12 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-dark-blue"></div>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Cargando proyectos...</h3>
+          <p className="text-gray-500">Por favor espera</p>
+        </div>
+      ) : proyectos.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
             <FolderIcon />
