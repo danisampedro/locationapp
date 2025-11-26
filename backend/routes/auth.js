@@ -34,16 +34,14 @@ router.post('/login', async (req, res) => {
     console.log('✅ Login exitoso - Generando token para:', username)
 
     // Cookie siempre preparada para uso cross-site (frontend en otro dominio)
-    const cookieOptions = {
+    res.cookie('token', token, {
       httpOnly: true,
       secure: true,          // Render sirve siempre sobre HTTPS
       sameSite: 'none',      // Necesario para que viaje entre dominios distintos
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      domain: undefined      // No especificar domain para que funcione cross-site
-    }
-    
-    res.cookie('token', token, cookieOptions)
-    console.log('✅ Cookie establecida con opciones:', cookieOptions)
+      maxAge: 7 * 24 * 60 * 60 * 1000
+      // No especificar domain para que funcione cross-site
+    })
+    console.log('✅ Cookie establecida correctamente')
 
     res.json({
       id: user.id,
@@ -52,7 +50,11 @@ router.post('/login', async (req, res) => {
     })
   } catch (error) {
     console.error('❌ Error en /auth/login:', error)
-    res.status(500).json({ error: 'Error interno en el servidor' })
+    console.error('❌ Stack:', error.stack)
+    res.status(500).json({ 
+      error: 'Error interno en el servidor',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
   }
 })
 
