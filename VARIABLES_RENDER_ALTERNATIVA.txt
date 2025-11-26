@@ -1,0 +1,12 @@
+# Si DATABASE_URL no funciona, usa estas variables individuales:
+
+DB_NAME=u729095573_locationapp
+DB_USER=u729095573_locationapp
+DB_PASSWORD=Dsp_76499486
+DB_HOST=srv2071.hstgr.io
+DB_PORT=3306
+
+CLOUDINARY_CLOUD_NAME=de5zyspyj
+CLOUDINARY_API_KEY=374527478257815
+CLOUDINARY_API_SECRET=0wKSmyRf_yGc7NwIXzpfE9mnSe0
+
