@@ -54,7 +54,9 @@ const seedAdminUser = async () => {
   const adminUsername = process.env.INIT_ADMIN_USERNAME || 'danisampedro'
   const adminPassword = process.env.INIT_ADMIN_PASSWORD || '76499486'
 
-  console.log(`🔧 Verificando/creando usuario admin: ${adminUsername}`)
+  console.log(`🔧 Verificando/creando usuario admin:`)
+  console.log(`   Username: ${adminUsername}`)
+  console.log(`   Password: ${adminPassword} (${process.env.INIT_ADMIN_PASSWORD ? 'desde ENV' : 'por defecto'})`)
   
   const existing = await User.findOne({ where: { username: adminUsername } })
   
@@ -68,7 +70,7 @@ const seedAdminUser = async () => {
       passwordHash,
       role: 'admin' // Asegurar que es admin
     })
-    console.log(`✅ Usuario admin actualizado: ${adminUsername}`)
+    console.log(`✅ Usuario admin actualizado: ${adminUsername} con contraseña: ${adminPassword}`)
   } else {
     // Si no existe, crearlo
     await User.create({
@@ -76,7 +78,7 @@ const seedAdminUser = async () => {
       passwordHash,
       role: 'admin'
     })
-    console.log(`✅ Usuario admin inicial creado: ${adminUsername}`)
+    console.log(`✅ Usuario admin inicial creado: ${adminUsername} con contraseña: ${adminPassword}`)
   }
 }
 
