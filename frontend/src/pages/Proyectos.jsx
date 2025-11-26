@@ -49,6 +49,9 @@ export default function Proyectos() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    e.stopPropagation()
+    console.log('handleSubmit llamado', formData)
+    
     try {
       const data = new FormData()
       data.append('nombre', formData.nombre)
@@ -60,16 +63,20 @@ export default function Proyectos() {
       data.append('crew', JSON.stringify(formData.crew))
       data.append('vendors', JSON.stringify(formData.vendors))
 
-      await axios.post(`${API_URL}/proyectos`, data, {
+      console.log('Enviando petición a:', `${API_URL}/proyectos`)
+      const response = await axios.post(`${API_URL}/proyectos`, data, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       
+      console.log('Proyecto creado:', response.data)
       setShowModal(false)
       setFormData({ nombre: '', descripcion: '', logo: null, locations: [], crew: [], vendors: [] })
       loadProyectos()
     } catch (error) {
       console.error('Error creando proyecto:', error)
-      alert('Error al crear el proyecto')
+      console.error('Error response:', error.response)
+      const errorMessage = error.response?.data?.error || error.message || 'Error al crear el proyecto'
+      alert(`Error: ${errorMessage}`)
     }
   }
 
@@ -190,6 +197,11 @@ export default function Proyectos() {
               <div className="flex gap-4">
                 <button
                   type="submit"
+                  onClick={(e) => {
+                    console.log('Botón Crear clickeado')
+                    e.preventDefault()
+                    handleSubmit(e)
+                  }}
                   className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
                 >
                   Crear

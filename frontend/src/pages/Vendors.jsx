@@ -30,14 +30,21 @@ export default function Vendors() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    e.stopPropagation()
+    console.log('handleSubmit llamado', formData)
+    
     try {
-      await axios.post(`${API_URL}/vendors`, formData)
+      console.log('Enviando petición a:', `${API_URL}/vendors`)
+      const response = await axios.post(`${API_URL}/vendors`, formData)
+      console.log('Vendor creado:', response.data)
       setShowModal(false)
       setFormData({ nombre: '', contacto: '', email: '', telefono: '', tipo: '', notas: '' })
       loadVendors()
     } catch (error) {
       console.error('Error creando vendor:', error)
-      alert('Error al crear el vendor')
+      console.error('Error response:', error.response)
+      const errorMessage = error.response?.data?.error || error.message || 'Error al crear el vendor'
+      alert(`Error: ${errorMessage}`)
     }
   }
 
@@ -140,6 +147,11 @@ export default function Vendors() {
               <div className="flex gap-4">
                 <button
                   type="submit"
+                  onClick={(e) => {
+                    console.log('Botón Crear clickeado')
+                    e.preventDefault()
+                    handleSubmit(e)
+                  }}
                   className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
                 >
                   Crear

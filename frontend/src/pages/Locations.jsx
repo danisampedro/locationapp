@@ -55,6 +55,9 @@ export default function Locations() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    e.stopPropagation()
+    console.log('handleSubmit llamado', formData)
+    
     try {
       const data = new FormData()
       data.append('nombre', formData.nombre)
@@ -64,6 +67,7 @@ export default function Locations() {
         data.append('imagenes', img)
       })
 
+      console.log('Enviando petición a:', `${API_URL}/locations`)
       const response = await axios.post(`${API_URL}/locations`, data, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
@@ -191,6 +195,11 @@ export default function Locations() {
               <div className="flex gap-4">
                 <button
                   type="submit"
+                  onClick={(e) => {
+                    console.log('Botón Crear clickeado')
+                    e.preventDefault()
+                    handleSubmit(e)
+                  }}
                   className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
                 >
                   Crear
