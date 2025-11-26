@@ -82,7 +82,7 @@ export default function Proyectos() {
 
   const loadProyectos = async () => {
     try {
-      const response = await axios.get(`${API_URL}/proyectos`)
+      const response = await axios.get(`${API_URL}/proyectos`, { withCredentials: true })
       const sorted = [...response.data].sort((a, b) => {
         const dateA = new Date(a.projectDate || a.createdAt)
         const dateB = new Date(b.projectDate || b.createdAt)
@@ -97,9 +97,9 @@ export default function Proyectos() {
   const loadAvailableData = async () => {
     try {
       const [locationsRes, crewRes, vendorsRes] = await Promise.all([
-        axios.get(`${API_URL}/locations`),
-        axios.get(`${API_URL}/crew`),
-        axios.get(`${API_URL}/vendors`)
+        axios.get(`${API_URL}/locations`, { withCredentials: true }),
+        axios.get(`${API_URL}/crew`, { withCredentials: true }),
+        axios.get(`${API_URL}/vendors`, { withCredentials: true })
       ])
       setAvailableLocations(locationsRes.data)
       setAvailableCrew(crewRes.data)
@@ -135,10 +135,15 @@ export default function Proyectos() {
 
       console.log('Enviando petición a:', `${API_URL}/proyectos`)
       
-      const response = await axios.post(`${API_URL}/proyectos`, data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 60000 // 60 segundos
-      })
+      const response = await axios.post(
+        `${API_URL}/proyectos`,
+        data,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 60000, // 60 segundos
+          withCredentials: true
+        }
+      )
       
       console.log('Respuesta recibida:', response)
       console.log('Status:', response.status)

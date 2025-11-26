@@ -16,7 +16,7 @@ export default function LocationDetail() {
 
   const loadLocation = async () => {
     try {
-      const response = await axios.get(`${API_URL}/locations/${id}`)
+      const response = await axios.get(`${API_URL}/locations/${id}`, { withCredentials: true })
       const loc = {
         ...response.data,
         imagenes: Array.isArray(response.data.imagenes) 

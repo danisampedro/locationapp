@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import axios from 'axios'
+import axios from '../config/axios.js'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://locationapp-backend.onrender.com/api'
 

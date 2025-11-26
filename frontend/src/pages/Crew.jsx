@@ -20,7 +20,7 @@ export default function Crew() {
 
   const loadCrew = async () => {
     try {
-      const response = await axios.get(`${API_URL}/crew`)
+      const response = await axios.get(`${API_URL}/crew`, { withCredentials: true })
       setCrew(response.data)
     } catch (error) {
       console.error('Error cargando crew:', error)
@@ -34,9 +34,14 @@ export default function Crew() {
     
     try {
       console.log('Enviando petición a:', `${API_URL}/crew`)
-      const response = await axios.post(`${API_URL}/crew`, formData, {
-        timeout: 30000
-      })
+      const response = await axios.post(
+        `${API_URL}/crew`,
+        formData,
+        {
+          timeout: 30000,
+          withCredentials: true
+        }
+      )
       console.log('Respuesta recibida:', response)
       console.log('Status:', response.status)
       console.log('Data:', response.data)

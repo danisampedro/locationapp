@@ -23,7 +23,7 @@ export default function Locations() {
 
   const loadLocations = async () => {
     try {
-      const response = await axios.get(`${API_URL}/locations`)
+      const response = await axios.get(`${API_URL}/locations`, { withCredentials: true })
       // Asegurar que imagenes sea siempre un array
       const locations = response.data.map(loc => ({
         ...loc,
@@ -96,10 +96,15 @@ export default function Locations() {
         imagenesCount: formData.imagenes.length
       })
       
-      const response = await axios.post(`${API_URL}/locations`, data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 120000 // 120 segundos (2 minutos) para dar tiempo al backend de despertar y procesar
-      })
+      const response = await axios.post(
+        `${API_URL}/locations`,
+        data,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 120000, // 120 segundos (2 minutos) para dar tiempo al backend de despertar y procesar
+          withCredentials: true
+        }
+      )
       
       console.log('Respuesta recibida:', response)
       console.log('Status:', response.status)

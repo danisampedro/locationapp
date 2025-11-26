@@ -37,7 +37,7 @@ export default function ProyectoDetail() {
 
   const loadProyecto = async () => {
     try {
-      const response = await axios.get(`${API_URL}/proyectos/${id}`)
+      const response = await axios.get(`${API_URL}/proyectos/${id}`, { withCredentials: true })
       setProyecto(response.data)
       // Cargar datos en el formulario para edición
       setFormData({
@@ -64,9 +64,9 @@ export default function ProyectoDetail() {
   const loadAvailableData = async () => {
     try {
       const [locationsRes, crewRes, vendorsRes] = await Promise.all([
-        axios.get(`${API_URL}/locations`),
-        axios.get(`${API_URL}/crew`),
-        axios.get(`${API_URL}/vendors`)
+        axios.get(`${API_URL}/locations`, { withCredentials: true }),
+        axios.get(`${API_URL}/crew`, { withCredentials: true }),
+        axios.get(`${API_URL}/vendors`, { withCredentials: true })
       ])
       setAvailableLocations(locationsRes.data)
       setAvailableCrew(crewRes.data)
@@ -117,10 +117,15 @@ export default function ProyectoDetail() {
       data.append('crew', JSON.stringify(formData.crew))
       data.append('vendors', JSON.stringify(formData.vendors))
 
-      const response = await axios.put(`${API_URL}/proyectos/${id}`, data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 60000
-      })
+      const response = await axios.put(
+        `${API_URL}/proyectos/${id}`,
+        data,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 60000,
+          withCredentials: true
+        }
+      )
 
       if (response.status === 200) {
         setShowEditModal(false)
@@ -141,7 +146,7 @@ export default function ProyectoDetail() {
     }
 
     try {
-      await axios.delete(`${API_URL}/proyectos/${id}`)
+      await axios.delete(`${API_URL}/proyectos/${id}`, { withCredentials: true })
       alert('Proyecto eliminado exitosamente')
       navigate('/proyectos')
     } catch (error) {

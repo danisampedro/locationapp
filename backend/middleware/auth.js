@@ -13,18 +13,31 @@ export const generateToken = (user) => {
 
 export const authMiddleware = async (req, res, next) => {
   try {
+    // Logging detallado para diagnóstico
+    console.log('🔐 authMiddleware - Ruta:', req.path)
+    console.log('🔐 authMiddleware - Cookies recibidas:', req.cookies)
+    console.log('🔐 authMiddleware - Headers authorization:', req.headers.authorization)
+    console.log('🔐 authMiddleware - Origin:', req.headers.origin)
+    console.log('🔐 authMiddleware - Referer:', req.headers.referer)
+
     const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '')
 
     if (!token) {
+      console.log('❌ authMiddleware - No se encontró token')
       return res.status(401).json({ error: 'No autorizado' })
     }
+
+    console.log('✅ authMiddleware - Token encontrado:', token.substring(0, 20) + '...')
 
     const decoded = jwt.verify(token, JWT_SECRET)
     const user = await User.findByPk(decoded.id)
 
     if (!user) {
+      console.log('❌ authMiddleware - Usuario no encontrado en BD')
       return res.status(401).json({ error: 'Usuario no encontrado' })
     }
+
+    console.log('✅ authMiddleware - Usuario autenticado:', user.username)
 
     req.user = {
       id: user.id,
@@ -34,7 +47,13 @@ export const authMiddleware = async (req, res, next) => {
 
     next()
   } catch (error) {
-    console.error('Error en authMiddleware:', error)
+    console.error('❌ Error en authMiddleware:', error.message)
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expirado' })
+    }
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Token inválido' })
+    }
     return res.status(401).json({ error: 'Token inválido o expirado' })
   }
 }

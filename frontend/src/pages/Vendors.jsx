@@ -21,7 +21,7 @@ export default function Vendors() {
 
   const loadVendors = async () => {
     try {
-      const response = await axios.get(`${API_URL}/vendors`)
+      const response = await axios.get(`${API_URL}/vendors`, { withCredentials: true })
       setVendors(response.data)
     } catch (error) {
       console.error('Error cargando vendors:', error)
@@ -35,9 +35,14 @@ export default function Vendors() {
     
     try {
       console.log('Enviando petición a:', `${API_URL}/vendors`)
-      const response = await axios.post(`${API_URL}/vendors`, formData, {
-        timeout: 30000
-      })
+      const response = await axios.post(
+        `${API_URL}/vendors`,
+        formData,
+        {
+          timeout: 30000,
+          withCredentials: true
+        }
+      )
       console.log('Respuesta recibida:', response)
       console.log('Status:', response.status)
       console.log('Data:', response.data)

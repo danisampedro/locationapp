@@ -17,7 +17,7 @@ export default function Home() {
 
   const loadLocations = async () => {
     try {
-      const response = await axios.get(`${API_URL}/locations`)
+      const response = await axios.get(`${API_URL}/locations`, { withCredentials: true })
       const locations = response.data.map(loc => ({
         ...loc,
         imagenes: Array.isArray(loc.imagenes) 
