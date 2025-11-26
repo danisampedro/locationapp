@@ -49,26 +49,35 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' })
 })
 
-// Crear usuario admin inicial si no existe
+// Crear o actualizar usuario admin inicial
 const seedAdminUser = async () => {
   const adminUsername = process.env.INIT_ADMIN_USERNAME || 'danisampedro'
   const adminPassword = process.env.INIT_ADMIN_PASSWORD || '76499486'
 
+  console.log(`🔧 Verificando/creando usuario admin: ${adminUsername}`)
+  
   const existing = await User.findOne({ where: { username: adminUsername } })
-  if (existing) {
-    return
-  }
-
+  
   const bcrypt = await import('bcrypt')
   const passwordHash = await bcrypt.default.hash(adminPassword, 10)
 
-  await User.create({
-    username: adminUsername,
-    passwordHash,
-    role: 'admin'
-  })
-
-  console.log(`✅ Usuario admin inicial creado: ${adminUsername}`)
+  if (existing) {
+    // Si existe, actualizar la contraseña para asegurar que es la correcta
+    console.log(`🔄 Usuario ${adminUsername} ya existe, actualizando contraseña...`)
+    await existing.update({
+      passwordHash,
+      role: 'admin' // Asegurar que es admin
+    })
+    console.log(`✅ Usuario admin actualizado: ${adminUsername}`)
+  } else {
+    // Si no existe, crearlo
+    await User.create({
+      username: adminUsername,
+      passwordHash,
+      role: 'admin'
+    })
+    console.log(`✅ Usuario admin inicial creado: ${adminUsername}`)
+  }
 }
 
 // Connect to MySQL
