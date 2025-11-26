@@ -64,16 +64,19 @@ export default function Locations() {
         data.append('imagenes', img)
       })
 
-      await axios.post(`${API_URL}/locations`, data, {
+      const response = await axios.post(`${API_URL}/locations`, data, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       
+      console.log('Location creada:', response.data)
       setShowModal(false)
       setFormData({ nombre: '', direccion: '', descripcion: '', imagenes: [] })
       loadLocations()
     } catch (error) {
       console.error('Error creando location:', error)
-      alert('Error al crear la location')
+      console.error('Error response:', error.response)
+      const errorMessage = error.response?.data?.error || error.message || 'Error al crear la location'
+      alert(`Error: ${errorMessage}`)
     }
   }
 

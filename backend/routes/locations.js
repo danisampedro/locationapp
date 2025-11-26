@@ -33,6 +33,7 @@ router.get('/', async (req, res) => {
     const locations = await Location.findAll()
     res.json(locations)
   } catch (error) {
+    console.error('Error getting locations:', error)
     res.status(500).json({ error: error.message })
   }
 })
@@ -46,6 +47,7 @@ router.get('/:id', async (req, res) => {
     }
     res.json(location)
   } catch (error) {
+    console.error('Error getting location:', error)
     res.status(500).json({ error: error.message })
   }
 })
@@ -53,9 +55,18 @@ router.get('/:id', async (req, res) => {
 // POST create location
 router.post('/', upload.array('imagenes', 2), async (req, res) => {
   try {
+    console.log('Creating location...')
+    console.log('Body:', req.body)
+    console.log('Files:', req.files)
+    
     const { nombre, direccion, descripcion } = req.body
     
+    if (!nombre || !direccion) {
+      return res.status(400).json({ error: 'Nombre y dirección son requeridos' })
+    }
+    
     const imagenes = req.files ? req.files.map(file => file.path) : []
+    console.log('Imágenes procesadas:', imagenes)
     
     const location = await Location.create({
       nombre,
@@ -64,9 +75,14 @@ router.post('/', upload.array('imagenes', 2), async (req, res) => {
       imagenes
     })
     
+    console.log('Location creada:', location)
     res.status(201).json(location)
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    console.error('Error creando location:', error)
+    res.status(500).json({ 
+      error: error.message,
+      details: error.stack 
+    })
   }
 })
 
@@ -93,6 +109,7 @@ router.put('/:id', upload.array('imagenes', 2), async (req, res) => {
 
     res.json(location)
   } catch (error) {
+    console.error('Error updating location:', error)
     res.status(500).json({ error: error.message })
   }
 })
@@ -107,6 +124,7 @@ router.delete('/:id', async (req, res) => {
     await location.destroy()
     res.json({ message: 'Location eliminada' })
   } catch (error) {
+    console.error('Error deleting location:', error)
     res.status(500).json({ error: error.message })
   }
 })
