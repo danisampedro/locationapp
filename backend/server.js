@@ -54,6 +54,42 @@ app.get('/api/health', (req, res) => {
   })
 })
 
+// Migración: Añadir columnas nuevas a la tabla locations
+const migrateLocationTable = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface()
+    const tableDescription = await queryInterface.describeTable('locations')
+    
+    const newColumns = {
+      googleMapsLink: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+      contact: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+      phoneNumber: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+      mail: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' }
+    }
+
+    for (const [columnName, columnDefinition] of Object.entries(newColumns)) {
+      if (!tableDescription[columnName]) {
+        console.log(`🔄 Añadiendo columna ${columnName} a la tabla locations...`)
+        await queryInterface.addColumn('locations', columnName, {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        })
+        console.log(`✅ Columna ${columnName} añadida exitosamente`)
+      } else {
+        console.log(`ℹ️  Columna ${columnName} ya existe`)
+      }
+    }
+  } catch (error) {
+    // Si la tabla no existe, se creará con sync
+    if (error.name === 'SequelizeDatabaseError' && error.message.includes("doesn't exist")) {
+      console.log('ℹ️  Tabla locations no existe aún, se creará con sync')
+    } else {
+      console.error('⚠️  Error en migración de locations:', error.message)
+    }
+  }
+}
+
 // Crear o actualizar usuario admin inicial
 const seedAdminUser = async () => {
   const adminUsername = process.env.INIT_ADMIN_USERNAME || 'danisampedro'
@@ -95,6 +131,10 @@ const connectDB = async () => {
     
     // Sync models (crea las tablas si no existen)
     await sequelize.sync({ alter: false })
+    
+    // Ejecutar migraciones para añadir columnas nuevas
+    await migrateLocationTable()
+    
     await seedAdminUser()
     console.log('✅ Database models synchronized')
     
