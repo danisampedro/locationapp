@@ -46,7 +46,12 @@ app.use('/api/users', userRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running' })
+  res.json({ 
+    status: 'OK', 
+    message: 'Server is running',
+    version: 'v2.0-token-in-body',
+    timestamp: new Date().toISOString()
+  })
 })
 
 // Crear o actualizar usuario admin inicial
