@@ -1,15 +1,45 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useDropzone } from 'react-dropzone'
 import axios from 'axios'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 
+// Iconos monocromos para métricas del proyecto
+const LocationIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.828 0L6.343 16.657a8 8 0 1111.314 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+)
+
+const CrewIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20v-2a4 4 0 00-3-3.87M9 20v-2a4 4 0 013-3.87M12 7a4 4 0 110-8 4 4 0 010 8z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 8a4 4 0 100-8 4 4 0 000 8zm12 0a4 4 0 100-8 4 4 0 000 8z" />
+  </svg>
+)
+
+const VendorIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9l1-5h16l1 5M4 9h16v10a2 2 0 01-2 2H6a2 2 0 01-2-2V9z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6" />
+  </svg>
+)
+
 export default function Proyectos() {
+  const navigate = useNavigate()
   const [proyectos, setProyectos] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
     logo: null,
+    company: '',
+    cif: '',
+    address: '',
+    locationManager: '',
+    locationCoordinator: '',
     locations: [],
     crew: [],
     vendors: []
@@ -17,6 +47,24 @@ export default function Proyectos() {
   const [availableLocations, setAvailableLocations] = useState([])
   const [availableCrew, setAvailableCrew] = useState([])
   const [availableVendors, setAvailableVendors] = useState([])
+
+  const onDropLogo = (acceptedFiles) => {
+    if (acceptedFiles.length > 0) {
+      setFormData({ ...formData, logo: acceptedFiles[0] })
+    }
+  }
+
+  const { getRootProps: getLogoRootProps, getInputProps: getLogoInputProps, isDragActive: isLogoDragActive } = useDropzone({
+    onDrop: onDropLogo,
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.svg']
+    },
+    maxFiles: 1
+  })
+
+  const removeLogo = () => {
+    setFormData({ ...formData, logo: null })
+  }
 
   useEffect(() => {
     loadProyectos()
@@ -56,6 +104,11 @@ export default function Proyectos() {
       const data = new FormData()
       data.append('nombre', formData.nombre)
       data.append('descripcion', formData.descripcion)
+      data.append('company', formData.company)
+      data.append('cif', formData.cif)
+      data.append('address', formData.address)
+      data.append('locationManager', formData.locationManager)
+      data.append('locationCoordinator', formData.locationCoordinator)
       if (formData.logo) {
         data.append('logo', formData.logo)
       }
@@ -77,7 +130,7 @@ export default function Proyectos() {
       if (response.status === 201 || response.status === 200) {
         console.log('Proyecto creado exitosamente:', response.data)
         setShowModal(false)
-        setFormData({ nombre: '', descripcion: '', logo: null, locations: [], crew: [], vendors: [] })
+        setFormData({ nombre: '', descripcion: '', logo: null, company: '', cif: '', address: '', locationManager: '', locationCoordinator: '', locations: [], crew: [], vendors: [] })
         await loadProyectos()
         console.log('Proyectos recargados')
       } else {
@@ -97,7 +150,7 @@ export default function Proyectos() {
         <h1 className="text-3xl font-bold text-gray-800">Proyectos</h1>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light transition-colors"
         >
           + Nuevo Proyecto
         </button>
@@ -105,20 +158,72 @@ export default function Proyectos() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {proyectos.map((proyecto) => (
-          <div key={proyecto.id} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-            {proyecto.logoUrl && (
-              <img
-                src={proyecto.logoUrl}
-                alt={proyecto.nombre}
-                className="w-20 h-20 object-cover rounded-lg mb-4"
-              />
+          <div 
+            key={proyecto.id} 
+            onClick={() => navigate(`/proyectos/${proyecto.id}`)}
+            className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-shadow border border-gray-100 cursor-pointer"
+          >
+            <div className="flex items-start gap-4 mb-4">
+              {proyecto.logoUrl && (
+                <img
+                  src={proyecto.logoUrl}
+                  alt={proyecto.nombre}
+                  className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-semibold text-gray-800 mb-2">{proyecto.nombre}</h2>
+                {proyecto.company && (
+                  <p className="text-sm text-gray-600 mb-1">
+                    <span className="font-medium">Company:</span> {proyecto.company}
+                  </p>
+                )}
+                {proyecto.cif && (
+                  <p className="text-sm text-gray-600 mb-1">
+                    <span className="font-medium">CIF:</span> {proyecto.cif}
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            {proyecto.descripcion && (
+              <p className="text-gray-600 mb-4 line-clamp-2 text-sm">{proyecto.descripcion}</p>
             )}
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">{proyecto.nombre}</h2>
-            <p className="text-gray-600 mb-4">{proyecto.descripcion}</p>
-            <div className="text-sm text-gray-500">
-              <p>Locations: {proyecto.Locations?.length || 0}</p>
-              <p>Crew: {proyecto.Crews?.length || 0}</p>
-              <p>Vendors: {proyecto.Vendors?.length || 0}</p>
+            
+            {proyecto.address && (
+              <p className="text-sm text-gray-500 mb-3">
+                <span className="font-medium">📍</span> {proyecto.address}
+              </p>
+            )}
+            
+            {(proyecto.locationManager || proyecto.locationCoordinator) && (
+              <div className="mb-4 space-y-1">
+                {proyecto.locationManager && (
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Manager:</span> {proyecto.locationManager}
+                  </p>
+                )}
+                {proyecto.locationCoordinator && (
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Coordinator:</span> {proyecto.locationCoordinator}
+                  </p>
+                )}
+              </div>
+            )}
+            
+            <div className="flex gap-4 text-sm text-gray-500 pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-1">
+                <LocationIcon />
+                <span>{proyecto.Locations?.length || 0}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <CrewIcon />
+                <span>{proyecto.Crews?.length || 0}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <VendorIcon />
+                <span>{proyecto.Vendors?.length || 0}</span>
+              </div>
             </div>
           </div>
         ))}
@@ -150,10 +255,81 @@ export default function Proyectos() {
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Logo</label>
+                {formData.logo ? (
+                  <div className="relative">
+                    <img
+                      src={URL.createObjectURL(formData.logo)}
+                      alt="Logo preview"
+                      className="w-32 h-32 object-cover rounded-lg mb-2"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeLogo}
+                      className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    {...getLogoRootProps()}
+                    className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                      isLogoDragActive ? 'border-accent-green bg-accent-green/10' : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <input {...getLogoInputProps()} />
+                    {isLogoDragActive ? (
+                      <p className="text-accent-green">Suelta el logo aquí...</p>
+                    ) : (
+                      <p className="text-gray-600">
+                        Arrastra el logo aquí o haz clic para seleccionar
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Company</label>
                 <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setFormData({ ...formData, logo: e.target.files[0] })}
+                  type="text"
+                  value={formData.company}
+                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">CIF</label>
+                <input
+                  type="text"
+                  value={formData.cif}
+                  onChange={(e) => setFormData({ ...formData, cif: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Address</label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Location Manager</label>
+                <input
+                  type="text"
+                  value={formData.locationManager}
+                  onChange={(e) => setFormData({ ...formData, locationManager: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Location Coordinator</label>
+                <input
+                  type="text"
+                  value={formData.locationCoordinator}
+                  onChange={(e) => setFormData({ ...formData, locationCoordinator: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg"
                 />
               </div>
@@ -213,7 +389,7 @@ export default function Proyectos() {
                     e.preventDefault()
                     handleSubmit(e)
                   }}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                  className="bg-dark-blue text-white px-6 py-2 rounded-lg hover:bg-dark-blue-light"
                 >
                   Crear
                 </button>

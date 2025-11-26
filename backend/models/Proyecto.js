@@ -23,6 +23,31 @@ const Proyecto = sequelize.define('Proyecto', {
     type: DataTypes.STRING,
     allowNull: true,
     defaultValue: ''
+  },
+  company: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  cif: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  address: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  locationManager: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  locationCoordinator: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
   }
 }, {
   tableName: 'proyectos',

@@ -68,11 +68,16 @@ router.post('/', upload.single('logo'), async (req, res) => {
     console.log('Creating proyecto...')
     console.log('Body:', req.body)
     console.log('File:', req.file)
-    const { nombre, descripcion, locations, crew, vendors } = req.body
+    const { nombre, descripcion, company, cif, address, locationManager, locationCoordinator, locations, crew, vendors } = req.body
     
     const proyectoData = {
       nombre,
-      descripcion: descripcion || ''
+      descripcion: descripcion || '',
+      company: company || '',
+      cif: cif || '',
+      address: address || '',
+      locationManager: locationManager || '',
+      locationCoordinator: locationCoordinator || ''
     }
 
     if (req.file) {
@@ -124,7 +129,7 @@ router.post('/', upload.single('logo'), async (req, res) => {
 // PUT update proyecto
 router.put('/:id', upload.single('logo'), async (req, res) => {
   try {
-    const { nombre, descripcion, locations, crew, vendors } = req.body
+    const { nombre, descripcion, company, cif, address, locationManager, locationCoordinator, locations, crew, vendors } = req.body
     
     const proyecto = await Proyecto.findByPk(req.params.id)
     if (!proyecto) {
@@ -134,6 +139,11 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
     const updateData = {}
     if (nombre) updateData.nombre = nombre
     if (descripcion !== undefined) updateData.descripcion = descripcion
+    if (company !== undefined) updateData.company = company
+    if (cif !== undefined) updateData.cif = cif
+    if (address !== undefined) updateData.address = address
+    if (locationManager !== undefined) updateData.locationManager = locationManager
+    if (locationCoordinator !== undefined) updateData.locationCoordinator = locationCoordinator
     if (req.file) updateData.logoUrl = req.file.path
 
     await proyecto.update(updateData)
