@@ -20,6 +20,26 @@ const Location = sequelize.define('Location', {
     allowNull: true,
     defaultValue: ''
   },
+  googleMapsLink: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  contact: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  phoneNumber: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  mail: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
   imagenes: {
     type: DataTypes.JSON,
     allowNull: true,

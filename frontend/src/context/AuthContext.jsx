@@ -9,31 +9,37 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const fetchMe = async () => {
-      const token = localStorage.getItem('authToken')
-      console.log('🔍 AuthContext - Verificando sesión, token en localStorage:', token ? 'Sí' : 'No')
-      
-      if (!token) {
-        console.log('⚠️ AuthContext - No hay token, saltando verificación')
-        setUser(null)
-        setLoading(false)
-        return
-      }
-
       try {
+        const token = localStorage.getItem('authToken')
+        console.log('🔍 AuthContext - Verificando sesión, token en localStorage:', token ? 'Sí' : 'No')
+        
+        if (!token) {
+          console.log('⚠️ AuthContext - No hay token, saltando verificación')
+          setUser(null)
+          setLoading(false)
+          return
+        }
+
         console.log('✅ AuthContext - Token encontrado, verificando con backend...')
-        const res = await axios.get(`${API_URL}/auth/me`, { withCredentials: true })
+        const res = await axios.get(`${API_URL}/auth/me`, { 
+          withCredentials: true,
+          timeout: 10000 // 10 segundos de timeout
+        })
         console.log('✅ AuthContext - Sesión válida:', res.data)
         setUser(res.data)
       } catch (error) {
-        console.log('❌ AuthContext - Sesión inválida o expirada')
+        console.log('❌ AuthContext - Sesión inválida o expirada:', error.response?.status || error.message)
         setUser(null)
         // Limpiar token si no es válido
         localStorage.removeItem('authToken')
       } finally {
+        // Asegurar que siempre se establezca loading a false, incluso si hay un error
+        console.log('✅ AuthContext - Finalizando verificación de sesión')
         setLoading(false)
       }
     }
 
+    // Ejecutar inmediatamente
     fetchMe()
   }, [])
 

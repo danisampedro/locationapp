@@ -102,6 +102,66 @@ export default function LocationDetail() {
             <p className="text-gray-700 leading-relaxed">{location.descripcion}</p>
           </div>
         )}
+        {(location.googleMapsLink || location.contact || location.phoneNumber || location.mail) && (
+          <div className="border-t pt-6 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Información de contacto</h3>
+            {location.googleMapsLink && (
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Google Maps</p>
+                  <a
+                    href={location.googleMapsLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-dark-blue hover:text-dark-blue-light underline"
+                  >
+                    Ver en Google Maps
+                  </a>
+                </div>
+              </div>
+            )}
+            {location.contact && (
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Contacto</p>
+                  <p className="text-gray-800">{location.contact}</p>
+                </div>
+              </div>
+            )}
+            {location.phoneNumber && (
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Teléfono</p>
+                  <a href={`tel:${location.phoneNumber}`} className="text-gray-800 hover:text-dark-blue">
+                    {location.phoneNumber}
+                  </a>
+                </div>
+              </div>
+            )}
+            {location.mail && (
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Email</p>
+                  <a href={`mailto:${location.mail}`} className="text-gray-800 hover:text-dark-blue">
+                    {location.mail}
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -64,7 +64,7 @@ router.post('/', upload.array('imagenes', 2), async (req, res) => {
       api_secret: process.env.CLOUDINARY_API_SECRET ? 'Set' : 'Missing'
     })
     
-    const { nombre, direccion, descripcion } = req.body
+    const { nombre, direccion, descripcion, googleMapsLink, contact, phoneNumber, mail } = req.body
     
     if (!nombre || !direccion) {
       return res.status(400).json({ error: 'Nombre y dirección son requeridos' })
@@ -77,6 +77,10 @@ router.post('/', upload.array('imagenes', 2), async (req, res) => {
       nombre,
       direccion,
       descripcion: descripcion || '',
+      googleMapsLink: googleMapsLink || '',
+      contact: contact || '',
+      phoneNumber: phoneNumber || '',
+      mail: mail || '',
       imagenes
     })
     
@@ -95,7 +99,7 @@ router.post('/', upload.array('imagenes', 2), async (req, res) => {
 // PUT update location
 router.put('/:id', upload.array('imagenes', 2), async (req, res) => {
   try {
-    const { nombre, direccion, descripcion } = req.body
+    const { nombre, direccion, descripcion, googleMapsLink, contact, phoneNumber, mail } = req.body
     
     const location = await Location.findByPk(req.params.id)
     if (!location) {
@@ -103,9 +107,13 @@ router.put('/:id', upload.array('imagenes', 2), async (req, res) => {
     }
     
     const updateData = {}
-    if (nombre) updateData.nombre = nombre
-    if (direccion) updateData.direccion = direccion
+    if (nombre !== undefined) updateData.nombre = nombre
+    if (direccion !== undefined) updateData.direccion = direccion
     if (descripcion !== undefined) updateData.descripcion = descripcion
+    if (googleMapsLink !== undefined) updateData.googleMapsLink = googleMapsLink
+    if (contact !== undefined) updateData.contact = contact
+    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber
+    if (mail !== undefined) updateData.mail = mail
     
     if (req.files && req.files.length > 0) {
       updateData.imagenes = req.files.map(file => file.path)
