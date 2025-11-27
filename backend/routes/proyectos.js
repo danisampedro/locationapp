@@ -271,6 +271,14 @@ router.get('/:id', async (req, res) => {
           const key = `${proyecto.id}_${loc.id}`
           const proyectoLocationData = proyectoLocationsMap[key] || null
           
+          // Debug: verificar que los datos se cargan correctamente
+          if (proyectoLocationData) {
+            console.log(`✅ Datos encontrados para location ${loc.id}:`, proyectoLocationData)
+          } else {
+            console.log(`⚠️  No hay datos para location ${loc.id}, key: ${key}`)
+            console.log(`   Mapa disponible:`, Object.keys(proyectoLocationsMap))
+          }
+          
           return {
             ...loc,
             ProyectoLocation: proyectoLocationData || {

@@ -48,12 +48,16 @@ export default function ProyectoDetail() {
         locationManager: response.data.locationManager || '',
         locationCoordinator: response.data.locationCoordinator || '',
         projectDate: response.data.projectDate ? response.data.projectDate.slice(0, 10) : '',
-        locations: response.data.Locations?.map(l => ({
-          id: l.id.toString(),
-          setName: l.ProyectoLocation?.setName || '',
-          basecampLink: l.ProyectoLocation?.basecampLink || '',
-          distanceLocBase: l.ProyectoLocation?.distanceLocBase || ''
-        })) || [],
+        locations: response.data.Locations?.map(l => {
+          // Debug: verificar que los datos se reciben correctamente
+          console.log('📍 Location cargada:', l.id, 'ProyectoLocation:', l.ProyectoLocation)
+          return {
+            id: l.id.toString(),
+            setName: l.ProyectoLocation?.setName || '',
+            basecampLink: l.ProyectoLocation?.basecampLink || '',
+            distanceLocBase: l.ProyectoLocation?.distanceLocBase || ''
+          }
+        }) || [],
         crew: response.data.Crews?.map(c => c.id.toString()) || [],
         vendors: response.data.Vendors?.map(v => v.id.toString()) || []
       })
@@ -557,8 +561,14 @@ export default function ProyectoDetail() {
                     const selectedIds = Array.from(e.target.selectedOptions, option => option.value)
                     const currentLocations = formData.locations
                     const newLocations = selectedIds.map(id => {
-                      const existing = currentLocations.find(l => l.id === id)
-                      return existing || { id, setName: '', basecampLink: '', distanceLocBase: '' }
+                      // Asegurar que ambos sean strings para la comparación
+                      const existing = currentLocations.find(l => l.id.toString() === id.toString())
+                      if (existing) {
+                        // Preservar los datos existentes
+                        return existing
+                      }
+                      // Nueva localización sin datos
+                      return { id: id.toString(), setName: '', basecampLink: '', distanceLocBase: '' }
                     })
                     setFormData({
                       ...formData,
