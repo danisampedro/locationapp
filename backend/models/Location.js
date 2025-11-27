@@ -55,6 +55,11 @@ const Location = sequelize.define('Location', {
       }
       return value || []
     }
+  },
+  tipo: {
+    type: DataTypes.ENUM('private', 'public'),
+    allowNull: false,
+    defaultValue: 'private'
   }
 }, {
   tableName: 'locations',

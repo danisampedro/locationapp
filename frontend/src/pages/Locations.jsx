@@ -6,7 +6,7 @@ import axios, { API_URL } from '../config/axios.js'
 export default function Locations() {
   const navigate = useNavigate()
   const [locations, setLocations] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [filterType, setFilterType] = useState('all') // 'all', 'private', 'public'
   const [showModal, setShowModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
@@ -17,7 +17,8 @@ export default function Locations() {
     contact: '',
     phoneNumber: '',
     mail: '',
-    imagenes: []
+    imagenes: [],
+    tipo: 'private'
   })
   const [editingLocation, setEditingLocation] = useState(null)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -28,7 +29,6 @@ export default function Locations() {
 
   const loadLocations = async () => {
     try {
-      setLoading(true)
       const response = await axios.get(`${API_URL}/locations`, { withCredentials: true })
       // Asegurar que imagenes sea siempre un array
       const locations = response.data.map(loc => ({
@@ -42,8 +42,6 @@ export default function Locations() {
       setLocations(locations)
     } catch (error) {
       console.error('Error cargando locations:', error)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -89,7 +87,8 @@ export default function Locations() {
       contact: location.contact || '',
       phoneNumber: location.phoneNumber || '',
       mail: location.mail || '',
-      imagenes: []
+      imagenes: [],
+      tipo: location.tipo || 'private'
     })
     setShowEditModal(true)
   }
@@ -108,6 +107,7 @@ export default function Locations() {
       data.append('contact', formData.contact)
       data.append('phoneNumber', formData.phoneNumber)
       data.append('mail', formData.mail)
+      data.append('tipo', formData.tipo)
       formData.imagenes.forEach((img) => {
         data.append('imagenes', img)
       })
@@ -125,7 +125,7 @@ export default function Locations() {
       if (response.status === 200) {
         setShowEditModal(false)
         setEditingLocation(null)
-        setFormData({ nombre: '', direccion: '', descripcion: '', googleMapsLink: '', contact: '', phoneNumber: '', mail: '', imagenes: [] })
+        setFormData({ nombre: '', direccion: '', descripcion: '', googleMapsLink: '', contact: '', phoneNumber: '', mail: '', imagenes: [], tipo: 'private' })
         await loadLocations()
       }
     } catch (error) {
@@ -173,6 +173,7 @@ export default function Locations() {
       data.append('contact', formData.contact)
       data.append('phoneNumber', formData.phoneNumber)
       data.append('mail', formData.mail)
+      data.append('tipo', formData.tipo)
       formData.imagenes.forEach((img) => {
         data.append('imagenes', img)
       })
@@ -202,7 +203,7 @@ export default function Locations() {
       if (response.status === 201 || response.status === 200) {
         console.log('Location creada exitosamente:', response.data)
         setShowModal(false)
-        setFormData({ nombre: '', direccion: '', descripcion: '', googleMapsLink: '', contact: '', phoneNumber: '', mail: '', imagenes: [] })
+        setFormData({ nombre: '', direccion: '', descripcion: '', googleMapsLink: '', contact: '', phoneNumber: '', mail: '', imagenes: [], tipo: 'private' })
         await loadLocations()
         console.log('Locations recargadas')
       } else {
@@ -236,29 +237,32 @@ export default function Locations() {
           <h1 className="text-3xl font-bold text-gray-800">Locations</h1>
           <p className="text-gray-500 mt-1 text-sm">Gestiona todas tus localizaciones de producción</p>
         </div>
-        <button
-          onClick={() => {
-            setShowModal(true)
-            setFormData({ nombre: '', direccion: '', descripcion: '', googleMapsLink: '', contact: '', phoneNumber: '', mail: '', imagenes: [] })
-          }}
-          className="bg-dark-blue text-white px-5 py-2.5 rounded-lg hover:bg-dark-blue-light transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Nueva Location
-        </button>
+        <div className="flex items-center gap-4">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue bg-white text-gray-700"
+          >
+            <option value="all">Todas las Locations</option>
+            <option value="private">Private Locations</option>
+            <option value="public">Public Locations</option>
+          </select>
+          <button
+            onClick={() => {
+              setShowModal(true)
+              setFormData({ nombre: '', direccion: '', descripcion: '', googleMapsLink: '', contact: '', phoneNumber: '', mail: '', imagenes: [], tipo: 'private' })
+            }}
+            className="bg-dark-blue text-white px-5 py-2.5 rounded-lg hover:bg-dark-blue-light transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Nueva Location
+          </button>
+        </div>
       </div>
 
-      {loading ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-dark-blue"></div>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Cargando locations...</h3>
-          <p className="text-gray-500">Por favor espera</p>
-        </div>
-      ) : locations.length === 0 ? (
+      {locations.length === 0 ? (
         <div className="bg-white rounded-xl shadow-md p-12 text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -277,7 +281,7 @@ export default function Locations() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {locations.map((location) => {
+          {locations.filter(location => filterType === 'all' || location.tipo === filterType).map((location) => {
             const imagenes = Array.isArray(location.imagenes) 
               ? location.imagenes 
               : typeof location.imagenes === 'string' 
@@ -303,12 +307,23 @@ export default function Locations() {
                 )}
                 <div className="p-5 space-y-2">
                   <div className="flex items-start justify-between gap-2">
-                    <h2 
-                      className="text-lg font-semibold text-gray-900 truncate flex-1 cursor-pointer"
-                      onClick={() => navigate(`/locations/${location.id}`)}
-                    >
-                      {location.nombre}
-                    </h2>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h2 
+                          className="text-lg font-semibold text-gray-900 truncate cursor-pointer"
+                          onClick={() => navigate(`/locations/${location.id}`)}
+                        >
+                          {location.nombre}
+                        </h2>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          location.tipo === 'public' 
+                            ? 'bg-blue-100 text-blue-700' 
+                            : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {location.tipo === 'public' ? 'Public' : 'Private'}
+                        </span>
+                      </div>
+                    </div>
                     <div className="flex gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => handleEdit(location)}
@@ -463,6 +478,20 @@ export default function Locations() {
                 />
               </div>
               <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Tipo de Location</label>
+                <select
+                  value={formData.tipo}
+                  onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
+                >
+                  <option value="private">Private Location</option>
+                  <option value="public">Public Location</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.tipo === 'public' ? 'Las Public Locations no mostrarán información de contacto' : 'Las Private Locations mostrarán toda la información de contacto'}
+                </p>
+              </div>
+              <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Imágenes (máximo 2)</label>
                 <div
                   {...getRootProps()}
@@ -530,7 +559,7 @@ export default function Locations() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => {
           setShowEditModal(false)
           setEditingLocation(null)
-          setFormData({ nombre: '', direccion: '', descripcion: '', googleMapsLink: '', contact: '', phoneNumber: '', mail: '', imagenes: [] })
+          setFormData({ nombre: '', direccion: '', descripcion: '', googleMapsLink: '', contact: '', phoneNumber: '', mail: '', imagenes: [], tipo: 'private' })
         }}>
           <div className="bg-white rounded-lg p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-bold mb-6">Editar Location</h2>
@@ -607,6 +636,20 @@ export default function Locations() {
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
                   placeholder="contacto@ejemplo.com"
                 />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Tipo de Location</label>
+                <select
+                  value={formData.tipo}
+                  onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
+                >
+                  <option value="private">Private Location</option>
+                  <option value="public">Public Location</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.tipo === 'public' ? 'Las Public Locations no mostrarán información de contacto' : 'Las Private Locations mostrarán toda la información de contacto'}
+                </p>
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Imágenes (máximo 2)</label>
