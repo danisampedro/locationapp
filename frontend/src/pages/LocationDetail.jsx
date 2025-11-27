@@ -142,7 +142,7 @@ export default function LocationDetail() {
           )}
         </div>
 
-        {location.tipo === 'private' && (location.googleMapsLink || location.contact || location.phoneNumber || location.mail) && (
+        {(location.tipo || 'private') === 'private' && (location.googleMapsLink || location.contact || location.phoneNumber || location.mail) && (
           <div className="border-t pt-6 space-y-4">
             <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Información de contacto</h3>
             {location.googleMapsLink && (

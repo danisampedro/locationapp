@@ -281,7 +281,10 @@ export default function Locations() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {locations.filter(location => filterType === 'all' || location.tipo === filterType).map((location) => {
+          {locations.filter(location => {
+            const locationTipo = location.tipo || 'private'
+            return filterType === 'all' || locationTipo === filterType
+          }).map((location) => {
             const imagenes = Array.isArray(location.imagenes) 
               ? location.imagenes 
               : typeof location.imagenes === 'string' 
@@ -316,11 +319,11 @@ export default function Locations() {
                           {location.nombre}
                         </h2>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          location.tipo === 'public' 
+                          (location.tipo || 'private') === 'public' 
                             ? 'bg-blue-100 text-blue-700' 
                             : 'bg-gray-100 text-gray-700'
                         }`}>
-                          {location.tipo === 'public' ? 'Public' : 'Private'}
+                          {(location.tipo || 'private') === 'public' ? 'Public' : 'Private'}
                         </span>
                       </div>
                     </div>
