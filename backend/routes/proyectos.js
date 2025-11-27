@@ -247,7 +247,8 @@ router.get('/:id', async (req, res) => {
       const proyectoLocations = await ProyectoLocation.findAll({
         where: {
           proyectoId: proyecto.id
-        }
+        },
+        attributes: ['proyectoId', 'locationId', 'setName', 'basecampLink', 'distanceLocBase'] // Especificar campos explícitamente
       })
       
       proyectoLocations.forEach(pl => {
