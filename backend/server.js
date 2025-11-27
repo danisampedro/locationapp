@@ -64,7 +64,8 @@ const migrateLocationTable = async () => {
       googleMapsLink: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
       contact: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
       phoneNumber: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
-      mail: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' }
+      mail: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+      tipo: { type: 'VARCHAR(50)', allowNull: true, defaultValue: 'private' }
     }
 
     for (const [columnName, columnDefinition] of Object.entries(newColumns)) {
@@ -73,9 +74,16 @@ const migrateLocationTable = async () => {
         await queryInterface.addColumn('locations', columnName, {
           type: sequelize.Sequelize.STRING,
           allowNull: true,
-          defaultValue: ''
+          defaultValue: columnName === 'tipo' ? 'private' : ''
         })
         console.log(`✅ Columna ${columnName} añadida exitosamente`)
+        
+        // Si es la columna tipo, actualizar todas las locations existentes
+        if (columnName === 'tipo') {
+          console.log(`🔄 Actualizando locations existentes con tipo 'private'...`)
+          await sequelize.query(`UPDATE locations SET tipo = 'private' WHERE tipo IS NULL OR tipo = ''`)
+          console.log(`✅ Locations existentes actualizadas`)
+        }
       } else {
         console.log(`ℹ️  Columna ${columnName} ya existe`)
       }
@@ -86,42 +94,6 @@ const migrateLocationTable = async () => {
       console.log('ℹ️  Tabla locations no existe aún, se creará con sync')
     } else {
       console.error('⚠️  Error en migración de locations:', error.message)
-    }
-  }
-}
-
-// Migración: Añadir columnas faltantes a la tabla proyectos
-const migrateProyectoTable = async () => {
-  try {
-    const queryInterface = sequelize.getQueryInterface()
-    const tableDescription = await queryInterface.describeTable('proyectos')
-    
-    const requiredColumns = {
-      descripcion: { type: sequelize.Sequelize.TEXT, allowNull: true, defaultValue: '' },
-      logoUrl: { type: sequelize.Sequelize.STRING, allowNull: true, defaultValue: '' },
-      company: { type: sequelize.Sequelize.STRING, allowNull: true, defaultValue: '' },
-      cif: { type: sequelize.Sequelize.STRING, allowNull: true, defaultValue: '' },
-      address: { type: sequelize.Sequelize.STRING, allowNull: true, defaultValue: '' },
-      locationManager: { type: sequelize.Sequelize.STRING, allowNull: true, defaultValue: '' },
-      locationCoordinator: { type: sequelize.Sequelize.STRING, allowNull: true, defaultValue: '' },
-      projectDate: { type: sequelize.Sequelize.DATE, allowNull: true, defaultValue: null }
-    }
-
-    for (const [columnName, columnDefinition] of Object.entries(requiredColumns)) {
-      if (!tableDescription[columnName]) {
-        console.log(`🔄 Añadiendo columna ${columnName} a la tabla proyectos...`)
-        await queryInterface.addColumn('proyectos', columnName, columnDefinition)
-        console.log(`✅ Columna ${columnName} añadida exitosamente`)
-      } else {
-        console.log(`ℹ️  Columna ${columnName} ya existe`)
-      }
-    }
-  } catch (error) {
-    // Si la tabla no existe, se creará con sync
-    if (error.name === 'SequelizeDatabaseError' && error.message.includes("doesn't exist")) {
-      console.log('ℹ️  Tabla proyectos no existe aún, se creará con sync')
-    } else {
-      console.error('⚠️  Error en migración de proyectos:', error.message)
     }
   }
 }
@@ -170,7 +142,6 @@ const connectDB = async () => {
     
     // Ejecutar migraciones para añadir columnas nuevas
     await migrateLocationTable()
-    await migrateProyectoTable()
     
     await seedAdminUser()
     console.log('✅ Database models synchronized')

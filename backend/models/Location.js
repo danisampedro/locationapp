@@ -57,8 +57,8 @@ const Location = sequelize.define('Location', {
     }
   },
   tipo: {
-    type: DataTypes.ENUM('private', 'public'),
-    allowNull: false,
+    type: DataTypes.STRING,
+    allowNull: true,
     defaultValue: 'private'
   }
 }, {
