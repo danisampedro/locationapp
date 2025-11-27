@@ -7,6 +7,7 @@ import LocationDetail from './pages/LocationDetail'
 import Crew from './pages/Crew'
 import Vendors from './pages/Vendors'
 import Users from './pages/Users'
+import Documents from './pages/Documents'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 
@@ -55,6 +56,14 @@ function App() {
             element={
               <PrivateRoute>
                 <ProyectoDetail />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/proyectos/:id/documents"
+            element={
+              <PrivateRoute>
+                <Documents />
               </PrivateRoute>
             }
           />

@@ -40,6 +40,12 @@ const SettingsIcon = () => (
   </svg>
 )
 
+const DocumentsIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+)
+
 const menuItems = [
   { path: '/proyectos', label: 'Proyectos', icon: FolderIcon },
   { path: '/locations', label: 'Locations', icon: LocationIcon },
@@ -55,6 +61,10 @@ export default function Layout({ children }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
+
+  // Detectar si estamos dentro de un proyecto (pero no en la lista de proyectos)
+  const isInProject = location.pathname.startsWith('/proyectos/') && location.pathname !== '/proyectos'
+  const projectId = isInProject ? location.pathname.split('/')[2] : null
 
   const handleLogout = async () => {
     await logout()
@@ -88,6 +98,27 @@ export default function Layout({ children }) {
               </Link>
             )
           })}
+
+          {/* Menú de Documents (solo cuando estamos dentro de un proyecto) */}
+          {isInProject && projectId && (
+            <>
+              <div className="px-6 py-2 mt-4">
+                <div className="border-t border-white/10"></div>
+              </div>
+              <div className="px-6 py-1">
+                <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">Proyecto</p>
+              </div>
+              <Link
+                to={`/proyectos/${projectId}/documents`}
+                className={`flex items-center px-6 py-3 text-white/80 hover:bg-dark-blue-light hover:text-white transition-colors ${
+                  location.pathname === `/proyectos/${projectId}/documents` ? 'bg-dark-blue-light text-white border-r-4 border-accent-green' : ''
+                }`}
+              >
+                <span className="mr-3"><DocumentsIcon /></span>
+                <span className="font-medium">Documentos</span>
+              </Link>
+            </>
+          )}
           
           {/* Separador para menú de admin */}
           {user?.role === 'admin' && (
