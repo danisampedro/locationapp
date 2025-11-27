@@ -46,41 +46,46 @@ router.get('/', async (req, res) => {
     })
     
     // Formatear proyectos con datos extra de locations
-    const formattedProyectos = await Promise.all(proyectos.map(async (proyecto) => {
+    const formattedProyectos = proyectos.map((proyecto) => {
       try {
         const proyectoJson = proyecto.toJSON()
-        const locations = await Promise.all((proyectoJson.Locations || []).map(async (loc) => {
-          // Buscar ProyectoLocation directamente desde la base de datos si no está en el objeto
-          let proyectoLocation = loc.ProyectoLocation
+        
+        // Acceder a ProyectoLocation desde el objeto Sequelize original
+        const locations = (proyectoJson.Locations || []).map((loc) => {
+          // En Sequelize, cuando usas through con un modelo explícito y attributes,
+          // los datos del modelo intermedio están disponibles en el objeto relacionado
+          // Intentar acceder desde el objeto Sequelize original
+          const originalLoc = proyecto.Locations?.find(l => l.id === loc.id)
           
-          if (!proyectoLocation) {
-            try {
-              const pl = await ProyectoLocation.findOne({
-                where: {
-                  proyectoId: proyecto.id,
-                  locationId: loc.id
-                }
-              })
-              proyectoLocation = pl ? pl.toJSON() : null
-            } catch (err) {
-              console.error('Error buscando ProyectoLocation:', err)
-              proyectoLocation = null
-            }
+          // Los datos del through model pueden estar en originalLoc.ProyectoLocation
+          // o directamente en originalLoc si Sequelize los incluye
+          let proyectoLocationData = null
+          
+          if (originalLoc) {
+            // Intentar diferentes formas de acceso
+            proyectoLocationData = originalLoc.ProyectoLocation || 
+                                   originalLoc.dataValues?.ProyectoLocation ||
+                                   (originalLoc.dataValues && {
+                                     setName: originalLoc.dataValues.setName,
+                                     basecampLink: originalLoc.dataValues.basecampLink,
+                                     distanceLocBase: originalLoc.dataValues.distanceLocBase
+                                   }) || null
           }
           
+          // Si no encontramos datos, usar valores por defecto
           return {
             ...loc,
-            ProyectoLocation: proyectoLocation ? {
-              setName: proyectoLocation.setName || '',
-              basecampLink: proyectoLocation.basecampLink || '',
-              distanceLocBase: proyectoLocation.distanceLocBase || ''
+            ProyectoLocation: proyectoLocationData ? {
+              setName: proyectoLocationData.setName || '',
+              basecampLink: proyectoLocationData.basecampLink || '',
+              distanceLocBase: proyectoLocationData.distanceLocBase || ''
             } : {
               setName: '',
               basecampLink: '',
               distanceLocBase: ''
             }
           }
-        }))
+        })
         
         return {
           ...proyectoJson,
@@ -89,9 +94,13 @@ router.get('/', async (req, res) => {
       } catch (error) {
         console.error('Error formateando proyecto:', error)
         // Si hay error, devolver el proyecto sin formatear
-        return proyecto.toJSON()
+        const proyectoJson = proyecto.toJSON()
+        return {
+          ...proyectoJson,
+          Locations: proyectoJson.Locations || []
+        }
       }
-    }))
+    })
     
     res.json(formattedProyectos)
   } catch (error) {
