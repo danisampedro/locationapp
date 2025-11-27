@@ -31,19 +31,34 @@ const upload = multer({ storage })
 // GET all proyectos
 router.get('/', async (req, res) => {
   try {
-    const proyectos = await Proyecto.findAll({
-      include: [
-        { 
-          model: Location, 
-          as: 'Locations',
-          through: {
-            attributes: ['setName', 'basecampLink', 'distanceLocBase']
-          }
-        },
-        { model: Crew, as: 'Crews' },
-        { model: Vendor, as: 'Vendors' }
-      ]
-    })
+    // Primero intentar con el through model, si falla, intentar sin él
+    let proyectos
+    try {
+      proyectos = await Proyecto.findAll({
+        include: [
+          { 
+            model: Location, 
+            as: 'Locations',
+            through: {
+              attributes: ['setName', 'basecampLink', 'distanceLocBase']
+            },
+            required: false
+          },
+          { model: Crew, as: 'Crews', required: false },
+          { model: Vendor, as: 'Vendors', required: false }
+        ]
+      })
+    } catch (includeError) {
+      console.error('Error con through model, intentando sin él:', includeError)
+      // Si falla con through, intentar sin los atributos del through
+      proyectos = await Proyecto.findAll({
+        include: [
+          { model: Location, as: 'Locations', required: false },
+          { model: Crew, as: 'Crews', required: false },
+          { model: Vendor, as: 'Vendors', required: false }
+        ]
+      })
+    }
     
     // Formatear proyectos con datos extra de locations
     const formattedProyectos = proyectos.map((proyecto) => {
