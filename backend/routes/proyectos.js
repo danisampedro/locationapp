@@ -480,23 +480,46 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
         where: { id: locationIds }
       })
       
+      // CARGAR relaciones existentes ANTES de eliminarlas para preservar datos
+      const existingProyectoLocations = await ProyectoLocation.findAll({
+        where: { proyectoId: proyecto.id }
+      })
+      
+      // Crear un mapa de datos existentes: locationId -> datos
+      const existingDataMap = {}
+      existingProyectoLocations.forEach(pl => {
+        existingDataMap[pl.locationId] = {
+          setName: pl.setName || '',
+          basecampLink: pl.basecampLink || '',
+          distanceLocBase: pl.distanceLocBase || ''
+        }
+      })
+      
       // Eliminar relaciones existentes
       await ProyectoLocation.destroy({
         where: { proyectoId: proyecto.id }
       })
       
-      // Crear relaciones con datos extra
+      // Crear relaciones con datos extra (preservar datos existentes si no hay nuevos)
       for (const locInstance of locationInstances) {
         const locData = Array.isArray(locationsData) && locationsData.length > 0 && typeof locationsData[0] === 'object'
           ? locationsData.find(l => parseInt(l.id) === locInstance.id)
           : null
         
+        // Si hay datos en el formulario y no están vacíos, usarlos; si no, usar los datos existentes
+        const existingData = existingDataMap[locInstance.id] || {}
+        const finalData = {
+          setName: (locData?.setName && locData.setName.trim() !== '') ? locData.setName : (existingData.setName || ''),
+          basecampLink: (locData?.basecampLink && locData.basecampLink.trim() !== '') ? locData.basecampLink : (existingData.basecampLink || ''),
+          distanceLocBase: (locData?.distanceLocBase && locData.distanceLocBase.trim() !== '') ? locData.distanceLocBase : (existingData.distanceLocBase || '')
+        }
+        
         await ProyectoLocation.create({
           proyectoId: proyecto.id,
           locationId: locInstance.id,
-          setName: locData?.setName || '',
-          basecampLink: locData?.basecampLink || '',
-          distanceLocBase: locData?.distanceLocBase || ''
+          setName: finalData.setName,
+          basecampLink: finalData.basecampLink,
+          distanceLocBase: finalData.distanceLocBase
         }, {
           fields: ['proyectoId', 'locationId', 'setName', 'basecampLink', 'distanceLocBase'] // Especificar campos explícitamente para evitar error con 'id'
         })
