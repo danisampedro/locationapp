@@ -360,6 +360,8 @@ router.post('/', upload.single('logo'), async (req, res) => {
           setName: locData?.setName || '',
           basecampLink: locData?.basecampLink || '',
           distanceLocBase: locData?.distanceLocBase || ''
+        }, {
+          fields: ['proyectoId', 'locationId', 'setName', 'basecampLink', 'distanceLocBase'] // Especificar campos explícitamente para evitar error con 'id'
         })
       }
     }
@@ -495,6 +497,8 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
           setName: locData?.setName || '',
           basecampLink: locData?.basecampLink || '',
           distanceLocBase: locData?.distanceLocBase || ''
+        }, {
+          fields: ['proyectoId', 'locationId', 'setName', 'basecampLink', 'distanceLocBase'] // Especificar campos explícitamente para evitar error con 'id'
         })
       }
     }
