@@ -7,6 +7,7 @@ import Location from '../models/Location.js'
 import Crew from '../models/Crew.js'
 import Vendor from '../models/Vendor.js'
 import ProyectoLocation from '../models/ProyectoLocation.js'
+import sequelize from '../config/database.js'
 
 const router = express.Router()
 
@@ -41,29 +42,38 @@ router.get('/', async (req, res) => {
     })
     
     // Ahora cargar los datos de ProyectoLocation por separado si es necesario
-    const proyectoIds = proyectos.map(p => p.id)
+    const proyectoIds = proyectos.map(p => p && p.id).filter(id => id !== undefined && id !== null)
     let proyectoLocationsMap = {}
     
     if (proyectoIds.length > 0) {
       try {
-        const proyectoLocations = await ProyectoLocation.findAll({
-          where: {
-            proyectoId: proyectoIds
-          }
-        })
-        
-        // Crear un mapa para acceso rápido: proyectoId_locationId -> datos
-        proyectoLocations.forEach(pl => {
-          const key = `${pl.proyectoId}_${pl.locationId}`
-          proyectoLocationsMap[key] = {
-            setName: pl.setName || '',
-            basecampLink: pl.basecampLink || '',
-            distanceLocBase: pl.distanceLocBase || ''
-          }
-        })
+        // Verificar si la tabla existe antes de consultar
+        const [results] = await sequelize.query("SHOW TABLES LIKE 'ProyectoLocations'")
+        if (results && results.length > 0) {
+          const proyectoLocations = await ProyectoLocation.findAll({
+            where: {
+              proyectoId: proyectoIds
+            }
+          })
+          
+          // Crear un mapa para acceso rápido: proyectoId_locationId -> datos
+          proyectoLocations.forEach(pl => {
+            if (pl && pl.proyectoId && pl.locationId) {
+              const key = `${pl.proyectoId}_${pl.locationId}`
+              proyectoLocationsMap[key] = {
+                setName: pl.setName || '',
+                basecampLink: pl.basecampLink || '',
+                distanceLocBase: pl.distanceLocBase || ''
+              }
+            }
+          })
+        } else {
+          console.log('Tabla ProyectoLocations no existe aún, usando valores por defecto')
+        }
       } catch (plError) {
-        console.error('Error cargando ProyectoLocation (puede que la tabla no exista aún):', plError.message)
-        // Si falla, simplemente usar valores vacíos
+        console.error('Error cargando ProyectoLocation:', plError.message)
+        console.error('Error stack:', plError.stack)
+        // Si falla, simplemente usar valores vacíos - no es crítico
       }
     }
     
