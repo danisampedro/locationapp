@@ -52,37 +52,55 @@ router.get('/', async (req, res) => {
         
         // Acceder a ProyectoLocation desde el objeto Sequelize original
         const locations = (proyectoJson.Locations || []).map((loc) => {
-          // En Sequelize, cuando usas through con un modelo explícito y attributes,
-          // los datos del modelo intermedio están disponibles en el objeto relacionado
-          // Intentar acceder desde el objeto Sequelize original
-          const originalLoc = proyecto.Locations?.find(l => l.id === loc.id)
-          
-          // Los datos del through model pueden estar en originalLoc.ProyectoLocation
-          // o directamente en originalLoc si Sequelize los incluye
-          let proyectoLocationData = null
-          
-          if (originalLoc) {
-            // Intentar diferentes formas de acceso
-            proyectoLocationData = originalLoc.ProyectoLocation || 
-                                   originalLoc.dataValues?.ProyectoLocation ||
-                                   (originalLoc.dataValues && {
-                                     setName: originalLoc.dataValues.setName,
-                                     basecampLink: originalLoc.dataValues.basecampLink,
-                                     distanceLocBase: originalLoc.dataValues.distanceLocBase
-                                   }) || null
-          }
-          
-          // Si no encontramos datos, usar valores por defecto
-          return {
-            ...loc,
-            ProyectoLocation: proyectoLocationData ? {
-              setName: proyectoLocationData.setName || '',
-              basecampLink: proyectoLocationData.basecampLink || '',
-              distanceLocBase: proyectoLocationData.distanceLocBase || ''
-            } : {
-              setName: '',
-              basecampLink: '',
-              distanceLocBase: ''
+          try {
+            // En Sequelize, cuando usas through con un modelo explícito y attributes,
+            // los datos del modelo intermedio están disponibles en el objeto relacionado
+            const originalLoc = proyecto.Locations?.find(l => l && l.id === loc.id)
+            
+            let proyectoLocationData = null
+            
+            if (originalLoc) {
+              // Intentar diferentes formas de acceso
+              if (originalLoc.ProyectoLocation) {
+                proyectoLocationData = originalLoc.ProyectoLocation
+              } else if (originalLoc.dataValues && originalLoc.dataValues.ProyectoLocation) {
+                proyectoLocationData = originalLoc.dataValues.ProyectoLocation
+              } else if (originalLoc.dataValues) {
+                // Los campos pueden estar directamente en dataValues
+                const dv = originalLoc.dataValues
+                if (dv.setName !== undefined || dv.basecampLink !== undefined || dv.distanceLocBase !== undefined) {
+                  proyectoLocationData = {
+                    setName: dv.setName || '',
+                    basecampLink: dv.basecampLink || '',
+                    distanceLocBase: dv.distanceLocBase || ''
+                  }
+                }
+              }
+            }
+            
+            // Si no encontramos datos, usar valores por defecto
+            return {
+              ...loc,
+              ProyectoLocation: proyectoLocationData ? {
+                setName: proyectoLocationData.setName || '',
+                basecampLink: proyectoLocationData.basecampLink || '',
+                distanceLocBase: proyectoLocationData.distanceLocBase || ''
+              } : {
+                setName: '',
+                basecampLink: '',
+                distanceLocBase: ''
+              }
+            }
+          } catch (locError) {
+            console.error('Error procesando location individual:', locError)
+            // Si hay error con una location específica, devolverla sin ProyectoLocation
+            return {
+              ...loc,
+              ProyectoLocation: {
+                setName: '',
+                basecampLink: '',
+                distanceLocBase: ''
+              }
             }
           }
         })
@@ -92,12 +110,25 @@ router.get('/', async (req, res) => {
           Locations: locations
         }
       } catch (error) {
-        console.error('Error formateando proyecto:', error)
+        console.error('Error formateando proyecto completo:', error)
+        console.error('Stack:', error.stack)
         // Si hay error, devolver el proyecto sin formatear
-        const proyectoJson = proyecto.toJSON()
-        return {
-          ...proyectoJson,
-          Locations: proyectoJson.Locations || []
+        try {
+          const proyectoJson = proyecto.toJSON()
+          return {
+            ...proyectoJson,
+            Locations: (proyectoJson.Locations || []).map(loc => ({
+              ...loc,
+              ProyectoLocation: {
+                setName: '',
+                basecampLink: '',
+                distanceLocBase: ''
+              }
+            }))
+          }
+        } catch (fallbackError) {
+          console.error('Error en fallback:', fallbackError)
+          return proyecto.toJSON()
         }
       }
     })
@@ -105,7 +136,11 @@ router.get('/', async (req, res) => {
     res.json(formattedProyectos)
   } catch (error) {
     console.error('Error en GET /proyectos:', error)
-    res.status(500).json({ error: error.message })
+    console.error('Stack completo:', error.stack)
+    res.status(500).json({ 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    })
   }
 })
 
