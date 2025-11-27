@@ -295,36 +295,46 @@ router.post('/', upload.single('logo'), async (req, res) => {
       await proyecto.setVendors(vendorInstances)
     }
 
-    // Recargar con relaciones
+    // Recargar con relaciones (sin through para evitar errores SQL)
     await proyecto.reload({
       include: [
-        { 
-          model: Location, 
-          as: 'Locations',
-          through: {
-            attributes: ['setName', 'basecampLink', 'distanceLocBase']
-          }
-        },
-        { model: Crew, as: 'Crews' },
-        { model: Vendor, as: 'Vendors' }
+        { model: Location, as: 'Locations', required: false },
+        { model: Crew, as: 'Crews', required: false },
+        { model: Vendor, as: 'Vendors', required: false }
       ]
     })
+    
+    // Cargar datos de ProyectoLocation por separado
+    let proyectoLocationsMap = {}
+    try {
+      const proyectoLocations = await ProyectoLocation.findAll({
+        where: {
+          proyectoId: proyecto.id
+        }
+      })
+      
+      proyectoLocations.forEach(pl => {
+        const key = `${pl.proyectoId}_${pl.locationId}`
+        proyectoLocationsMap[key] = {
+          setName: pl.setName || '',
+          basecampLink: pl.basecampLink || '',
+          distanceLocBase: pl.distanceLocBase || ''
+        }
+      })
+    } catch (plError) {
+      console.error('Error cargando ProyectoLocation:', plError.message)
+    }
     
     // Formatear respuesta con datos extra
     try {
       const proyectoJson = proyecto.toJSON()
       const locations = (proyectoJson.Locations || []).map(loc => {
-        // Acceder a ProyectoLocation - puede estar en loc.ProyectoLocation o en el objeto Sequelize original
-        const originalLoc = proyecto.Locations?.find(l => l.id === loc.id)
-        const proyectoLocation = loc.ProyectoLocation || originalLoc?.ProyectoLocation || originalLoc?.dataValues?.ProyectoLocation || null
+        const key = `${proyecto.id}_${loc.id}`
+        const proyectoLocationData = proyectoLocationsMap[key] || null
         
         return {
           ...loc,
-          ProyectoLocation: proyectoLocation ? {
-            setName: proyectoLocation.setName || '',
-            basecampLink: proyectoLocation.basecampLink || '',
-            distanceLocBase: proyectoLocation.distanceLocBase || ''
-          } : {
+          ProyectoLocation: proyectoLocationData || {
             setName: '',
             basecampLink: '',
             distanceLocBase: ''
@@ -420,43 +430,53 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
       await proyecto.setVendors(vendorInstances)
     }
 
-    // Recargar con relaciones
+    // Recargar con relaciones (sin through para evitar errores SQL)
     await proyecto.reload({
       include: [
-        { 
-          model: Location, 
-          as: 'Locations',
-          through: {
-            attributes: ['setName', 'basecampLink', 'distanceLocBase']
-          }
-        },
-        { model: Crew, as: 'Crews' },
-        { model: Vendor, as: 'Vendors' }
+        { model: Location, as: 'Locations', required: false },
+        { model: Crew, as: 'Crews', required: false },
+        { model: Vendor, as: 'Vendors', required: false }
       ]
     })
+
+    // Cargar datos de ProyectoLocation por separado
+    let proyectoLocationsMap = {}
+    try {
+      const proyectoLocations = await ProyectoLocation.findAll({
+        where: {
+          proyectoId: proyecto.id
+        }
+      })
+      
+      proyectoLocations.forEach(pl => {
+        const key = `${pl.proyectoId}_${pl.locationId}`
+        proyectoLocationsMap[key] = {
+          setName: pl.setName || '',
+          basecampLink: pl.basecampLink || '',
+          distanceLocBase: pl.distanceLocBase || ''
+        }
+      })
+    } catch (plError) {
+      console.error('Error cargando ProyectoLocation:', plError.message)
+    }
 
     // Formatear respuesta con datos extra
     try {
       const proyectoJson = proyecto.toJSON()
       const locations = (proyectoJson.Locations || []).map(loc => {
-        // Acceder a ProyectoLocation - puede estar en loc.ProyectoLocation o en el objeto Sequelize original
-        const originalLoc = proyecto.Locations?.find(l => l.id === loc.id)
-        const proyectoLocation = loc.ProyectoLocation || originalLoc?.ProyectoLocation || originalLoc?.dataValues?.ProyectoLocation || null
+        const key = `${proyecto.id}_${loc.id}`
+        const proyectoLocationData = proyectoLocationsMap[key] || null
         
         return {
           ...loc,
-          ProyectoLocation: proyectoLocation ? {
-            setName: proyectoLocation.setName || '',
-            basecampLink: proyectoLocation.basecampLink || '',
-            distanceLocBase: proyectoLocation.distanceLocBase || ''
-          } : {
+          ProyectoLocation: proyectoLocationData || {
             setName: '',
             basecampLink: '',
             distanceLocBase: ''
           }
         }
       })
-      
+
       const formattedProyecto = {
         ...proyectoJson,
         Locations: locations
