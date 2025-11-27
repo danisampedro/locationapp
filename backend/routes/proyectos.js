@@ -60,7 +60,8 @@ router.get('/', async (req, res) => {
         const proyectoLocations = await ProyectoLocation.findAll({
           where: {
             proyectoId: proyectoIds
-          }
+          },
+          attributes: ['proyectoId', 'locationId', 'setName', 'basecampLink', 'distanceLocBase'] // Especificar campos explícitamente
         })
         
         console.log(`✅ ProyectoLocations cargados: ${proyectoLocations.length}`)
@@ -397,7 +398,8 @@ router.post('/', upload.single('logo'), async (req, res) => {
       const proyectoLocations = await ProyectoLocation.findAll({
         where: {
           proyectoId: proyecto.id
-        }
+        },
+        attributes: ['proyectoId', 'locationId', 'setName', 'basecampLink', 'distanceLocBase'] // Especificar campos explícitamente
       })
       
       proyectoLocations.forEach(pl => {
@@ -482,7 +484,8 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
       
       // CARGAR relaciones existentes ANTES de eliminarlas para preservar datos
       const existingProyectoLocations = await ProyectoLocation.findAll({
-        where: { proyectoId: proyecto.id }
+        where: { proyectoId: proyecto.id },
+        attributes: ['proyectoId', 'locationId', 'setName', 'basecampLink', 'distanceLocBase'] // Especificar campos explícitamente
       })
       
       // Crear un mapa de datos existentes: locationId -> datos
@@ -557,7 +560,8 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
       const proyectoLocations = await ProyectoLocation.findAll({
         where: {
           proyectoId: proyecto.id
-        }
+        },
+        attributes: ['proyectoId', 'locationId', 'setName', 'basecampLink', 'distanceLocBase'] // Especificar campos explícitamente
       })
       
       proyectoLocations.forEach(pl => {
