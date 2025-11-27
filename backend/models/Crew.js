@@ -11,6 +11,26 @@ const Crew = sequelize.define('Crew', {
     type: DataTypes.STRING,
     allowNull: false
   },
+  fotoUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  dni: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  fechaNacimiento: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    defaultValue: null
+  },
+  carnetConducir: {
+    type: DataTypes.BOOLEAN,
+    allowNull: true,
+    defaultValue: false
+  },
   rol: {
     type: DataTypes.STRING,
     allowNull: false

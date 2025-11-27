@@ -98,6 +98,58 @@ const migrateLocationTable = async () => {
   }
 }
 
+// Migración: Añadir columnas nuevas a la tabla crew
+const migrateCrewTable = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface()
+    const tableDescription = await queryInterface.describeTable('crew')
+    
+    const newColumns = {
+      fotoUrl: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+      dni: { type: 'VARCHAR(50)', allowNull: true, defaultValue: '' },
+      fechaNacimiento: { type: 'DATE', allowNull: true, defaultValue: null },
+      carnetConducir: { type: 'BOOLEAN', allowNull: true, defaultValue: false }
+    }
+
+    for (const [columnName, columnDefinition] of Object.entries(newColumns)) {
+      if (!tableDescription[columnName]) {
+        console.log(`🔄 Añadiendo columna ${columnName} a la tabla crew...`)
+        
+        if (columnName === 'fechaNacimiento') {
+          await queryInterface.addColumn('crew', columnName, {
+            type: sequelize.Sequelize.DATE,
+            allowNull: true,
+            defaultValue: null
+          })
+        } else if (columnName === 'carnetConducir') {
+          await queryInterface.addColumn('crew', columnName, {
+            type: sequelize.Sequelize.BOOLEAN,
+            allowNull: true,
+            defaultValue: false
+          })
+        } else {
+          await queryInterface.addColumn('crew', columnName, {
+            type: sequelize.Sequelize.STRING,
+            allowNull: true,
+            defaultValue: ''
+          })
+        }
+        
+        console.log(`✅ Columna ${columnName} añadida exitosamente`)
+      } else {
+        console.log(`ℹ️  Columna ${columnName} ya existe`)
+      }
+    }
+  } catch (error) {
+    // Si la tabla no existe, se creará con sync
+    if (error.name === 'SequelizeDatabaseError' && error.message.includes("doesn't exist")) {
+      console.log('ℹ️  Tabla crew no existe aún, se creará con sync')
+    } else {
+      console.error('⚠️  Error en migración de crew:', error.message)
+    }
+  }
+}
+
 // Crear o actualizar usuario admin inicial
 const seedAdminUser = async () => {
   const adminUsername = process.env.INIT_ADMIN_USERNAME || 'danisampedro'
@@ -142,6 +194,7 @@ const connectDB = async () => {
     
     // Ejecutar migraciones para añadir columnas nuevas
     await migrateLocationTable()
+    await migrateCrewTable()
     
     await seedAdminUser()
     console.log('✅ Database models synchronized')
