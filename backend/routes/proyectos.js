@@ -75,6 +75,19 @@ router.get('/', async (req, res) => {
         // Acceder a ProyectoLocation desde el mapa que creamos
         const locations = (proyectoJson.Locations || []).map((loc) => {
           try {
+            // Validar que proyecto.id y loc.id existan
+            if (!proyecto || !proyecto.id || !loc || !loc.id) {
+              console.warn('Proyecto o location sin ID válido:', { proyectoId: proyecto?.id, locationId: loc?.id })
+              return {
+                ...loc,
+                ProyectoLocation: {
+                  setName: '',
+                  basecampLink: '',
+                  distanceLocBase: ''
+                }
+              }
+            }
+            
             // Buscar en el mapa usando proyectoId_locationId
             const key = `${proyecto.id}_${loc.id}`
             const proyectoLocationData = proyectoLocationsMap[key] || null
@@ -90,6 +103,7 @@ router.get('/', async (req, res) => {
             }
           } catch (locError) {
             console.error('Error procesando location individual:', locError)
+            console.error('Location que causó el error:', loc)
             // Si hay error con una location específica, devolverla sin ProyectoLocation
             return {
               ...loc,
@@ -133,11 +147,44 @@ router.get('/', async (req, res) => {
     res.json(formattedProyectos)
   } catch (error) {
     console.error('Error en GET /proyectos:', error)
+    console.error('Error message:', error.message)
+    console.error('Error name:', error.name)
     console.error('Stack completo:', error.stack)
-    res.status(500).json({ 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    })
+    
+    // Intentar devolver proyectos sin formateo si es posible
+    try {
+      const proyectos = await Proyecto.findAll({
+        include: [
+          { model: Location, as: 'Locations', required: false },
+          { model: Crew, as: 'Crews', required: false },
+          { model: Vendor, as: 'Vendors', required: false }
+        ]
+      })
+      
+      const proyectosSimples = proyectos.map(p => {
+        const pJson = p.toJSON()
+        return {
+          ...pJson,
+          Locations: (pJson.Locations || []).map(loc => ({
+            ...loc,
+            ProyectoLocation: {
+              setName: '',
+              basecampLink: '',
+              distanceLocBase: ''
+            }
+          }))
+        }
+      })
+      
+      console.log('Devolviendo proyectos sin formateo completo debido a error')
+      return res.json(proyectosSimples)
+    } catch (fallbackError) {
+      console.error('Error en fallback también:', fallbackError)
+      res.status(500).json({ 
+        error: error.message || 'Error desconocido',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      })
+    }
   }
 })
 

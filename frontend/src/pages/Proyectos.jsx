@@ -95,6 +95,12 @@ export default function Proyectos() {
       setProyectos(sorted)
     } catch (error) {
       console.error('Error cargando proyectos:', error)
+      console.error('Error response:', error.response)
+      console.error('Error message:', error.message)
+      if (error.response) {
+        console.error('Error status:', error.response.status)
+        console.error('Error data:', error.response.data)
+      }
     }
   }
 
