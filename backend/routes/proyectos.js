@@ -31,33 +31,40 @@ const upload = multer({ storage })
 // GET all proyectos
 router.get('/', async (req, res) => {
   try {
-    // Primero intentar con el through model, si falla, intentar sin él
-    let proyectos
-    try {
-      proyectos = await Proyecto.findAll({
-        include: [
-          { 
-            model: Location, 
-            as: 'Locations',
-            through: {
-              attributes: ['setName', 'basecampLink', 'distanceLocBase']
-            },
-            required: false
-          },
-          { model: Crew, as: 'Crews', required: false },
-          { model: Vendor, as: 'Vendors', required: false }
-        ]
-      })
-    } catch (includeError) {
-      console.error('Error con through model, intentando sin él:', includeError)
-      // Si falla con through, intentar sin los atributos del through
-      proyectos = await Proyecto.findAll({
-        include: [
-          { model: Location, as: 'Locations', required: false },
-          { model: Crew, as: 'Crews', required: false },
-          { model: Vendor, as: 'Vendors', required: false }
-        ]
-      })
+    // Cargar proyectos sin el through model primero para evitar errores
+    const proyectos = await Proyecto.findAll({
+      include: [
+        { model: Location, as: 'Locations', required: false },
+        { model: Crew, as: 'Crews', required: false },
+        { model: Vendor, as: 'Vendors', required: false }
+      ]
+    })
+    
+    // Ahora cargar los datos de ProyectoLocation por separado si es necesario
+    const proyectoIds = proyectos.map(p => p.id)
+    let proyectoLocationsMap = {}
+    
+    if (proyectoIds.length > 0) {
+      try {
+        const proyectoLocations = await ProyectoLocation.findAll({
+          where: {
+            proyectoId: proyectoIds
+          }
+        })
+        
+        // Crear un mapa para acceso rápido: proyectoId_locationId -> datos
+        proyectoLocations.forEach(pl => {
+          const key = `${pl.proyectoId}_${pl.locationId}`
+          proyectoLocationsMap[key] = {
+            setName: pl.setName || '',
+            basecampLink: pl.basecampLink || '',
+            distanceLocBase: pl.distanceLocBase || ''
+          }
+        })
+      } catch (plError) {
+        console.error('Error cargando ProyectoLocation (puede que la tabla no exista aún):', plError.message)
+        // Si falla, simplemente usar valores vacíos
+      }
     }
     
     // Formatear proyectos con datos extra de locations
@@ -65,42 +72,17 @@ router.get('/', async (req, res) => {
       try {
         const proyectoJson = proyecto.toJSON()
         
-        // Acceder a ProyectoLocation desde el objeto Sequelize original
+        // Acceder a ProyectoLocation desde el mapa que creamos
         const locations = (proyectoJson.Locations || []).map((loc) => {
           try {
-            // En Sequelize, cuando usas through con un modelo explícito y attributes,
-            // los datos del modelo intermedio están disponibles en el objeto relacionado
-            const originalLoc = proyecto.Locations?.find(l => l && l.id === loc.id)
-            
-            let proyectoLocationData = null
-            
-            if (originalLoc) {
-              // Intentar diferentes formas de acceso
-              if (originalLoc.ProyectoLocation) {
-                proyectoLocationData = originalLoc.ProyectoLocation
-              } else if (originalLoc.dataValues && originalLoc.dataValues.ProyectoLocation) {
-                proyectoLocationData = originalLoc.dataValues.ProyectoLocation
-              } else if (originalLoc.dataValues) {
-                // Los campos pueden estar directamente en dataValues
-                const dv = originalLoc.dataValues
-                if (dv.setName !== undefined || dv.basecampLink !== undefined || dv.distanceLocBase !== undefined) {
-                  proyectoLocationData = {
-                    setName: dv.setName || '',
-                    basecampLink: dv.basecampLink || '',
-                    distanceLocBase: dv.distanceLocBase || ''
-                  }
-                }
-              }
-            }
+            // Buscar en el mapa usando proyectoId_locationId
+            const key = `${proyecto.id}_${loc.id}`
+            const proyectoLocationData = proyectoLocationsMap[key] || null
             
             // Si no encontramos datos, usar valores por defecto
             return {
               ...loc,
-              ProyectoLocation: proyectoLocationData ? {
-                setName: proyectoLocationData.setName || '',
-                basecampLink: proyectoLocationData.basecampLink || '',
-                distanceLocBase: proyectoLocationData.distanceLocBase || ''
-              } : {
+              ProyectoLocation: proyectoLocationData || {
                 setName: '',
                 basecampLink: '',
                 distanceLocBase: ''
@@ -164,56 +146,64 @@ router.get('/:id', async (req, res) => {
   try {
     const proyecto = await Proyecto.findByPk(req.params.id, {
       include: [
-        { 
-          model: Location, 
-          as: 'Locations',
-          through: {
-            attributes: ['setName', 'basecampLink', 'distanceLocBase']
-          }
-        },
-        { model: Crew, as: 'Crews' },
-        { model: Vendor, as: 'Vendors' }
+        { model: Location, as: 'Locations', required: false },
+        { model: Crew, as: 'Crews', required: false },
+        { model: Vendor, as: 'Vendors', required: false }
       ]
     })
     if (!proyecto) {
       return res.status(404).json({ error: 'Proyecto no encontrado' })
     }
     
+    // Cargar datos de ProyectoLocation por separado
+    let proyectoLocationsMap = {}
+    try {
+      const proyectoLocations = await ProyectoLocation.findAll({
+        where: {
+          proyectoId: proyecto.id
+        }
+      })
+      
+      proyectoLocations.forEach(pl => {
+        const key = `${pl.proyectoId}_${pl.locationId}`
+        proyectoLocationsMap[key] = {
+          setName: pl.setName || '',
+          basecampLink: pl.basecampLink || '',
+          distanceLocBase: pl.distanceLocBase || ''
+        }
+      })
+    } catch (plError) {
+      console.error('Error cargando ProyectoLocation (puede que la tabla no exista aún):', plError.message)
+    }
+    
     // Formatear las locations con los datos extra
     try {
       const proyectoJson = proyecto.toJSON()
-      const locations = await Promise.all((proyectoJson.Locations || []).map(async (loc) => {
-        // Buscar ProyectoLocation directamente desde la base de datos si no está en el objeto
-        let proyectoLocation = loc.ProyectoLocation
-        
-        if (!proyectoLocation) {
-          try {
-            const pl = await ProyectoLocation.findOne({
-              where: {
-                proyectoId: proyecto.id,
-                locationId: loc.id
-              }
-            })
-            proyectoLocation = pl ? pl.toJSON() : null
-          } catch (err) {
-            console.error('Error buscando ProyectoLocation:', err)
-            proyectoLocation = null
+      const locations = (proyectoJson.Locations || []).map((loc) => {
+        try {
+          const key = `${proyecto.id}_${loc.id}`
+          const proyectoLocationData = proyectoLocationsMap[key] || null
+          
+          return {
+            ...loc,
+            ProyectoLocation: proyectoLocationData || {
+              setName: '',
+              basecampLink: '',
+              distanceLocBase: ''
+            }
+          }
+        } catch (locError) {
+          console.error('Error procesando location:', locError)
+          return {
+            ...loc,
+            ProyectoLocation: {
+              setName: '',
+              basecampLink: '',
+              distanceLocBase: ''
+            }
           }
         }
-        
-        return {
-          ...loc,
-          ProyectoLocation: proyectoLocation ? {
-            setName: proyectoLocation.setName || '',
-            basecampLink: proyectoLocation.basecampLink || '',
-            distanceLocBase: proyectoLocation.distanceLocBase || ''
-          } : {
-            setName: '',
-            basecampLink: '',
-            distanceLocBase: ''
-          }
-        }
-      }))
+      })
       
       const formattedProyecto = {
         ...proyectoJson,
