@@ -119,11 +119,11 @@ export default function Documents() {
           yPosition = margin
         }
 
-        // Foto de la location (si existe)
+        // Foto de la location en formato 16:9 (si existe)
         const imageX = margin
         const imageY = yPosition
-        const imageWidth = 60
-        const imageHeight = 60
+        const imageWidth = 90 // Más ancha para formato 16:9
+        const imageHeight = 50.625 // 16:9 ratio (90 * 9/16)
 
         if (location.imagenes && location.imagenes.length > 0) {
           try {
@@ -135,80 +135,114 @@ export default function Documents() {
             
             if (firstImage) {
               const locationImg = await loadImage(firstImage)
-              doc.addImage(locationImg, 'JPEG', imageX, imageY, imageWidth, imageHeight)
+              // Calcular dimensiones manteniendo ratio 16:9
+              const imgAspect = locationImg.width / locationImg.height
+              const targetAspect = 16 / 9
+              let finalWidth = imageWidth
+              let finalHeight = imageHeight
+              
+              if (imgAspect > targetAspect) {
+                // Imagen más ancha, ajustar altura
+                finalHeight = imageWidth / imgAspect
+              } else {
+                // Imagen más alta, ajustar ancho
+                finalWidth = imageHeight * imgAspect
+              }
+              
+              doc.addImage(locationImg, 'JPEG', imageX, imageY, finalWidth, finalHeight)
             }
           } catch (error) {
             console.error('Error cargando imagen de location:', error)
-            // Dibujar un rectángulo placeholder
+            // Dibujar un rectángulo placeholder 16:9
             doc.setFillColor(240, 240, 240)
             doc.rect(imageX, imageY, imageWidth, imageHeight, 'F')
             doc.setFontSize(8)
             doc.setTextColor(150, 150, 150)
-            doc.text('Sin imagen', imageX + 15, imageY + imageHeight / 2)
+            doc.text('Sin imagen', imageX + 30, imageY + imageHeight / 2)
             doc.setTextColor(0, 0, 0)
           }
         } else {
-          // Dibujar un rectángulo placeholder
+          // Dibujar un rectángulo placeholder 16:9
           doc.setFillColor(240, 240, 240)
           doc.rect(imageX, imageY, imageWidth, imageHeight, 'F')
           doc.setFontSize(8)
           doc.setTextColor(150, 150, 150)
-          doc.text('Sin imagen', imageX + 15, imageY + imageHeight / 2)
+          doc.text('Sin imagen', imageX + 30, imageY + imageHeight / 2)
           doc.setTextColor(0, 0, 0)
         }
 
         // Información de la location (a la derecha de la foto)
-        const infoX = margin + imageWidth + 10
+        const infoX = margin + imageWidth + 12
         let infoY = imageY
 
-        doc.setFontSize(12)
+        // Nombre más grande
+        doc.setFontSize(14)
         doc.setFont('helvetica', 'bold')
         doc.text(location.nombre, infoX, infoY)
-        infoY += 7
+        infoY += 8
 
-        doc.setFontSize(9)
+        doc.setFontSize(11)
         doc.setFont('helvetica', 'normal')
 
+        // Dirección
         if (location.direccion) {
           doc.text(`📍 ${location.direccion}`, infoX, infoY)
-          infoY += 6
+          infoY += 7
         }
 
+        // Información extra del proyecto
+        const proyectoLocation = location.ProyectoLocation || {}
+        if (proyectoLocation.setName) {
+          doc.setFont('helvetica', 'bold')
+          doc.text(`SET NAME: ${proyectoLocation.setName}`, infoX, infoY)
+          doc.setFont('helvetica', 'normal')
+          infoY += 7
+        }
+
+        if (proyectoLocation.basecampLink) {
+          doc.setFont('helvetica', 'bold')
+          doc.text('Basecamp:', infoX, infoY)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(0, 0, 255)
+          const linkText = proyectoLocation.basecampLink.length > 40 
+            ? proyectoLocation.basecampLink.substring(0, 37) + '...' 
+            : proyectoLocation.basecampLink
+          doc.text(linkText, infoX + 25, infoY)
+          doc.setTextColor(0, 0, 0)
+          infoY += 7
+        }
+
+        if (proyectoLocation.distanceLocBase) {
+          doc.setFont('helvetica', 'bold')
+          doc.text(`Distance LOC - BASE: ${proyectoLocation.distanceLocBase}`, infoX, infoY)
+          doc.setFont('helvetica', 'normal')
+          infoY += 7
+        }
+
+        // Descripción
         if (location.descripcion) {
           const descLines = doc.splitTextToSize(location.descripcion, pageWidth - infoX - margin)
           doc.text(descLines, infoX, infoY)
-          infoY += descLines.length * 5
+          infoY += descLines.length * 6
         }
 
-        // Información de contacto (solo si es Private)
-        if (location.tipo === 'private' || !location.tipo) {
-          if (location.contact) {
-            doc.text(`Contacto: ${location.contact}`, infoX, infoY)
-            infoY += 6
-          }
-          if (location.phoneNumber) {
-            doc.text(`Teléfono: ${location.phoneNumber}`, infoX, infoY)
-            infoY += 6
-          }
-          if (location.mail) {
-            doc.text(`Email: ${location.mail}`, infoX, infoY)
-            infoY += 6
-          }
-          if (location.googleMapsLink) {
-            doc.setTextColor(0, 0, 255)
-            doc.text('Google Maps', infoX, infoY)
-            doc.setTextColor(0, 0, 0)
-            infoY += 6
-          }
+        // Google Maps link (si existe)
+        if (location.googleMapsLink) {
+          doc.setTextColor(0, 0, 255)
+          doc.text('🔗 Google Maps', infoX, infoY)
+          doc.setTextColor(0, 0, 0)
+          infoY += 7
         }
 
         // Espacio para la próxima location
-        yPosition = Math.max(imageY + imageHeight, infoY) + 15
+        yPosition = Math.max(imageY + imageHeight, infoY) + 20
 
         // Línea separadora entre locations
         if (i < proyecto.Locations.length - 1) {
-          doc.setDrawColor(220, 220, 220)
-          doc.line(margin, yPosition - 5, pageWidth - margin, yPosition - 5)
+          doc.setDrawColor(200, 200, 200)
+          doc.setLineWidth(0.5)
+          doc.line(margin, yPosition - 10, pageWidth - margin, yPosition - 10)
+          doc.setLineWidth(0.2)
         }
       }
 

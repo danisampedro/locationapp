@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser'
 import sequelize from './config/database.js'
 import { User } from './models/index.js'
 import './models/index.js' // Inicializar modelos y relaciones
+import ProyectoLocation from './models/ProyectoLocation.js' // Importar modelo para migración
 import proyectoRoutes from './routes/proyectos.js'
 import locationRoutes from './routes/locations.js'
 import crewRoutes from './routes/crew.js'
@@ -95,6 +96,46 @@ const migrateLocationTable = async () => {
     } else {
       console.error('⚠️  Error en migración de locations:', error.message)
     }
+  }
+}
+
+// Migración: Crear o actualizar tabla ProyectoLocations
+const migrateProyectoLocationsTable = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface()
+    
+    // Verificar si la tabla existe
+    const tableExists = await queryInterface.tableExists('ProyectoLocations')
+    
+    if (tableExists) {
+      // Si existe, verificar y añadir columnas si no existen
+      const tableDescription = await queryInterface.describeTable('ProyectoLocations')
+      
+      const newColumns = {
+        setName: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+        basecampLink: { type: 'VARCHAR(500)', allowNull: true, defaultValue: '' },
+        distanceLocBase: { type: 'VARCHAR(50)', allowNull: true, defaultValue: '' }
+      }
+
+      for (const [columnName, columnDefinition] of Object.entries(newColumns)) {
+        if (!tableDescription[columnName]) {
+          console.log(`🔄 Añadiendo columna ${columnName} a la tabla ProyectoLocations...`)
+          await queryInterface.addColumn('ProyectoLocations', columnName, {
+            type: sequelize.Sequelize.STRING,
+            allowNull: true,
+            defaultValue: ''
+          })
+          console.log(`✅ Columna ${columnName} añadida exitosamente`)
+        } else {
+          console.log(`ℹ️  Columna ${columnName} ya existe`)
+        }
+      }
+    } else {
+      // Si no existe, se creará con sync
+      console.log('ℹ️  Tabla ProyectoLocations no existe aún, se creará con sync')
+    }
+  } catch (error) {
+    console.error('⚠️  Error en migración de ProyectoLocations:', error.message)
   }
 }
 
@@ -195,6 +236,7 @@ const connectDB = async () => {
     // Ejecutar migraciones para añadir columnas nuevas
     await migrateLocationTable()
     await migrateCrewTable()
+    await migrateProyectoLocationsTable()
     
     await seedAdminUser()
     console.log('✅ Database models synchronized')

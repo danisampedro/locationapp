@@ -20,7 +20,7 @@ export default function ProyectoDetail() {
     locationManager: '',
     locationCoordinator: '',
     projectDate: '',
-    locations: [],
+    locations: [], // Array de objetos {id, setName, basecampLink, distanceLocBase}
     crew: [],
     vendors: []
   })
@@ -48,7 +48,12 @@ export default function ProyectoDetail() {
         locationManager: response.data.locationManager || '',
         locationCoordinator: response.data.locationCoordinator || '',
         projectDate: response.data.projectDate ? response.data.projectDate.slice(0, 10) : '',
-        locations: response.data.Locations?.map(l => l.id.toString()) || [],
+        locations: response.data.Locations?.map(l => ({
+          id: l.id.toString(),
+          setName: l.ProyectoLocation?.setName || '',
+          basecampLink: l.ProyectoLocation?.basecampLink || '',
+          distanceLocBase: l.ProyectoLocation?.distanceLocBase || ''
+        })) || [],
         crew: response.data.Crews?.map(c => c.id.toString()) || [],
         vendors: response.data.Vendors?.map(v => v.id.toString()) || []
       })
@@ -111,7 +116,14 @@ export default function ProyectoDetail() {
       if (formData.logo) {
         data.append('logo', formData.logo)
       }
-      data.append('locations', JSON.stringify(formData.locations))
+      // Enviar locations como array de objetos con campos extra
+      const locationsData = formData.locations.map(loc => ({
+        id: parseInt(loc.id),
+        setName: loc.setName || '',
+        basecampLink: loc.basecampLink || '',
+        distanceLocBase: loc.distanceLocBase || ''
+      }))
+      data.append('locations', JSON.stringify(locationsData))
       data.append('crew', JSON.stringify(formData.crew))
       data.append('vendors', JSON.stringify(formData.vendors))
 
@@ -276,21 +288,48 @@ export default function ProyectoDetail() {
           </div>
           {proyecto.Locations && proyecto.Locations.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {proyecto.Locations.map((loc) => (
-                <div 
-                  key={loc.id} 
-                  className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/locations/${loc.id}`)}
-                >
-                  <h4 className="font-semibold text-gray-800 mb-2">{loc.nombre}</h4>
-                  {loc.direccion && (
-                    <p className="text-sm text-gray-600 mb-1">📍 {loc.direccion}</p>
-                  )}
-                  {loc.descripcion && (
-                    <p className="text-sm text-gray-500 line-clamp-2">{loc.descripcion}</p>
-                  )}
-                </div>
-              ))}
+              {proyecto.Locations.map((loc) => {
+                const proyectoLocation = loc.ProyectoLocation || {}
+                return (
+                  <div 
+                    key={loc.id} 
+                    className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 
+                        className="font-semibold text-gray-800 cursor-pointer hover:text-dark-blue"
+                        onClick={() => navigate(`/locations/${loc.id}`)}
+                      >
+                        {loc.nombre}
+                      </h4>
+                    </div>
+                    {loc.direccion && (
+                      <p className="text-sm text-gray-600 mb-1">📍 {loc.direccion}</p>
+                    )}
+                    {proyectoLocation.setName && (
+                      <p className="text-xs text-gray-600 mb-1">
+                        <span className="font-semibold">SET NAME:</span> {proyectoLocation.setName}
+                      </p>
+                    )}
+                    {proyectoLocation.basecampLink && (
+                      <p className="text-xs text-gray-600 mb-1">
+                        <span className="font-semibold">Basecamp:</span>{' '}
+                        <a href={proyectoLocation.basecampLink} target="_blank" rel="noopener noreferrer" className="text-dark-blue hover:underline" onClick={(e) => e.stopPropagation()}>
+                          Ver en Basecamp
+                        </a>
+                      </p>
+                    )}
+                    {proyectoLocation.distanceLocBase && (
+                      <p className="text-xs text-gray-600 mb-1">
+                        <span className="font-semibold">Distance LOC - BASE:</span> {proyectoLocation.distanceLocBase}
+                      </p>
+                    )}
+                    {loc.descripcion && (
+                      <p className="text-sm text-gray-500 line-clamp-2 mt-2">{loc.descripcion}</p>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           ) : (
             <p className="text-gray-500 italic">No hay locations asignadas a este proyecto</p>
@@ -513,17 +552,84 @@ export default function ProyectoDetail() {
                 <label className="block text-gray-700 mb-2">Locations</label>
                 <select
                   multiple
-                  value={formData.locations}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    locations: Array.from(e.target.selectedOptions, option => option.value)
-                  })}
-                  className="w-full px-4 py-2 border rounded-lg"
+                  value={formData.locations.map(l => l.id)}
+                  onChange={(e) => {
+                    const selectedIds = Array.from(e.target.selectedOptions, option => option.value)
+                    const currentLocations = formData.locations
+                    const newLocations = selectedIds.map(id => {
+                      const existing = currentLocations.find(l => l.id === id)
+                      return existing || { id, setName: '', basecampLink: '', distanceLocBase: '' }
+                    })
+                    setFormData({
+                      ...formData,
+                      locations: newLocations
+                    })
+                  }}
+                  className="w-full px-4 py-2 border rounded-lg mb-4"
                 >
                   {availableLocations.map((loc) => (
                     <option key={loc.id} value={loc.id}>{loc.nombre}</option>
                   ))}
                 </select>
+                
+                {/* Campos extra para cada location seleccionada */}
+                {formData.locations.length > 0 && (
+                  <div className="space-y-4 mt-4 p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm font-semibold text-gray-700 mb-3">Información adicional por location:</p>
+                    {formData.locations.map((loc, index) => {
+                      const locationName = availableLocations.find(l => l.id.toString() === loc.id)?.nombre || `Location ${loc.id}`
+                      return (
+                        <div key={loc.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                          <h4 className="font-semibold text-gray-800 mb-3">{locationName}</h4>
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">SET NAME</label>
+                              <input
+                                type="text"
+                                value={loc.setName || ''}
+                                onChange={(e) => {
+                                  const updatedLocations = [...formData.locations]
+                                  updatedLocations[index] = { ...updatedLocations[index], setName: e.target.value }
+                                  setFormData({ ...formData, locations: updatedLocations })
+                                }}
+                                className="w-full px-3 py-2 border rounded-lg text-sm"
+                                placeholder="Nombre del set"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Google Link de BASECAMP</label>
+                              <input
+                                type="url"
+                                value={loc.basecampLink || ''}
+                                onChange={(e) => {
+                                  const updatedLocations = [...formData.locations]
+                                  updatedLocations[index] = { ...updatedLocations[index], basecampLink: e.target.value }
+                                  setFormData({ ...formData, locations: updatedLocations })
+                                }}
+                                className="w-full px-3 py-2 border rounded-lg text-sm"
+                                placeholder="https://..."
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Distance LOC - BASE</label>
+                              <input
+                                type="text"
+                                value={loc.distanceLocBase || ''}
+                                onChange={(e) => {
+                                  const updatedLocations = [...formData.locations]
+                                  updatedLocations[index] = { ...updatedLocations[index], distanceLocBase: e.target.value }
+                                  setFormData({ ...formData, locations: updatedLocations })
+                                }}
+                                className="w-full px-3 py-2 border rounded-lg text-sm"
+                                placeholder="Ej: 15 km"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Crew</label>

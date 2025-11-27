@@ -6,6 +6,7 @@ import Proyecto from '../models/Proyecto.js'
 import Location from '../models/Location.js'
 import Crew from '../models/Crew.js'
 import Vendor from '../models/Vendor.js'
+import ProyectoLocation from '../models/ProyectoLocation.js'
 
 const router = express.Router()
 
@@ -32,12 +33,32 @@ router.get('/', async (req, res) => {
   try {
     const proyectos = await Proyecto.findAll({
       include: [
-        { model: Location, as: 'Locations' },
+        { 
+          model: Location, 
+          as: 'Locations',
+          through: {
+            attributes: ['setName', 'basecampLink', 'distanceLocBase']
+          }
+        },
         { model: Crew, as: 'Crews' },
         { model: Vendor, as: 'Vendors' }
       ]
     })
-    res.json(proyectos)
+    
+    // Formatear proyectos con datos extra de locations
+    const formattedProyectos = proyectos.map(proyecto => ({
+      ...proyecto.toJSON(),
+      Locations: proyecto.Locations.map(loc => ({
+        ...loc.toJSON(),
+        ProyectoLocation: loc.ProyectoLocation || {
+          setName: '',
+          basecampLink: '',
+          distanceLocBase: ''
+        }
+      }))
+    }))
+    
+    res.json(formattedProyectos)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -48,7 +69,13 @@ router.get('/:id', async (req, res) => {
   try {
     const proyecto = await Proyecto.findByPk(req.params.id, {
       include: [
-        { model: Location, as: 'Locations' },
+        { 
+          model: Location, 
+          as: 'Locations',
+          through: {
+            attributes: ['setName', 'basecampLink', 'distanceLocBase']
+          }
+        },
         { model: Crew, as: 'Crews' },
         { model: Vendor, as: 'Vendors' }
       ]
@@ -56,7 +83,21 @@ router.get('/:id', async (req, res) => {
     if (!proyecto) {
       return res.status(404).json({ error: 'Proyecto no encontrado' })
     }
-    res.json(proyecto)
+    
+    // Formatear las locations con los datos extra
+    const formattedProyecto = {
+      ...proyecto.toJSON(),
+      Locations: proyecto.Locations.map(loc => ({
+        ...loc.toJSON(),
+        ProyectoLocation: loc.ProyectoLocation || {
+          setName: '',
+          basecampLink: '',
+          distanceLocBase: ''
+        }
+      }))
+    }
+    
+    res.json(formattedProyecto)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -87,13 +128,37 @@ router.post('/', upload.single('logo'), async (req, res) => {
 
     const proyecto = await Proyecto.create(proyectoData)
 
-    // Asociar locations, crew y vendors si se proporcionan
+    // Asociar locations con datos extra
     if (locations) {
-      const locationIds = JSON.parse(locations)
+      const locationsData = JSON.parse(locations)
+      // locationsData puede ser array de IDs o array de objetos con {id, setName, basecampLink, distanceLocBase}
+      const locationIds = Array.isArray(locationsData) && locationsData.length > 0 && typeof locationsData[0] === 'object'
+        ? locationsData.map(l => parseInt(l.id))
+        : locationsData.map(id => parseInt(id))
+      
       const locationInstances = await Location.findAll({
         where: { id: locationIds }
       })
-      await proyecto.setLocations(locationInstances)
+      
+      // Eliminar relaciones existentes
+      await ProyectoLocation.destroy({
+        where: { proyectoId: proyecto.id }
+      })
+      
+      // Crear relaciones con datos extra
+      for (const locInstance of locationInstances) {
+        const locData = Array.isArray(locationsData) && locationsData.length > 0 && typeof locationsData[0] === 'object'
+          ? locationsData.find(l => parseInt(l.id) === locInstance.id)
+          : null
+        
+        await ProyectoLocation.create({
+          proyectoId: proyecto.id,
+          locationId: locInstance.id,
+          setName: locData?.setName || '',
+          basecampLink: locData?.basecampLink || '',
+          distanceLocBase: locData?.distanceLocBase || ''
+        })
+      }
     }
 
     if (crew) {
@@ -115,13 +180,32 @@ router.post('/', upload.single('logo'), async (req, res) => {
     // Recargar con relaciones
     await proyecto.reload({
       include: [
-        { model: Location, as: 'Locations' },
+        { 
+          model: Location, 
+          as: 'Locations',
+          through: {
+            attributes: ['setName', 'basecampLink', 'distanceLocBase']
+          }
+        },
         { model: Crew, as: 'Crews' },
         { model: Vendor, as: 'Vendors' }
       ]
     })
     
-    res.status(201).json(proyecto)
+    // Formatear respuesta con datos extra
+    const formattedProyecto = {
+      ...proyecto.toJSON(),
+      Locations: proyecto.Locations.map(loc => ({
+        ...loc.toJSON(),
+        ProyectoLocation: loc.ProyectoLocation || {
+          setName: '',
+          basecampLink: '',
+          distanceLocBase: ''
+        }
+      }))
+    }
+    
+    res.status(201).json(formattedProyecto)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -150,13 +234,37 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
 
     await proyecto.update(updateData)
 
-    // Actualizar relaciones si se proporcionan
+    // Actualizar relaciones de locations con datos extra
     if (locations) {
-      const locationIds = JSON.parse(locations)
+      const locationsData = JSON.parse(locations)
+      // locationsData puede ser array de IDs o array de objetos con {id, setName, basecampLink, distanceLocBase}
+      const locationIds = Array.isArray(locationsData) && locationsData.length > 0 && typeof locationsData[0] === 'object'
+        ? locationsData.map(l => parseInt(l.id))
+        : locationsData.map(id => parseInt(id))
+      
       const locationInstances = await Location.findAll({
         where: { id: locationIds }
       })
-      await proyecto.setLocations(locationInstances)
+      
+      // Eliminar relaciones existentes
+      await ProyectoLocation.destroy({
+        where: { proyectoId: proyecto.id }
+      })
+      
+      // Crear relaciones con datos extra
+      for (const locInstance of locationInstances) {
+        const locData = Array.isArray(locationsData) && locationsData.length > 0 && typeof locationsData[0] === 'object'
+          ? locationsData.find(l => parseInt(l.id) === locInstance.id)
+          : null
+        
+        await ProyectoLocation.create({
+          proyectoId: proyecto.id,
+          locationId: locInstance.id,
+          setName: locData?.setName || '',
+          basecampLink: locData?.basecampLink || '',
+          distanceLocBase: locData?.distanceLocBase || ''
+        })
+      }
     }
 
     if (crew) {
@@ -178,13 +286,32 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
     // Recargar con relaciones
     await proyecto.reload({
       include: [
-        { model: Location, as: 'Locations' },
+        { 
+          model: Location, 
+          as: 'Locations',
+          through: {
+            attributes: ['setName', 'basecampLink', 'distanceLocBase']
+          }
+        },
         { model: Crew, as: 'Crews' },
         { model: Vendor, as: 'Vendors' }
       ]
     })
 
-    res.json(proyecto)
+    // Formatear respuesta con datos extra
+    const formattedProyecto = {
+      ...proyecto.toJSON(),
+      Locations: proyecto.Locations.map(loc => ({
+        ...loc.toJSON(),
+        ProyectoLocation: loc.ProyectoLocation || {
+          setName: '',
+          basecampLink: '',
+          distanceLocBase: ''
+        }
+      }))
+    }
+
+    res.json(formattedProyecto)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }

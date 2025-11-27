@@ -3,6 +3,7 @@ import sequelize from '../config/database.js'
 import Location from './Location.js'
 import Crew from './Crew.js'
 import Vendor from './Vendor.js'
+import ProyectoLocation from './ProyectoLocation.js'
 
 const Proyecto = sequelize.define('Proyecto', {
   id: {
@@ -61,7 +62,7 @@ const Proyecto = sequelize.define('Proyecto', {
 
 // Relaciones - se definen después de importar todos los modelos
 Proyecto.belongsToMany(Location, { 
-  through: 'ProyectoLocations',
+  through: ProyectoLocation,
   foreignKey: 'proyectoId',
   otherKey: 'locationId',
   as: 'Locations'
@@ -82,7 +83,7 @@ Proyecto.belongsToMany(Vendor, {
 })
 
 Location.belongsToMany(Proyecto, {
-  through: 'ProyectoLocations',
+  through: ProyectoLocation,
   foreignKey: 'locationId',
   otherKey: 'proyectoId',
   as: 'Proyectos'
