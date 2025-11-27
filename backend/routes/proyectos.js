@@ -32,14 +32,23 @@ const upload = multer({ storage })
 // GET all proyectos
 router.get('/', async (req, res) => {
   try {
+    console.log('🔄 Iniciando GET /proyectos')
+    
     // Cargar proyectos sin el through model primero para evitar errores
-    const proyectos = await Proyecto.findAll({
-      include: [
-        { model: Location, as: 'Locations', required: false },
-        { model: Crew, as: 'Crews', required: false },
-        { model: Vendor, as: 'Vendors', required: false }
-      ]
-    })
+    let proyectos
+    try {
+      proyectos = await Proyecto.findAll({
+        include: [
+          { model: Location, as: 'Locations', required: false },
+          { model: Crew, as: 'Crews', required: false },
+          { model: Vendor, as: 'Vendors', required: false }
+        ]
+      })
+      console.log(`✅ Proyectos cargados: ${proyectos.length}`)
+    } catch (findError) {
+      console.error('❌ Error en Proyecto.findAll:', findError)
+      throw findError
+    }
     
     // Ahora cargar los datos de ProyectoLocation por separado si es necesario
     const proyectoIds = proyectos.map(p => p && p.id).filter(id => id !== undefined && id !== null)
@@ -47,47 +56,66 @@ router.get('/', async (req, res) => {
     
     if (proyectoIds.length > 0) {
       try {
-        // Verificar si la tabla existe antes de consultar
-        const [results] = await sequelize.query("SHOW TABLES LIKE 'ProyectoLocations'")
-        if (results && results.length > 0) {
-          const proyectoLocations = await ProyectoLocation.findAll({
-            where: {
-              proyectoId: proyectoIds
+        // Intentar cargar ProyectoLocation, pero si falla, continuar sin ellos
+        const proyectoLocations = await ProyectoLocation.findAll({
+          where: {
+            proyectoId: proyectoIds
+          }
+        })
+        
+        console.log(`✅ ProyectoLocations cargados: ${proyectoLocations.length}`)
+        
+        // Crear un mapa para acceso rápido: proyectoId_locationId -> datos
+        proyectoLocations.forEach(pl => {
+          if (pl && pl.proyectoId && pl.locationId) {
+            const key = `${pl.proyectoId}_${pl.locationId}`
+            proyectoLocationsMap[key] = {
+              setName: pl.setName || '',
+              basecampLink: pl.basecampLink || '',
+              distanceLocBase: pl.distanceLocBase || ''
             }
-          })
-          
-          // Crear un mapa para acceso rápido: proyectoId_locationId -> datos
-          proyectoLocations.forEach(pl => {
-            if (pl && pl.proyectoId && pl.locationId) {
-              const key = `${pl.proyectoId}_${pl.locationId}`
-              proyectoLocationsMap[key] = {
-                setName: pl.setName || '',
-                basecampLink: pl.basecampLink || '',
-                distanceLocBase: pl.distanceLocBase || ''
-              }
-            }
-          })
-        } else {
-          console.log('Tabla ProyectoLocations no existe aún, usando valores por defecto')
-        }
+          }
+        })
       } catch (plError) {
-        console.error('Error cargando ProyectoLocation:', plError.message)
-        console.error('Error stack:', plError.stack)
-        // Si falla, simplemente usar valores vacíos - no es crítico
+        // Si la tabla no existe o hay algún error, simplemente continuar sin ProyectoLocation
+        console.log('ℹ️  No se pudieron cargar ProyectoLocations (puede que la tabla no exista aún):', plError.message)
+        // No es crítico, continuamos sin estos datos
       }
     }
     
     // Formatear proyectos con datos extra de locations
-    const formattedProyectos = proyectos.map((proyecto) => {
+    console.log('🔄 Formateando proyectos...')
+    const formattedProyectos = proyectos.map((proyecto, index) => {
       try {
+        if (!proyecto) {
+          console.warn(`⚠️  Proyecto ${index} es null o undefined`)
+          return null
+        }
+        
         const proyectoJson = proyecto.toJSON()
+        if (!proyectoJson) {
+          console.warn(`⚠️  Proyecto ${index} no se pudo convertir a JSON`)
+          return null
+        }
         
         // Acceder a ProyectoLocation desde el mapa que creamos
-        const locations = (proyectoJson.Locations || []).map((loc) => {
+        const locations = (proyectoJson.Locations || []).map((loc, locIndex) => {
           try {
             // Validar que proyecto.id y loc.id existan
-            if (!proyecto || !proyecto.id || !loc || !loc.id) {
-              console.warn('Proyecto o location sin ID válido:', { proyectoId: proyecto?.id, locationId: loc?.id })
+            if (!proyecto || !proyecto.id) {
+              console.warn(`⚠️  Proyecto sin ID válido en location ${locIndex}`)
+              return {
+                ...loc,
+                ProyectoLocation: {
+                  setName: '',
+                  basecampLink: '',
+                  distanceLocBase: ''
+                }
+              }
+            }
+            
+            if (!loc || !loc.id) {
+              console.warn(`⚠️  Location ${locIndex} sin ID válido`)
               return {
                 ...loc,
                 ProyectoLocation: {
@@ -112,8 +140,7 @@ router.get('/', async (req, res) => {
               }
             }
           } catch (locError) {
-            console.error('Error procesando location individual:', locError)
-            console.error('Location que causó el error:', loc)
+            console.error(`❌ Error procesando location ${locIndex}:`, locError)
             // Si hay error con una location específica, devolverla sin ProyectoLocation
             return {
               ...loc,
@@ -131,7 +158,7 @@ router.get('/', async (req, res) => {
           Locations: locations
         }
       } catch (error) {
-        console.error('Error formateando proyecto completo:', error)
+        console.error(`❌ Error formateando proyecto ${index}:`, error)
         console.error('Stack:', error.stack)
         // Si hay error, devolver el proyecto sin formatear
         try {
@@ -148,12 +175,13 @@ router.get('/', async (req, res) => {
             }))
           }
         } catch (fallbackError) {
-          console.error('Error en fallback:', fallbackError)
+          console.error('❌ Error en fallback:', fallbackError)
           return proyecto.toJSON()
         }
       }
-    })
+    }).filter(p => p !== null) // Filtrar proyectos nulos
     
+    console.log(`✅ Proyectos formateados: ${formattedProyectos.length}`)
     res.json(formattedProyectos)
   } catch (error) {
     console.error('Error en GET /proyectos:', error)
