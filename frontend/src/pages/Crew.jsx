@@ -227,25 +227,31 @@ export default function Crew() {
               key={member.id} 
               className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-2xl transition-shadow border border-gray-100 hover:border-accent-green/40"
             >
-              {member.fotoUrl && (
-                <div className="w-full aspect-square overflow-hidden">
-                  <img
-                    src={member.fotoUrl}
-                    alt={member.nombre}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
               <div className="p-5 space-y-2">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-1">{member.nombre}</h2>
-                    {member.rol && (
-                      <p className="text-xs text-gray-600 mb-2">
-                        <span className="font-semibold text-gray-800">Rol: </span>
-                        {member.rol}
-                      </p>
+                  <div className="flex items-center gap-3 flex-1">
+                    {member.fotoUrl ? (
+                      <img
+                        src={member.fotoUrl}
+                        alt={member.nombre}
+                        className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
                     )}
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-lg font-semibold text-gray-900 mb-1 truncate">{member.nombre}</h2>
+                      {member.rol && (
+                        <p className="text-xs text-gray-600">
+                          <span className="font-semibold text-gray-800">Rol: </span>
+                          {member.rol}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <button
@@ -268,41 +274,43 @@ export default function Crew() {
                     </button>
                   </div>
                 </div>
-                {member.dni && (
-                  <p className="text-xs text-gray-600">
-                    <span className="font-semibold text-gray-800">DNI: </span>
-                    {member.dni}
-                  </p>
-                )}
-                {member.fechaNacimiento && (
-                  <p className="text-xs text-gray-600">
-                    <span className="font-semibold text-gray-800">Fecha de nacimiento: </span>
-                    {new Date(member.fechaNacimiento).toLocaleDateString('es-ES')}
-                  </p>
-                )}
-                <p className="text-xs text-gray-600">
-                  <span className="font-semibold text-gray-800">Carnet de conducir: </span>
-                  {member.carnetConducir ? (
-                    <span className="text-green-600 font-medium">Sí</span>
-                  ) : (
-                    <span className="text-gray-500">No</span>
+                <div className="space-y-1 pt-2 border-t border-gray-100">
+                  {member.dni && (
+                    <p className="text-xs text-gray-600">
+                      <span className="font-semibold text-gray-800">DNI: </span>
+                      {member.dni}
+                    </p>
                   )}
-                </p>
-                {member.email && (
-                  <p className="text-xs text-gray-600 truncate">
-                    <span className="font-semibold text-gray-800">Email: </span>
-                    {member.email}
-                  </p>
-                )}
-                {member.telefono && (
+                  {member.fechaNacimiento && (
+                    <p className="text-xs text-gray-600">
+                      <span className="font-semibold text-gray-800">Fecha de nacimiento: </span>
+                      {new Date(member.fechaNacimiento).toLocaleDateString('es-ES')}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-600">
-                    <span className="font-semibold text-gray-800">Teléfono: </span>
-                    {member.telefono}
+                    <span className="font-semibold text-gray-800">Carnet de conducir: </span>
+                    {member.carnetConducir ? (
+                      <span className="text-green-600 font-medium">Sí</span>
+                    ) : (
+                      <span className="text-gray-500">No</span>
+                    )}
                   </p>
-                )}
-                {member.notas && (
-                  <p className="text-sm text-gray-500 line-clamp-2 mt-2">{member.notas}</p>
-                )}
+                  {member.email && (
+                    <p className="text-xs text-gray-600 truncate">
+                      <span className="font-semibold text-gray-800">Email: </span>
+                      {member.email}
+                    </p>
+                  )}
+                  {member.telefono && (
+                    <p className="text-xs text-gray-600">
+                      <span className="font-semibold text-gray-800">Teléfono: </span>
+                      {member.telefono}
+                    </p>
+                  )}
+                  {member.notas && (
+                    <p className="text-sm text-gray-500 line-clamp-2 mt-2">{member.notas}</p>
+                  )}
+                </div>
               </div>
             </div>
           ))}
