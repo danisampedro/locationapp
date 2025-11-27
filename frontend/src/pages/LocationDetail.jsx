@@ -102,6 +102,46 @@ export default function LocationDetail() {
             <p className="text-gray-700 leading-relaxed">{location.descripcion}</p>
           </div>
         )}
+        
+        {/* Sección de Proyectos */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">Proyectos ({location.Proyectos?.length || 0})</h3>
+          </div>
+          {location.Proyectos && location.Proyectos.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {location.Proyectos.map((proyecto) => (
+                <div 
+                  key={proyecto.id} 
+                  className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => navigate(`/proyectos/${proyecto.id}`)}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    {proyecto.logoUrl && (
+                      <img
+                        src={proyecto.logoUrl}
+                        alt={proyecto.nombre}
+                        className="w-10 h-10 object-cover rounded-lg"
+                      />
+                    )}
+                    <h4 className="font-semibold text-gray-800">{proyecto.nombre}</h4>
+                  </div>
+                  {proyecto.descripcion && (
+                    <p className="text-sm text-gray-500 line-clamp-2">{proyecto.descripcion}</p>
+                  )}
+                  {proyecto.projectDate && (
+                    <p className="text-xs text-gray-400 mt-2">
+                      {new Date(proyecto.projectDate).toLocaleDateString('es-ES')}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 italic">Esta localización no está asignada a ningún proyecto</p>
+          )}
+        </div>
+
         {(location.googleMapsLink || location.contact || location.phoneNumber || location.mail) && (
           <div className="border-t pt-6 space-y-4">
             <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Información de contacto</h3>

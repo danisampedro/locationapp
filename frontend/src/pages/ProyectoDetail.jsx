@@ -268,7 +268,11 @@ export default function ProyectoDetail() {
           {proyecto.Locations && proyecto.Locations.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {proyecto.Locations.map((loc) => (
-                <div key={loc.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div 
+                  key={loc.id} 
+                  className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => navigate(`/locations/${loc.id}`)}
+                >
                   <h4 className="font-semibold text-gray-800 mb-2">{loc.nombre}</h4>
                   {loc.direccion && (
                     <p className="text-sm text-gray-600 mb-1">📍 {loc.direccion}</p>

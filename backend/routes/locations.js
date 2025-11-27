@@ -3,6 +3,7 @@ import multer from 'multer'
 import { v2 as cloudinary } from 'cloudinary'
 import { CloudinaryStorage } from 'multer-storage-cloudinary'
 import Location from '../models/Location.js'
+import Proyecto from '../models/Proyecto.js'
 
 const router = express.Router()
 
@@ -41,7 +42,11 @@ router.get('/', async (req, res) => {
 // GET single location
 router.get('/:id', async (req, res) => {
   try {
-    const location = await Location.findByPk(req.params.id)
+    const location = await Location.findByPk(req.params.id, {
+      include: [
+        { model: Proyecto, as: 'Proyectos' }
+      ]
+    })
     if (!location) {
       return res.status(404).json({ error: 'Location no encontrada' })
     }
