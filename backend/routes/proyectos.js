@@ -46,20 +46,56 @@ router.get('/', async (req, res) => {
     })
     
     // Formatear proyectos con datos extra de locations
-    const formattedProyectos = proyectos.map(proyecto => ({
-      ...proyecto.toJSON(),
-      Locations: proyecto.Locations.map(loc => ({
-        ...loc.toJSON(),
-        ProyectoLocation: loc.ProyectoLocation || {
-          setName: '',
-          basecampLink: '',
-          distanceLocBase: ''
+    const formattedProyectos = await Promise.all(proyectos.map(async (proyecto) => {
+      try {
+        const proyectoJson = proyecto.toJSON()
+        const locations = await Promise.all((proyectoJson.Locations || []).map(async (loc) => {
+          // Buscar ProyectoLocation directamente desde la base de datos si no está en el objeto
+          let proyectoLocation = loc.ProyectoLocation
+          
+          if (!proyectoLocation) {
+            try {
+              const pl = await ProyectoLocation.findOne({
+                where: {
+                  proyectoId: proyecto.id,
+                  locationId: loc.id
+                }
+              })
+              proyectoLocation = pl ? pl.toJSON() : null
+            } catch (err) {
+              console.error('Error buscando ProyectoLocation:', err)
+              proyectoLocation = null
+            }
+          }
+          
+          return {
+            ...loc,
+            ProyectoLocation: proyectoLocation ? {
+              setName: proyectoLocation.setName || '',
+              basecampLink: proyectoLocation.basecampLink || '',
+              distanceLocBase: proyectoLocation.distanceLocBase || ''
+            } : {
+              setName: '',
+              basecampLink: '',
+              distanceLocBase: ''
+            }
+          }
+        }))
+        
+        return {
+          ...proyectoJson,
+          Locations: locations
         }
-      }))
+      } catch (error) {
+        console.error('Error formateando proyecto:', error)
+        // Si hay error, devolver el proyecto sin formatear
+        return proyecto.toJSON()
+      }
     }))
     
     res.json(formattedProyectos)
   } catch (error) {
+    console.error('Error en GET /proyectos:', error)
     res.status(500).json({ error: error.message })
   }
 })
@@ -85,19 +121,52 @@ router.get('/:id', async (req, res) => {
     }
     
     // Formatear las locations con los datos extra
-    const formattedProyecto = {
-      ...proyecto.toJSON(),
-      Locations: proyecto.Locations.map(loc => ({
-        ...loc.toJSON(),
-        ProyectoLocation: loc.ProyectoLocation || {
-          setName: '',
-          basecampLink: '',
-          distanceLocBase: ''
+    try {
+      const proyectoJson = proyecto.toJSON()
+      const locations = await Promise.all((proyectoJson.Locations || []).map(async (loc) => {
+        // Buscar ProyectoLocation directamente desde la base de datos si no está en el objeto
+        let proyectoLocation = loc.ProyectoLocation
+        
+        if (!proyectoLocation) {
+          try {
+            const pl = await ProyectoLocation.findOne({
+              where: {
+                proyectoId: proyecto.id,
+                locationId: loc.id
+              }
+            })
+            proyectoLocation = pl ? pl.toJSON() : null
+          } catch (err) {
+            console.error('Error buscando ProyectoLocation:', err)
+            proyectoLocation = null
+          }
+        }
+        
+        return {
+          ...loc,
+          ProyectoLocation: proyectoLocation ? {
+            setName: proyectoLocation.setName || '',
+            basecampLink: proyectoLocation.basecampLink || '',
+            distanceLocBase: proyectoLocation.distanceLocBase || ''
+          } : {
+            setName: '',
+            basecampLink: '',
+            distanceLocBase: ''
+          }
         }
       }))
+      
+      const formattedProyecto = {
+        ...proyectoJson,
+        Locations: locations
+      }
+      
+      res.json(formattedProyecto)
+    } catch (error) {
+      console.error('Error formateando proyecto:', error)
+      // Si hay error, devolver el proyecto sin formatear
+      res.json(proyecto.toJSON())
     }
-    
-    res.json(formattedProyecto)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -193,19 +262,38 @@ router.post('/', upload.single('logo'), async (req, res) => {
     })
     
     // Formatear respuesta con datos extra
-    const formattedProyecto = {
-      ...proyecto.toJSON(),
-      Locations: proyecto.Locations.map(loc => ({
-        ...loc.toJSON(),
-        ProyectoLocation: loc.ProyectoLocation || {
-          setName: '',
-          basecampLink: '',
-          distanceLocBase: ''
+    try {
+      const proyectoJson = proyecto.toJSON()
+      const locations = (proyectoJson.Locations || []).map(loc => {
+        // Acceder a ProyectoLocation - puede estar en loc.ProyectoLocation o en el objeto Sequelize original
+        const originalLoc = proyecto.Locations?.find(l => l.id === loc.id)
+        const proyectoLocation = loc.ProyectoLocation || originalLoc?.ProyectoLocation || originalLoc?.dataValues?.ProyectoLocation || null
+        
+        return {
+          ...loc,
+          ProyectoLocation: proyectoLocation ? {
+            setName: proyectoLocation.setName || '',
+            basecampLink: proyectoLocation.basecampLink || '',
+            distanceLocBase: proyectoLocation.distanceLocBase || ''
+          } : {
+            setName: '',
+            basecampLink: '',
+            distanceLocBase: ''
+          }
         }
-      }))
+      })
+      
+      const formattedProyecto = {
+        ...proyectoJson,
+        Locations: locations
+      }
+      
+      res.status(201).json(formattedProyecto)
+    } catch (error) {
+      console.error('Error formateando proyecto:', error)
+      // Si hay error, devolver el proyecto sin formatear
+      res.status(201).json(proyecto.toJSON())
     }
-    
-    res.status(201).json(formattedProyecto)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -299,19 +387,38 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
     })
 
     // Formatear respuesta con datos extra
-    const formattedProyecto = {
-      ...proyecto.toJSON(),
-      Locations: proyecto.Locations.map(loc => ({
-        ...loc.toJSON(),
-        ProyectoLocation: loc.ProyectoLocation || {
-          setName: '',
-          basecampLink: '',
-          distanceLocBase: ''
+    try {
+      const proyectoJson = proyecto.toJSON()
+      const locations = (proyectoJson.Locations || []).map(loc => {
+        // Acceder a ProyectoLocation - puede estar en loc.ProyectoLocation o en el objeto Sequelize original
+        const originalLoc = proyecto.Locations?.find(l => l.id === loc.id)
+        const proyectoLocation = loc.ProyectoLocation || originalLoc?.ProyectoLocation || originalLoc?.dataValues?.ProyectoLocation || null
+        
+        return {
+          ...loc,
+          ProyectoLocation: proyectoLocation ? {
+            setName: proyectoLocation.setName || '',
+            basecampLink: proyectoLocation.basecampLink || '',
+            distanceLocBase: proyectoLocation.distanceLocBase || ''
+          } : {
+            setName: '',
+            basecampLink: '',
+            distanceLocBase: ''
+          }
         }
-      }))
-    }
+      })
+      
+      const formattedProyecto = {
+        ...proyectoJson,
+        Locations: locations
+      }
 
-    res.json(formattedProyecto)
+      res.json(formattedProyecto)
+    } catch (error) {
+      console.error('Error formateando proyecto:', error)
+      // Si hay error, devolver el proyecto sin formatear
+      res.json(proyecto.toJSON())
+    }
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
