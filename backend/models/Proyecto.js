@@ -62,7 +62,7 @@ const Proyecto = sequelize.define('Proyecto', {
 
 // Relaciones - se definen después de importar todos los modelos
 Proyecto.belongsToMany(Location, { 
-  through: ProyectoLocation,
+  through: 'ProyectoLocations',  // Usar string en lugar del modelo explícito para evitar que Sequelize intente acceder automáticamente
   foreignKey: 'proyectoId',
   otherKey: 'locationId',
   as: 'Locations'
@@ -83,7 +83,7 @@ Proyecto.belongsToMany(Vendor, {
 })
 
 Location.belongsToMany(Proyecto, {
-  through: ProyectoLocation,
+  through: 'ProyectoLocations',  // Usar string en lugar del modelo explícito para evitar que Sequelize intente acceder automáticamente
   foreignKey: 'locationId',
   otherKey: 'proyectoId',
   as: 'Proyectos'
