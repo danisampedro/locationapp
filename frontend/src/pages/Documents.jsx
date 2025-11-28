@@ -48,83 +48,141 @@ export default function Documents() {
     setGenerating(true)
 
     try {
-      const doc = new jsPDF()
-      const pageWidth = doc.internal.pageSize.getWidth()
-      const pageHeight = doc.internal.pageSize.getHeight()
-      const margin = 15
-      let yPosition = margin
+      const doc = new jsPDF('p', 'mm', 'a4')
+      const pageWidth = doc.internal.pageSize.getWidth() // 210mm
+      const pageHeight = doc.internal.pageSize.getHeight() // 297mm
+      
+      // Márgenes según especificación
+      const marginTop = 25
+      const marginBottom = 20
+      const marginSides = 20
+      const usableWidth = pageWidth - (2 * marginSides)
+      const usableHeight = pageHeight - marginTop - marginBottom
+      
+      let yPosition = marginTop
 
-      // ===== ENCABEZADO =====
-      // Logo del proyecto (si existe)
+      // ===== CABECERA (HEADER) =====
+      // Altura de cabecera: 55-70px (aproximadamente 20-25mm)
+      const headerHeight = 20
+      const logoWidth = 30
+      const logoHeight = 15
+      
+      // Logo a la izquierda
       if (proyecto.logoUrl) {
         try {
           const logoImg = await loadImage(proyecto.logoUrl)
-          const logoWidth = 30
-          const logoHeight = (logoImg.height / logoImg.width) * logoWidth
-          doc.addImage(logoImg, 'PNG', margin, yPosition, logoWidth, logoHeight)
-          yPosition += logoHeight + 5
+          const logoAspect = logoImg.width / logoImg.height
+          let finalLogoWidth = logoWidth
+          let finalLogoHeight = logoHeight
+          
+          if (logoAspect > (logoWidth / logoHeight)) {
+            finalLogoHeight = logoWidth / logoAspect
+          } else {
+            finalLogoWidth = logoHeight * logoAspect
+          }
+          
+          doc.addImage(logoImg, 'PNG', marginSides, yPosition, finalLogoWidth, finalLogoHeight)
         } catch (error) {
           console.error('Error cargando logo:', error)
         }
       }
 
-      // Nombre del proyecto
-      doc.setFontSize(20)
-      doc.setFont('helvetica', 'bold')
-      doc.text(proyecto.nombre, margin, yPosition)
-      yPosition += 10
-
-      // Información del proyecto
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      
-      if (proyecto.projectDate) {
-        doc.text(`Fecha del proyecto: ${new Date(proyecto.projectDate).toLocaleDateString('es-ES')}`, margin, yPosition)
-        yPosition += 6
-      }
-
-      if (proyecto.company) {
-        doc.text(`Empresa: ${proyecto.company}`, margin, yPosition)
-        yPosition += 6
-      }
-
-      if (proyecto.cif) {
-        doc.text(`CIF: ${proyecto.cif}`, margin, yPosition)
-        yPosition += 6
-      }
-
-      if (proyecto.address) {
-        doc.text(`Dirección: ${proyecto.address}`, margin, yPosition)
-        yPosition += 6
-      }
-
-      // Línea separadora
-      yPosition += 5
-      doc.setDrawColor(200, 200, 200)
-      doc.line(margin, yPosition, pageWidth - margin, yPosition)
-      yPosition += 10
-
-      // ===== LOCATIONS =====
+      // Título centrado (en mayúsculas, bold)
       doc.setFontSize(16)
       doc.setFont('helvetica', 'bold')
-      doc.text('Lista de Localizaciones', margin, yPosition)
+      doc.setTextColor(30, 30, 30)
+      const titleText = proyecto.nombre.toUpperCase()
+      const titleWidth = doc.getTextWidth(titleText)
+      const titleX = (pageWidth - titleWidth) / 2
+      doc.text(titleText, titleX, yPosition + 10)
+
+      // "LOCATION LIST" a la derecha
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(60, 60, 60)
+      const docTypeText = 'LOCATION LIST'
+      const docTypeWidth = doc.getTextWidth(docTypeText)
+      const docTypeX = pageWidth - marginSides - docTypeWidth
+      doc.text(docTypeText, docTypeX, yPosition + 10)
+
+      yPosition += headerHeight + 10
+
+      // ===== BLOQUE: INFORMACIÓN DEL PROYECTO =====
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(0, 0, 0)
+      
+      const projectInfoStartY = yPosition
+      
+      // Production Company
+      if (proyecto.company) {
+        doc.setFont('helvetica', 'bold')
+        doc.text('PRODUCTION COMPANY: ', marginSides, yPosition)
+        doc.setFont('helvetica', 'normal')
+        const companyText = proyecto.company
+        doc.text(companyText, marginSides + 50, yPosition)
+        yPosition += 6
+      }
+
+      // Location Manager
+      if (proyecto.locationManager) {
+        doc.setFont('helvetica', 'bold')
+        doc.text('LOCATION MANAGER: ', marginSides, yPosition)
+        doc.setFont('helvetica', 'normal')
+        doc.text(proyecto.locationManager, marginSides + 50, yPosition)
+        yPosition += 6
+      }
+
+      // Location Coordinator
+      if (proyecto.locationCoordinator) {
+        doc.setFont('helvetica', 'bold')
+        doc.text('LOCATION COORDINATOR: ', marginSides, yPosition)
+        doc.setFont('helvetica', 'normal')
+        doc.text(proyecto.locationCoordinator, marginSides + 50, yPosition)
+        yPosition += 6
+      }
+
+      // Assistant Location Manager
+      if (proyecto.assistantLocationManager) {
+        doc.setFont('helvetica', 'bold')
+        doc.text('ASSISTANT LOCATION MANAGER: ', marginSides, yPosition)
+        doc.setFont('helvetica', 'normal')
+        doc.text(proyecto.assistantLocationManager, marginSides + 50, yPosition)
+        yPosition += 6
+      }
+
+      // Basecamp Manager
+      if (proyecto.basecampManager) {
+        doc.setFont('helvetica', 'bold')
+        doc.text('BASECAMP MANAGER: ', marginSides, yPosition)
+        doc.setFont('helvetica', 'normal')
+        doc.text(proyecto.basecampManager, marginSides + 50, yPosition)
+        yPosition += 6
+      }
+
+      // Espaciado antes de las localizaciones
       yPosition += 10
 
+      // ===== BLOQUES DE LOCALIZACIÓN =====
       for (let i = 0; i < proyecto.Locations.length; i++) {
         const location = proyecto.Locations[i]
 
         // Verificar si necesitamos una nueva página
-        if (yPosition > pageHeight - 100) {
+        if (yPosition > pageHeight - marginBottom - 80) {
           doc.addPage()
-          yPosition = margin
+          yPosition = marginTop
         }
 
-        // Foto de la location en formato 16:9 (si existe)
-        const imageX = margin
-        const imageY = yPosition
-        const imageWidth = 90 // Más ancha para formato 16:9
-        const imageHeight = 50.625 // 16:9 ratio (90 * 9/16)
+        // Estructura del bloque: Foto 16:9 a la izquierda, datos a la derecha
+        const blockStartY = yPosition
+        
+        // Foto 16:9 (45-48% del ancho útil)
+        const imageWidth = usableWidth * 0.46 // ~46% del ancho útil
+        const imageHeight = imageWidth * (9 / 16) // Mantener ratio 16:9
+        const imageX = marginSides
+        const imageY = blockStartY
 
+        // Dibujar foto o placeholder
         if (location.imagenes && location.imagenes.length > 0) {
           try {
             const firstImage = Array.isArray(location.imagenes) 
@@ -135,7 +193,7 @@ export default function Documents() {
             
             if (firstImage) {
               const locationImg = await loadImage(firstImage)
-              // Calcular dimensiones manteniendo ratio 16:9
+              // Ajustar para mantener 16:9
               const imgAspect = locationImg.width / locationImg.height
               const targetAspect = 16 / 9
               let finalWidth = imageWidth
@@ -153,96 +211,105 @@ export default function Documents() {
             }
           } catch (error) {
             console.error('Error cargando imagen de location:', error)
-            // Dibujar un rectángulo placeholder 16:9
             doc.setFillColor(240, 240, 240)
             doc.rect(imageX, imageY, imageWidth, imageHeight, 'F')
             doc.setFontSize(8)
             doc.setTextColor(150, 150, 150)
-            doc.text('Sin imagen', imageX + 30, imageY + imageHeight / 2)
+            doc.text('Sin imagen', imageX + imageWidth / 2, imageY + imageHeight / 2, { align: 'center' })
             doc.setTextColor(0, 0, 0)
           }
         } else {
-          // Dibujar un rectángulo placeholder 16:9
           doc.setFillColor(240, 240, 240)
           doc.rect(imageX, imageY, imageWidth, imageHeight, 'F')
           doc.setFontSize(8)
           doc.setTextColor(150, 150, 150)
-          doc.text('Sin imagen', imageX + 30, imageY + imageHeight / 2)
+          doc.text('Sin imagen', imageX + imageWidth / 2, imageY + imageHeight / 2, { align: 'center' })
           doc.setTextColor(0, 0, 0)
         }
 
-        // Información de la location (a la derecha de la foto)
-        const infoX = margin + imageWidth + 12
+        // Información a la derecha de la foto
+        const infoX = marginSides + imageWidth + 20 // Margen derecho de 20-25px
         let infoY = imageY
 
-        // Nombre más grande
+        // Título LOCATION (14pt, bold, mayúsculas)
         doc.setFontSize(14)
         doc.setFont('helvetica', 'bold')
+        doc.setTextColor(30, 30, 30)
+        doc.text('LOCATION', infoX, infoY)
+        infoY += 8
+
+        // Nombre de la location
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'normal')
         doc.text(location.nombre, infoX, infoY)
         infoY += 8
 
-        doc.setFontSize(11)
-        doc.setFont('helvetica', 'normal')
-
-        // Dirección
-        if (location.direccion) {
-          doc.text(`📍 ${location.direccion}`, infoX, infoY)
-          infoY += 7
-        }
-
-        // Información extra del proyecto
+        // SET (si existe)
         const proyectoLocation = location.ProyectoLocation || {}
         if (proyectoLocation.setName) {
           doc.setFont('helvetica', 'bold')
-          doc.text(`SET NAME: ${proyectoLocation.setName}`, infoX, infoY)
+          doc.text('SET: ', infoX, infoY)
           doc.setFont('helvetica', 'normal')
-          infoY += 7
+          doc.text(proyectoLocation.setName, infoX + 15, infoY)
+          infoY += 6
         }
 
+        // ADDRESS (dirección completa: calle + CP + ciudad)
+        if (location.direccion) {
+          doc.setFont('helvetica', 'bold')
+          doc.text('ADDRESS: ', infoX, infoY)
+          doc.setFont('helvetica', 'normal')
+          const addressLines = doc.splitTextToSize(location.direccion, usableWidth - imageWidth - 35)
+          doc.text(addressLines, infoX + 20, infoY)
+          infoY += addressLines.length * 5 + 2
+        }
+
+        // LINK (Google Maps Location)
+        if (location.googleMapsLink) {
+          doc.setFont('helvetica', 'bold')
+          doc.text('LINK: ', infoX, infoY)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(0, 0, 255)
+          const linkText = location.googleMapsLink.length > 50 
+            ? location.googleMapsLink.substring(0, 47) + '...' 
+            : location.googleMapsLink
+          doc.text(linkText, infoX + 18, infoY)
+          doc.setTextColor(0, 0, 0)
+          infoY += 6
+        }
+
+        // BASECAMP (Google Maps Basecamp)
         if (proyectoLocation.basecampLink) {
           doc.setFont('helvetica', 'bold')
-          doc.text('Basecamp:', infoX, infoY)
+          doc.text('BASECAMP: ', infoX, infoY)
           doc.setFont('helvetica', 'normal')
           doc.setTextColor(0, 0, 255)
-          const linkText = proyectoLocation.basecampLink.length > 40 
-            ? proyectoLocation.basecampLink.substring(0, 37) + '...' 
+          const basecampText = proyectoLocation.basecampLink.length > 50 
+            ? proyectoLocation.basecampLink.substring(0, 47) + '...' 
             : proyectoLocation.basecampLink
-          doc.text(linkText, infoX + 25, infoY)
+          doc.text(basecampText, infoX + 28, infoY)
           doc.setTextColor(0, 0, 0)
-          infoY += 7
+          infoY += 6
         }
 
+        // BS TO SET (distancia)
         if (proyectoLocation.distanceLocBase) {
           doc.setFont('helvetica', 'bold')
-          doc.text(`Distance LOC - BASE: ${proyectoLocation.distanceLocBase}`, infoX, infoY)
+          doc.text('BS TO SET: ', infoX, infoY)
           doc.setFont('helvetica', 'normal')
-          infoY += 7
+          doc.text(proyectoLocation.distanceLocBase, infoX + 28, infoY)
+          infoY += 6
         }
 
-        // Descripción
-        if (location.descripcion) {
-          const descLines = doc.splitTextToSize(location.descripcion, pageWidth - infoX - margin)
-          doc.text(descLines, infoX, infoY)
-          infoY += descLines.length * 6
-        }
+        // Calcular altura total del bloque
+        const blockHeight = Math.max(imageHeight, infoY - imageY)
+        yPosition = blockStartY + blockHeight + 25 // Espacio entre localizaciones: 20-30px
 
-        // Google Maps link (si existe)
-        if (location.googleMapsLink) {
-          doc.setTextColor(0, 0, 255)
-          doc.text('🔗 Google Maps', infoX, infoY)
-          doc.setTextColor(0, 0, 0)
-          infoY += 7
-        }
-
-        // Espacio para la próxima location
-        yPosition = Math.max(imageY + imageHeight, infoY) + 20
-
-        // Línea separadora entre locations
+        // Línea divisoria sutil entre localizaciones (excepto la última)
         if (i < proyecto.Locations.length - 1) {
-          doc.setDrawColor(200, 200, 200)
-          doc.setLineWidth(0.5)
-          doc.line(margin, yPosition - 10, pageWidth - margin, yPosition - 10)
-          doc.setLineWidth(0.2)
+          doc.setDrawColor(229, 229, 229) // #e5e5e5
+          doc.setLineWidth(0.3)
+          doc.line(marginSides, yPosition - 12, pageWidth - marginSides, yPosition - 12)
         }
       }
 

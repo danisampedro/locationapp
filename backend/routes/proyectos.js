@@ -322,7 +322,7 @@ router.post('/', upload.single('logo'), async (req, res) => {
     console.log('Creating proyecto...')
     console.log('Body:', req.body)
     console.log('File:', req.file)
-    const { nombre, descripcion, company, cif, address, locationManager, locationCoordinator, projectDate, locations, crew, vendors } = req.body
+    const { nombre, descripcion, company, cif, address, locationManager, locationCoordinator, assistantLocationManager, basecampManager, projectDate, locations, crew, vendors } = req.body
     
     const proyectoData = {
       nombre,
@@ -332,6 +332,8 @@ router.post('/', upload.single('logo'), async (req, res) => {
       address: address || '',
       locationManager: locationManager || '',
       locationCoordinator: locationCoordinator || '',
+      assistantLocationManager: assistantLocationManager || '',
+      basecampManager: basecampManager || '',
       projectDate: projectDate || null
     }
 
@@ -459,7 +461,7 @@ router.post('/', upload.single('logo'), async (req, res) => {
 // PUT update proyecto
 router.put('/:id', upload.single('logo'), async (req, res) => {
   try {
-    const { nombre, descripcion, company, cif, address, locationManager, locationCoordinator, projectDate, locations, crew, vendors } = req.body
+    const { nombre, descripcion, company, cif, address, locationManager, locationCoordinator, assistantLocationManager, basecampManager, projectDate, locations, crew, vendors } = req.body
     
     const proyecto = await Proyecto.findByPk(req.params.id)
     if (!proyecto) {
@@ -474,6 +476,8 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
     if (address !== undefined) updateData.address = address
     if (locationManager !== undefined) updateData.locationManager = locationManager
     if (locationCoordinator !== undefined) updateData.locationCoordinator = locationCoordinator
+    if (assistantLocationManager !== undefined) updateData.assistantLocationManager = assistantLocationManager
+    if (basecampManager !== undefined) updateData.basecampManager = basecampManager
     if (projectDate !== undefined) updateData.projectDate = projectDate || null
     if (req.file) updateData.logoUrl = req.file.path
 

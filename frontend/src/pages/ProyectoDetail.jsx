@@ -19,6 +19,8 @@ export default function ProyectoDetail() {
     address: '',
     locationManager: '',
     locationCoordinator: '',
+    assistantLocationManager: '',
+    basecampManager: '',
     projectDate: '',
     locations: [], // Array de objetos {id, setName, basecampLink, distanceLocBase}
     crew: [],
@@ -47,6 +49,8 @@ export default function ProyectoDetail() {
         address: response.data.address || '',
         locationManager: response.data.locationManager || '',
         locationCoordinator: response.data.locationCoordinator || '',
+        assistantLocationManager: response.data.assistantLocationManager || '',
+        basecampManager: response.data.basecampManager || '',
         projectDate: response.data.projectDate ? response.data.projectDate.slice(0, 10) : '',
         locations: response.data.Locations?.map(l => {
           // Debug: verificar que los datos se reciben correctamente
@@ -114,6 +118,8 @@ export default function ProyectoDetail() {
       data.append('address', formData.address)
       data.append('locationManager', formData.locationManager)
       data.append('locationCoordinator', formData.locationCoordinator)
+      data.append('assistantLocationManager', formData.assistantLocationManager)
+      data.append('basecampManager', formData.basecampManager)
       if (formData.projectDate) {
         data.append('projectDate', formData.projectDate)
       }
@@ -247,7 +253,7 @@ export default function ProyectoDetail() {
           </div>
         )}
 
-        {(proyecto.company || proyecto.cif || proyecto.address || proyecto.locationManager || proyecto.locationCoordinator) && (
+        {(proyecto.company || proyecto.cif || proyecto.address || proyecto.locationManager || proyecto.locationCoordinator || proyecto.assistantLocationManager || proyecto.basecampManager) && (
           <div>
             <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Información de la Empresa</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -279,6 +285,18 @@ export default function ProyectoDetail() {
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Location Coordinator</p>
                   <p className="text-gray-800">{proyecto.locationCoordinator}</p>
+                </div>
+              )}
+              {proyecto.assistantLocationManager && (
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Assistant Location Manager</p>
+                  <p className="text-gray-800">{proyecto.assistantLocationManager}</p>
+                </div>
+              )}
+              {proyecto.basecampManager && (
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Basecamp Manager</p>
+                  <p className="text-gray-800">{proyecto.basecampManager}</p>
                 </div>
               )}
             </div>
@@ -540,6 +558,24 @@ export default function ProyectoDetail() {
                   type="text"
                   value={formData.locationCoordinator}
                   onChange={(e) => setFormData({ ...formData, locationCoordinator: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Assistant Location Manager</label>
+                <input
+                  type="text"
+                  value={formData.assistantLocationManager}
+                  onChange={(e) => setFormData({ ...formData, assistantLocationManager: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Basecamp Manager</label>
+                <input
+                  type="text"
+                  value={formData.basecampManager}
+                  onChange={(e) => setFormData({ ...formData, basecampManager: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg"
                 />
               </div>

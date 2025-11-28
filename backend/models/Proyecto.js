@@ -50,6 +50,16 @@ const Proyecto = sequelize.define('Proyecto', {
     allowNull: true,
     defaultValue: ''
   },
+  assistantLocationManager: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  basecampManager: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
   projectDate: {
     type: DataTypes.DATE,
     allowNull: true,

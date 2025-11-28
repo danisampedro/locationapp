@@ -139,6 +139,39 @@ const migrateProyectoLocationsTable = async () => {
   }
 }
 
+// Migración: Añadir columnas nuevas a la tabla proyectos
+const migrateProyectoTable = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface()
+    const tableDescription = await queryInterface.describeTable('proyectos')
+    
+    const newColumns = {
+      assistantLocationManager: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+      basecampManager: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' }
+    }
+
+    for (const [columnName, columnDefinition] of Object.entries(newColumns)) {
+      if (!tableDescription[columnName]) {
+        console.log(`🔄 Añadiendo columna ${columnName} a la tabla proyectos...`)
+        await queryInterface.addColumn('proyectos', columnName, {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        })
+        console.log(`✅ Columna ${columnName} añadida exitosamente`)
+      } else {
+        console.log(`ℹ️  Columna ${columnName} ya existe`)
+      }
+    }
+  } catch (error) {
+    if (error.name === 'SequelizeDatabaseError' && error.message.includes("doesn't exist")) {
+      console.log('ℹ️  Tabla proyectos no existe aún, se creará con sync')
+    } else {
+      console.error('⚠️  Error en migración de proyectos:', error.message)
+    }
+  }
+}
+
 // Migración: Añadir columnas nuevas a la tabla crew
 const migrateCrewTable = async () => {
   try {
@@ -237,6 +270,7 @@ const connectDB = async () => {
     await migrateLocationTable()
     await migrateCrewTable()
     await migrateProyectoLocationsTable()
+    await migrateProyectoTable()
     
     await seedAdminUser()
     console.log('✅ Database models synchronized')
