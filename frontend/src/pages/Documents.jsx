@@ -64,8 +64,8 @@ export default function Documents() {
       // ===== CABECERA (HEADER) =====
       // Altura de cabecera: 55-70px (aproximadamente 20-25mm)
       const headerHeight = 25
-      const logoWidth = 30
-      const logoHeight = 20
+      const logoWidth = 40 // Logo más grande
+      const logoHeight = 25 // Logo más grande
       let logoUsed = false
       let logoActualHeight = logoHeight
       
@@ -209,21 +209,8 @@ export default function Documents() {
             
             if (firstImage) {
               const locationImg = await loadImage(firstImage)
-              // Ajustar para mantener 16:9
-              const imgAspect = locationImg.width / locationImg.height
-              const targetAspect = 16 / 9
-              let finalWidth = imageWidth
-              let finalHeight = imageHeight
-              
-              if (imgAspect > targetAspect) {
-                // Imagen más ancha, ajustar altura
-                finalHeight = imageWidth / imgAspect
-              } else {
-                // Imagen más alta, ajustar ancho
-                finalWidth = imageHeight * imgAspect
-              }
-              
-              doc.addImage(locationImg, 'JPEG', imageX, imageY, finalWidth, finalHeight)
+              // Forzar siempre formato 16:9 exacto (recortar/centrar si es necesario)
+              doc.addImage(locationImg, 'JPEG', imageX, imageY, imageWidth, imageHeight)
             }
           } catch (error) {
             console.error('Error cargando imagen de location:', error)
@@ -248,48 +235,52 @@ export default function Documents() {
         const infoMaxWidth = pageWidth - infoX - marginSides
         let infoY = imageY
 
-        // Título LOCATION (14pt, bold, mayúsculas)
-        doc.setFontSize(14)
+        // Título LOCATION (12pt, bold, mayúsculas) - más pequeño
+        doc.setFontSize(12)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(30, 30, 30)
         doc.text('LOCATION', infoX, infoY)
-        infoY += 8
+        infoY += 5
 
-        // Nombre de la location
-        doc.setFontSize(11)
+        // Nombre de la location (9pt) - más pequeño
+        doc.setFontSize(9)
         doc.setFont('helvetica', 'normal')
         doc.text(location.nombre, infoX, infoY)
-        infoY += 8
+        infoY += 5
 
-        // Calcular ancho máximo de etiquetas para alinear
+        // Calcular ancho máximo de etiquetas para alinear (con fuente más pequeña)
+        doc.setFontSize(8) // Fuente más pequeña para etiquetas
         const locationLabels = ['SET: ', 'ADDRESS: ', 'LINK: ', 'BASECAMP: ', 'BS TO SET: ']
         doc.setFont('helvetica', 'bold')
         const maxLocationLabelWidth = Math.max(...locationLabels.map(l => doc.getTextWidth(l)))
         const locationLabelX = infoX
         const locationValueX = infoX + maxLocationLabelWidth + 2
 
-        // SET (si existe)
+        // SET (si existe) - texto más pequeño
         const proyectoLocation = location.ProyectoLocation || {}
         if (proyectoLocation.setName) {
+          doc.setFontSize(8)
           doc.setFont('helvetica', 'bold')
           doc.text('SET: ', locationLabelX, infoY)
           doc.setFont('helvetica', 'normal')
           doc.text(proyectoLocation.setName, locationValueX, infoY)
-          infoY += 6
+          infoY += 4
         }
 
-        // ADDRESS (dirección completa: calle + CP + ciudad)
+        // ADDRESS (dirección completa: calle + CP + ciudad) - texto más pequeño
         if (location.direccion) {
+          doc.setFontSize(8)
           doc.setFont('helvetica', 'bold')
           doc.text('ADDRESS: ', locationLabelX, infoY)
           doc.setFont('helvetica', 'normal')
           const addressLines = doc.splitTextToSize(location.direccion, infoMaxWidth - maxLocationLabelWidth - 2)
           doc.text(addressLines, locationValueX, infoY)
-          infoY += addressLines.length * 5 + 2
+          infoY += addressLines.length * 3.5 + 1
         }
 
-        // LINK (Google Maps Location)
+        // LINK (Google Maps Location) - texto más pequeño
         if (location.googleMapsLink) {
+          doc.setFontSize(8)
           doc.setFont('helvetica', 'bold')
           doc.text('LINK: ', locationLabelX, infoY)
           doc.setFont('helvetica', 'normal')
@@ -297,11 +288,12 @@ export default function Documents() {
           const linkLines = doc.splitTextToSize(location.googleMapsLink, infoMaxWidth - maxLocationLabelWidth - 2)
           doc.text(linkLines, locationValueX, infoY)
           doc.setTextColor(0, 0, 0)
-          infoY += linkLines.length * 5 + 2
+          infoY += linkLines.length * 3.5 + 1
         }
 
-        // BASECAMP (Google Maps Basecamp)
+        // BASECAMP (Google Maps Basecamp) - texto más pequeño
         if (proyectoLocation.basecampLink) {
+          doc.setFontSize(8)
           doc.setFont('helvetica', 'bold')
           doc.text('BASECAMP: ', locationLabelX, infoY)
           doc.setFont('helvetica', 'normal')
@@ -309,21 +301,26 @@ export default function Documents() {
           const basecampLines = doc.splitTextToSize(proyectoLocation.basecampLink, infoMaxWidth - maxLocationLabelWidth - 2)
           doc.text(basecampLines, locationValueX, infoY)
           doc.setTextColor(0, 0, 0)
-          infoY += basecampLines.length * 5 + 2
+          infoY += basecampLines.length * 3.5 + 1
         }
 
-        // BS TO SET (distancia)
+        // BS TO SET (distancia) - texto más pequeño
         if (proyectoLocation.distanceLocBase) {
+          doc.setFontSize(8)
           doc.setFont('helvetica', 'bold')
           doc.text('BS TO SET: ', locationLabelX, infoY)
           doc.setFont('helvetica', 'normal')
           doc.text(proyectoLocation.distanceLocBase, locationValueX, infoY)
-          infoY += 6
+          infoY += 4
         }
 
-        // Calcular altura total del bloque
+        // Calcular altura total del bloque - limitar infoY al máximo de imageHeight
+        const maxInfoY = imageY + imageHeight
+        if (infoY > maxInfoY) {
+          infoY = maxInfoY
+        }
         const blockHeight = Math.max(imageHeight, infoY - imageY)
-        yPosition = blockStartY + blockHeight + 25 // Espacio entre localizaciones: 20-30px
+        yPosition = blockStartY + blockHeight + 15 // Menos espacio entre localizaciones: 15px
 
         // Línea divisoria sutil entre localizaciones (excepto la última)
         if (i < proyecto.Locations.length - 1) {
