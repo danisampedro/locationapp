@@ -64,10 +64,16 @@ export default function Documents() {
       // ===== CABECERA (HEADER) =====
       // Altura de cabecera: 55-70px (aproximadamente 20-25mm)
       const headerHeight = 25
+      const headerPadding = 5 // Padding interno
+      const headerStartY = yPosition - headerPadding // Inicio del área de la cabecera
       const logoWidth = 40 // Logo más grande
       const logoHeight = 25 // Logo más grande
       let logoUsed = false
       let logoActualHeight = logoHeight
+      
+      // Fondo sutil para la cabecera
+      doc.setFillColor(248, 248, 248) // Gris muy claro
+      doc.rect(marginSides - 2, headerStartY, pageWidth - (2 * marginSides) + 4, headerHeight + (headerPadding * 2), 'F')
       
       // Logo a la izquierda
       if (proyecto.logoUrl) {
@@ -111,7 +117,20 @@ export default function Documents() {
       const docTypeY = yPosition + (logoActualHeight / 2) + 3 // Centrado verticalmente
       doc.text(docTypeText, docTypeX, docTypeY)
 
-      yPosition += Math.max(logoActualHeight, headerHeight) + 15
+      // Marco con línea fina alrededor de la cabecera
+      doc.setDrawColor(200, 200, 200) // Gris medio
+      doc.setLineWidth(0.5) // Línea fina
+      const headerBoxY = headerStartY
+      const headerBoxHeight = headerHeight + (headerPadding * 2)
+      doc.rect(marginSides - 2, headerBoxY, pageWidth - (2 * marginSides) + 4, headerBoxHeight, 'S')
+      
+      // Línea inferior más marcada para separar del contenido
+      doc.setDrawColor(180, 180, 180) // Gris un poco más oscuro
+      doc.setLineWidth(0.8) // Línea un poco más gruesa
+      const bottomLineY = headerBoxY + headerBoxHeight
+      doc.line(marginSides - 2, bottomLineY, pageWidth - marginSides + 2, bottomLineY)
+
+      yPosition += Math.max(logoActualHeight, headerHeight) + headerPadding + 15
 
       // ===== BLOQUE: INFORMACIÓN DEL PROYECTO =====
       doc.setFontSize(11)
