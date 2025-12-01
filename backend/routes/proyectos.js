@@ -29,6 +29,11 @@ const storage = new CloudinaryStorage({
 })
 
 const upload = multer({ storage })
+// Campos de subida para proyectos: logo principal y segundo logo opcional
+const uploadProyectoLogos = upload.fields([
+  { name: 'logo', maxCount: 1 },
+  { name: 'secondaryLogo', maxCount: 1 }
+])
 
 // GET all proyectos
 router.get('/', async (req, res) => {
@@ -401,7 +406,7 @@ router.get('/:id', async (req, res) => {
 })
 
 // POST create proyecto
-router.post('/', upload.single('logo'), async (req, res) => {
+router.post('/', uploadProyectoLogos, async (req, res) => {
   try {
     console.log('Creating proyecto...')
     console.log('Body:', req.body)
@@ -421,8 +426,12 @@ router.post('/', upload.single('logo'), async (req, res) => {
       projectDate: projectDate || null
     }
 
-    if (req.file) {
-      proyectoData.logoUrl = req.file.path
+    const files = req.files || {}
+    if (files.logo && files.logo[0]) {
+      proyectoData.logoUrl = files.logo[0].path
+    }
+    if (files.secondaryLogo && files.secondaryLogo[0]) {
+      proyectoData.secondaryLogoUrl = files.secondaryLogo[0].path
     }
 
     const proyecto = await Proyecto.create(proyectoData)
@@ -574,7 +583,7 @@ router.post('/', upload.single('logo'), async (req, res) => {
 })
 
 // PUT update proyecto
-router.put('/:id', upload.single('logo'), async (req, res) => {
+router.put('/:id', uploadProyectoLogos, async (req, res) => {
   try {
     const { nombre, descripcion, company, cif, address, locationManager, locationCoordinator, assistantLocationManager, basecampManager, projectDate, locations, crew, vendors } = req.body
     
@@ -594,7 +603,14 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
     if (assistantLocationManager !== undefined) updateData.assistantLocationManager = assistantLocationManager
     if (basecampManager !== undefined) updateData.basecampManager = basecampManager
     if (projectDate !== undefined) updateData.projectDate = projectDate || null
-    if (req.file) updateData.logoUrl = req.file.path
+
+    const files = req.files || {}
+    if (files.logo && files.logo[0]) {
+      updateData.logoUrl = files.logo[0].path
+    }
+    if (files.secondaryLogo && files.secondaryLogo[0]) {
+      updateData.secondaryLogoUrl = files.secondaryLogo[0].path
+    }
 
     await proyecto.update(updateData)
 

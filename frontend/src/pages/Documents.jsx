@@ -99,10 +99,11 @@ export default function Documents() {
         }
       }
 
-      // Segundo logo a la derecha (por ahora reutilizamos el mismo logo del proyecto)
-      if (proyecto.logoUrl) {
+      // Segundo logo a la derecha (usar secondaryLogoUrl si existe, si no, logo principal)
+      const rightLogoUrl = proyecto.secondaryLogoUrl || proyecto.logoUrl
+      if (rightLogoUrl) {
         try {
-          const logoImgRight = await loadImage(proyecto.logoUrl)
+          const logoImgRight = await loadImage(rightLogoUrl)
           const aspectRight = logoImgRight.width / logoImgRight.height
           let wRight = secondaryLogoMaxWidth
           let hRight = secondaryLogoMaxHeight
@@ -479,10 +480,11 @@ export default function Documents() {
         }
       }
 
-      // Segundo logo a la derecha
-      if (proyecto.logoUrl) {
+      // Segundo logo a la derecha (usar secondaryLogoUrl si existe, si no, logo principal)
+      const rightLogoUrl = proyecto.secondaryLogoUrl || proyecto.logoUrl
+      if (rightLogoUrl) {
         try {
-          const logoImgRight = await loadImage(proyecto.logoUrl)
+          const logoImgRight = await loadImage(rightLogoUrl)
           const aspectRight = logoImgRight.width / logoImgRight.height
           let wRight = secondaryLogoMaxWidth
           let hRight = secondaryLogoMaxHeight

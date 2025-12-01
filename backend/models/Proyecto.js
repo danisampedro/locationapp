@@ -25,6 +25,11 @@ const Proyecto = sequelize.define('Proyecto', {
     allowNull: true,
     defaultValue: ''
   },
+  secondaryLogoUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
   company: {
     type: DataTypes.STRING,
     allowNull: true,

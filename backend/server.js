@@ -206,7 +206,8 @@ const migrateProyectoTable = async () => {
     
     const newColumns = {
       assistantLocationManager: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
-      basecampManager: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' }
+      basecampManager: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+      secondaryLogoUrl: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' }
     }
 
     for (const [columnName, columnDefinition] of Object.entries(newColumns)) {

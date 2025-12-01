@@ -14,6 +14,7 @@ export default function ProyectoDetail() {
     nombre: '',
     descripcion: '',
     logo: null,
+    secondaryLogo: null,
     company: '',
     cif: '',
     address: '',
@@ -45,6 +46,7 @@ export default function ProyectoDetail() {
         nombre: response.data.nombre || '',
         descripcion: response.data.descripcion || '',
         logo: null,
+        secondaryLogo: null,
         company: response.data.company || '',
         cif: response.data.cif || '',
         address: response.data.address || '',
@@ -97,6 +99,12 @@ export default function ProyectoDetail() {
     }
   }
 
+  const onDropSecondaryLogo = (acceptedFiles) => {
+    if (acceptedFiles.length > 0) {
+      setFormData({ ...formData, secondaryLogo: acceptedFiles[0] })
+    }
+  }
+
   const { getRootProps: getLogoRootProps, getInputProps: getLogoInputProps, isDragActive: isLogoDragActive } = useDropzone({
     onDrop: onDropLogo,
     accept: {
@@ -105,8 +113,24 @@ export default function ProyectoDetail() {
     maxFiles: 1
   })
 
+  const {
+    getRootProps: getSecondaryLogoRootProps,
+    getInputProps: getSecondaryLogoInputProps,
+    isDragActive: isSecondaryLogoDragActive
+  } = useDropzone({
+    onDrop: onDropSecondaryLogo,
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.svg']
+    },
+    maxFiles: 1
+  })
+
   const removeLogo = () => {
     setFormData({ ...formData, logo: null })
+  }
+
+  const removeSecondaryLogo = () => {
+    setFormData({ ...formData, secondaryLogo: null })
   }
 
   const handleEdit = async (e) => {
@@ -129,6 +153,9 @@ export default function ProyectoDetail() {
       }
       if (formData.logo) {
         data.append('logo', formData.logo)
+      }
+      if (formData.secondaryLogo) {
+        data.append('secondaryLogo', formData.secondaryLogo)
       }
       // Enviar locations como array de objetos con campos extra
       const locationsData = formData.locations.map(loc => ({
@@ -973,6 +1000,71 @@ export default function ProyectoDetail() {
                       <p className="text-accent-green">Suelta el logo aquí...</p>
                     ) : (
                       <p className="text-gray-600">Arrastra el logo aquí o haz clic para seleccionar</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Segundo logo (header documentos)</label>
+                {formData.secondaryLogo ? (
+                  <div className="relative">
+                    <img
+                      src={URL.createObjectURL(formData.secondaryLogo)}
+                      alt="Secondary logo preview"
+                      className="w-32 h-32 object-cover rounded-lg mb-2"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeSecondaryLogo}
+                      className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : proyecto.secondaryLogoUrl ? (
+                  <div className="relative">
+                    <img
+                      src={proyecto.secondaryLogoUrl}
+                      alt="Current secondary logo"
+                      className="w-32 h-32 object-cover rounded-lg mb-2"
+                    />
+                    <p className="text-sm text-gray-500 mb-2">
+                      Segundo logo actual (deja vacío para mantener)
+                    </p>
+                    <div
+                      {...getSecondaryLogoRootProps()}
+                      className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+                        isSecondaryLogoDragActive
+                          ? 'border-accent-green bg-accent-green/10'
+                          : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      <input {...getSecondaryLogoInputProps()} />
+                      {isSecondaryLogoDragActive ? (
+                        <p className="text-accent-green text-sm">Suelta el segundo logo aquí...</p>
+                      ) : (
+                        <p className="text-gray-600 text-sm">
+                          Arrastra nuevo segundo logo o haz clic para seleccionar
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    {...getSecondaryLogoRootProps()}
+                    className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                      isSecondaryLogoDragActive
+                        ? 'border-accent-green bg-accent-green/10'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <input {...getSecondaryLogoInputProps()} />
+                    {isSecondaryLogoDragActive ? (
+                      <p className="text-accent-green">Suelta el segundo logo aquí...</p>
+                    ) : (
+                      <p className="text-gray-600">
+                        Arrastra el segundo logo aquí o haz clic para seleccionar
+                      </p>
                     )}
                   </div>
                 )}
