@@ -61,76 +61,94 @@ export default function Documents() {
       
       let yPosition = marginTop
 
-      // ===== CABECERA (HEADER) =====
-      // Altura de cabecera: 55-70px (aproximadamente 20-25mm)
-      const headerHeight = 25
-      const headerPadding = 5 // Padding interno
-      const headerStartY = yPosition - headerPadding // Inicio del área de la cabecera
-      const logoWidth = 40 // Logo más grande
-      const logoHeight = 25 // Logo más grande
-      let logoUsed = false
-      let logoActualHeight = logoHeight
-      
-      // Fondo sutil para la cabecera
-      doc.setFillColor(248, 248, 248) // Gris muy claro
-      doc.rect(marginSides - 2, headerStartY, pageWidth - (2 * marginSides) + 4, headerHeight + (headerPadding * 2), 'F')
-      
+      // ===== CABECERA (HEADER) MODERNA =====
+      // Banda superior de color con logo + productora a la izquierda
+      // y nombre de proyecto + tipo de documento a la derecha
+      const headerHeight = 22
+      const headerY = 0
+      const logoMaxWidth = 28
+      const logoMaxHeight = 14
+
+      // Banda superior sólida (color corporativo oscuro)
+      doc.setFillColor(10, 25, 47)
+      doc.rect(0, headerY, pageWidth, headerHeight, 'F')
+
       // Logo a la izquierda
+      let logoBlockWidth = 0
       if (proyecto.logoUrl) {
         try {
           const logoImg = await loadImage(proyecto.logoUrl)
-          const logoAspect = logoImg.width / logoImg.height
-          let finalLogoWidth = logoWidth
-          let finalLogoHeight = logoHeight
-          
-          if (logoAspect > (logoWidth / logoHeight)) {
-            finalLogoHeight = logoWidth / logoAspect
+          const aspect = logoImg.width / logoImg.height
+          let w = logoMaxWidth
+          let h = logoMaxHeight
+
+          if (aspect > (logoMaxWidth / logoMaxHeight)) {
+            h = w / aspect
           } else {
-            finalLogoWidth = logoHeight * logoAspect
+            w = h * aspect
           }
-          
-          logoActualHeight = finalLogoHeight
-          logoUsed = true
-          doc.addImage(logoImg, 'PNG', marginSides, yPosition, finalLogoWidth, finalLogoHeight)
-        } catch (error) {
-          console.error('Error cargando logo:', error)
+
+          const logoX = marginSides
+          const logoY = headerY + (headerHeight - h) / 2
+          doc.addImage(logoImg, 'PNG', logoX, logoY, w, h)
+          logoBlockWidth = w + 4
+        } catch (e) {
+          console.error('Error cargando logo:', e)
         }
       }
 
-      // Título centrado (en mayúsculas, bold) - centrado en toda la página
-      doc.setFontSize(16)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(30, 30, 30)
-      const titleText = proyecto.nombre.toUpperCase()
-      const titleWidth = doc.getTextWidth(titleText)
-      const titleX = (pageWidth - titleWidth) / 2
-      const titleY = yPosition + (logoActualHeight / 2) + 3 // Centrado verticalmente con el logo
-      doc.text(titleText, titleX, titleY)
+      // Nombre de la productora cerca del logo
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(230, 236, 245)
+      const companyText = proyecto.company || 'Productions'
+      doc.text(
+        companyText,
+        marginSides + logoBlockWidth,
+        headerY + headerHeight / 2 + 2
+      )
 
-      // "LOCATION LIST" a la derecha
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(60, 60, 60)
+      // Proyecto + tipo de documento a la derecha
       const docTypeText = 'LOCATION LIST'
+      const projectName = (proyecto.nombre || '').toUpperCase()
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(255, 255, 255)
+
+      const projectNameWidth = doc.getTextWidth(projectName)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(185, 193, 210)
       const docTypeWidth = doc.getTextWidth(docTypeText)
-      const docTypeX = pageWidth - marginSides - docTypeWidth
-      const docTypeY = yPosition + (logoActualHeight / 2) + 3 // Centrado verticalmente
-      doc.text(docTypeText, docTypeX, docTypeY)
 
-      // Marco con línea fina alrededor de la cabecera
-      doc.setDrawColor(200, 200, 200) // Gris medio
-      doc.setLineWidth(0.5) // Línea fina
-      const headerBoxY = headerStartY
-      const headerBoxHeight = headerHeight + (headerPadding * 2)
-      doc.rect(marginSides - 2, headerBoxY, pageWidth - (2 * marginSides) + 4, headerBoxHeight, 'S')
-      
-      // Línea inferior más marcada para separar del contenido
-      doc.setDrawColor(180, 180, 180) // Gris un poco más oscuro
-      doc.setLineWidth(0.8) // Línea un poco más gruesa
-      const bottomLineY = headerBoxY + headerBoxHeight
-      doc.line(marginSides - 2, bottomLineY, pageWidth - marginSides + 2, bottomLineY)
+      const rightPadding = marginSides
+      const textRightX = pageWidth - rightPadding
 
-      yPosition += Math.max(logoActualHeight, headerHeight) + headerPadding + 15
+      // Tipo de documento (arriba, pequeño, gris claro)
+      doc.text(
+        docTypeText,
+        textRightX - docTypeWidth,
+        headerY + 7
+      )
+
+      // Nombre de proyecto (debajo, grande, blanco)
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(255, 255, 255)
+      doc.text(
+        projectName,
+        textRightX - projectNameWidth,
+        headerY + 7 + 6
+      )
+
+      // Línea inferior suave para separar encabezado del contenido
+      doc.setDrawColor(220, 220, 220)
+      doc.setLineWidth(0.3)
+      doc.line(marginSides, headerY + headerHeight + 1, pageWidth - marginSides, headerY + headerHeight + 1)
+
+      // Comenzar el contenido un poco por debajo del header
+      yPosition = headerY + headerHeight + 10
 
       // ===== BLOQUE: INFORMACIÓN DEL PROYECTO =====
       doc.setFontSize(11)
@@ -381,67 +399,91 @@ export default function Documents() {
 
       let yPosition = marginTop
 
-      // ===== CABECERA (reutilizar estilo de Location List, cambiando título de documento) =====
-      const headerHeight = 25
-      const headerPadding = 5
-      const headerStartY = yPosition - headerPadding
-      const logoWidth = 40
-      const logoHeight = 25
-      let logoActualHeight = logoHeight
+      // ===== CABECERA (mismo estilo moderno que Location List) =====
+      const headerHeight = 22
+      const headerY = 0
+      const logoMaxWidth = 28
+      const logoMaxHeight = 14
 
-      doc.setFillColor(248, 248, 248)
-      doc.rect(marginSides - 2, headerStartY, pageWidth - (2 * marginSides) + 4, headerHeight + (headerPadding * 2), 'F')
+      // Banda superior sólida
+      doc.setFillColor(10, 25, 47)
+      doc.rect(0, headerY, pageWidth, headerHeight, 'F')
 
+      // Logo a la izquierda
+      let logoBlockWidth = 0
       if (proyecto.logoUrl) {
         try {
           const logoImg = await loadImage(proyecto.logoUrl)
-          const logoAspect = logoImg.width / logoImg.height
-          let finalLogoWidth = logoWidth
-          let finalLogoHeight = logoHeight
+          const aspect = logoImg.width / logoImg.height
+          let w = logoMaxWidth
+          let h = logoMaxHeight
 
-          if (logoAspect > (logoWidth / logoHeight)) {
-            finalLogoHeight = logoWidth / logoAspect
+          if (aspect > (logoMaxWidth / logoMaxHeight)) {
+            h = w / aspect
           } else {
-            finalLogoWidth = logoHeight * logoAspect
+            w = h * aspect
           }
 
-          logoActualHeight = finalLogoHeight
-          doc.addImage(logoImg, 'PNG', marginSides, yPosition, finalLogoWidth, finalLogoHeight)
-        } catch (error) {
-          console.error('Error cargando logo:', error)
+          const logoX = marginSides
+          const logoY = headerY + (headerHeight - h) / 2
+          doc.addImage(logoImg, 'PNG', logoX, logoY, w, h)
+          logoBlockWidth = w + 4
+        } catch (e) {
+          console.error('Error cargando logo:', e)
         }
       }
 
-      doc.setFontSize(16)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(30, 30, 30)
-      const titleText = proyecto.nombre.toUpperCase()
-      const titleWidth = doc.getTextWidth(titleText)
-      const titleX = (pageWidth - titleWidth) / 2
-      const titleY = yPosition + (logoActualHeight / 2) + 3
-      doc.text(titleText, titleX, titleY)
+      // Nombre de la productora
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(230, 236, 245)
+      const companyText = proyecto.company || 'Productions'
+      doc.text(
+        companyText,
+        marginSides + logoBlockWidth,
+        headerY + headerHeight / 2 + 2
+      )
 
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(60, 60, 60)
+      // Proyecto + tipo de documento a la derecha
       const docTypeText = 'CREW LIST'
+      const projectName = (proyecto.nombre || '').toUpperCase()
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(255, 255, 255)
+
+      const projectNameWidth = doc.getTextWidth(projectName)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(185, 193, 210)
       const docTypeWidth = doc.getTextWidth(docTypeText)
-      const docTypeX = pageWidth - marginSides - docTypeWidth
-      const docTypeY = yPosition + (logoActualHeight / 2) + 3
-      doc.text(docTypeText, docTypeX, docTypeY)
 
-      doc.setDrawColor(200, 200, 200)
-      doc.setLineWidth(0.5)
-      const headerBoxY = headerStartY
-      const headerBoxHeight = headerHeight + (headerPadding * 2)
-      doc.rect(marginSides - 2, headerBoxY, pageWidth - (2 * marginSides) + 4, headerBoxHeight, 'S')
+      const rightPadding = marginSides
+      const textRightX = pageWidth - rightPadding
 
-      doc.setDrawColor(180, 180, 180)
-      doc.setLineWidth(0.8)
-      const bottomLineY = headerBoxY + headerBoxHeight
-      doc.line(marginSides - 2, bottomLineY, pageWidth - marginSides + 2, bottomLineY)
+      // Tipo de documento
+      doc.text(
+        docTypeText,
+        textRightX - docTypeWidth,
+        headerY + 7
+      )
 
-      yPosition += Math.max(logoActualHeight, headerHeight) + headerPadding + 15
+      // Nombre de proyecto
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(255, 255, 255)
+      doc.text(
+        projectName,
+        textRightX - projectNameWidth,
+        headerY + 7 + 6
+      )
+
+      // Línea inferior suave
+      doc.setDrawColor(220, 220, 220)
+      doc.setLineWidth(0.3)
+      doc.line(marginSides, headerY + headerHeight + 1, pageWidth - marginSides, headerY + headerHeight + 1)
+
+      yPosition = headerY + headerHeight + 12
 
       // ===== TÍTULO DE LISTA =====
       doc.setFontSize(14)
