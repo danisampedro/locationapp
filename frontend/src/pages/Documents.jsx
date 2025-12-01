@@ -70,8 +70,6 @@ export default function Documents() {
       const logoMaxHeight = 14
       const secondaryLogoMaxWidth = 22
       const secondaryLogoMaxHeight = 12
-      const secondaryLogoMaxWidth = 22
-      const secondaryLogoMaxHeight = 12
 
       // Banda superior sólida (color corporativo oscuro)
       doc.setFillColor(10, 25, 47)
@@ -450,6 +448,8 @@ export default function Documents() {
       const headerY = 0
       const logoMaxWidth = 28
       const logoMaxHeight = 14
+      const secondaryLogoMaxWidth = 22
+      const secondaryLogoMaxHeight = 12
 
       // Banda superior sólida
       doc.setFillColor(10, 25, 47)
