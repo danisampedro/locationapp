@@ -139,6 +139,65 @@ const migrateProyectoLocationsTable = async () => {
   }
 }
 
+// Migración: Añadir columnas nuevas a la tabla ProyectoCrew
+const migrateProyectoCrewTable = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface()
+
+    const tableExists = await queryInterface.tableExists('ProyectoCrew')
+    if (!tableExists) {
+      console.log('ℹ️  Tabla ProyectoCrew no existe aún, se creará con sync')
+      return
+    }
+
+    const tableDescription = await queryInterface.describeTable('ProyectoCrew')
+
+    const newColumns = {
+      startDate: { type: 'DATE', allowNull: true, defaultValue: null },
+      endDate: { type: 'DATE', allowNull: true, defaultValue: null },
+      weeklyRate: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+      carAllowance: { type: 'BOOLEAN', allowNull: true, defaultValue: false },
+      boxRental: { type: 'BOOLEAN', allowNull: true, defaultValue: false }
+    }
+
+    for (const [columnName, columnDefinition] of Object.entries(newColumns)) {
+      if (!tableDescription[columnName]) {
+        console.log(`🔄 Añadiendo columna ${columnName} a la tabla ProyectoCrew...`)
+
+        if (columnName === 'startDate' || columnName === 'endDate') {
+          await queryInterface.addColumn('ProyectoCrew', columnName, {
+            type: sequelize.Sequelize.DATE,
+            allowNull: true,
+            defaultValue: null
+          })
+        } else if (columnName === 'carAllowance' || columnName === 'boxRental') {
+          await queryInterface.addColumn('ProyectoCrew', columnName, {
+            type: sequelize.Sequelize.BOOLEAN,
+            allowNull: true,
+            defaultValue: false
+          })
+        } else {
+          await queryInterface.addColumn('ProyectoCrew', columnName, {
+            type: sequelize.Sequelize.STRING,
+            allowNull: true,
+            defaultValue: ''
+          })
+        }
+
+        console.log(`✅ Columna ${columnName} añadida exitosamente`)
+      } else {
+        console.log(`ℹ️  Columna ${columnName} ya existe en ProyectoCrew`)
+      }
+    }
+  } catch (error) {
+    if (error.name === 'SequelizeDatabaseError' && error.message.includes("doesn't exist")) {
+      console.log('ℹ️  Tabla ProyectoCrew no existe aún, se creará con sync')
+    } else {
+      console.error('⚠️  Error en migración de ProyectoCrew:', error.message)
+    }
+  }
+}
+
 // Migración: Añadir columnas nuevas a la tabla proyectos
 const migrateProyectoTable = async () => {
   try {
@@ -271,6 +330,7 @@ const connectDB = async () => {
     await migrateCrewTable()
     await migrateProyectoLocationsTable()
     await migrateProyectoTable()
+    await migrateProyectoCrewTable()
     
     await seedAdminUser()
     console.log('✅ Database models synchronized')

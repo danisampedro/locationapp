@@ -7,6 +7,7 @@ import Location from '../models/Location.js'
 import Crew from '../models/Crew.js'
 import Vendor from '../models/Vendor.js'
 import ProyectoLocation from '../models/ProyectoLocation.js'
+import ProyectoCrew from '../models/ProyectoCrew.js'
 import sequelize from '../config/database.js'
 
 const router = express.Router()
@@ -53,6 +54,7 @@ router.get('/', async (req, res) => {
     // Ahora cargar los datos de ProyectoLocation por separado si es necesario
     const proyectoIds = proyectos.map(p => p && p.id).filter(id => id !== undefined && id !== null)
     let proyectoLocationsMap = {}
+    let proyectoCrewMap = {}
     
     if (proyectoIds.length > 0) {
       try {
@@ -81,6 +83,31 @@ router.get('/', async (req, res) => {
         // Si la tabla no existe o hay algún error, simplemente continuar sin ProyectoLocation
         console.log('ℹ️  No se pudieron cargar ProyectoLocations (puede que la tabla no exista aún):', plError.message)
         // No es crítico, continuamos sin estos datos
+      }
+
+      // Cargar también datos de ProyectoCrew (relación proyecto-crew con info extra)
+      try {
+        const proyectoCrews = await ProyectoCrew.findAll({
+          where: {
+            proyectoId: proyectoIds
+          },
+          attributes: ['proyectoId', 'crewId', 'startDate', 'endDate', 'weeklyRate', 'carAllowance', 'boxRental']
+        })
+
+        proyectoCrews.forEach(pc => {
+          if (pc && pc.proyectoId && pc.crewId) {
+            const key = `${pc.proyectoId}_${pc.crewId}`
+            proyectoCrewMap[key] = {
+              startDate: pc.startDate || null,
+              endDate: pc.endDate || null,
+              weeklyRate: pc.weeklyRate || '',
+              carAllowance: pc.carAllowance === true,
+              boxRental: pc.boxRental === true
+            }
+          }
+        })
+      } catch (pcError) {
+        console.log('ℹ️  No se pudieron cargar ProyectoCrew (puede que la tabla no exista aún):', pcError.message)
       }
     }
     
@@ -154,9 +181,26 @@ router.get('/', async (req, res) => {
           }
         })
         
+        // Añadir datos extra de crew desde ProyectoCrew
+        const crews = (proyectoJson.Crews || []).map((c) => {
+          const key = `${proyecto.id}_${c.id}`
+          const pcData = proyectoCrewMap[key] || null
+          return {
+            ...c,
+            ProyectoCrew: pcData || {
+              startDate: null,
+              endDate: null,
+              weeklyRate: '',
+              carAllowance: false,
+              boxRental: false
+            }
+          }
+        })
+
         return {
           ...proyectoJson,
-          Locations: locations
+          Locations: locations,
+          Crews: crews
         }
       } catch (error) {
         console.error(`❌ Error formateando proyecto ${index}:`, error)
@@ -241,8 +285,9 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Proyecto no encontrado' })
     }
     
-    // Cargar datos de ProyectoLocation por separado
+    // Cargar datos de ProyectoLocation y ProyectoCrew por separado
     let proyectoLocationsMap = {}
+    let proyectoCrewMap = {}
     try {
       const proyectoLocations = await ProyectoLocation.findAll({
         where: {
@@ -262,8 +307,31 @@ router.get('/:id', async (req, res) => {
     } catch (plError) {
       console.error('Error cargando ProyectoLocation (puede que la tabla no exista aún):', plError.message)
     }
+
+    // Cargar datos de ProyectoCrew (info extra por miembro de crew)
+    try {
+      const proyectoCrews = await ProyectoCrew.findAll({
+        where: {
+          proyectoId: proyecto.id
+        },
+        attributes: ['proyectoId', 'crewId', 'startDate', 'endDate', 'weeklyRate', 'carAllowance', 'boxRental']
+      })
+
+      proyectoCrews.forEach(pc => {
+        const key = `${pc.proyectoId}_${pc.crewId}`
+        proyectoCrewMap[key] = {
+          startDate: pc.startDate || null,
+          endDate: pc.endDate || null,
+          weeklyRate: pc.weeklyRate || '',
+          carAllowance: pc.carAllowance === true,
+          boxRental: pc.boxRental === true
+        }
+      })
+    } catch (pcError) {
+      console.error('Error cargando ProyectoCrew (puede que la tabla no exista aún):', pcError.message)
+    }
     
-    // Formatear las locations con los datos extra
+    // Formatear las locations y crew con los datos extra
     try {
       const proyectoJson = proyecto.toJSON()
       const locations = (proyectoJson.Locations || []).map((loc) => {
@@ -300,9 +368,25 @@ router.get('/:id', async (req, res) => {
         }
       })
       
+      const crews = (proyectoJson.Crews || []).map((c) => {
+        const key = `${proyecto.id}_${c.id}`
+        const pcData = proyectoCrewMap[key] || null
+        return {
+          ...c,
+          ProyectoCrew: pcData || {
+            startDate: null,
+            endDate: null,
+            weeklyRate: '',
+            carAllowance: false,
+            boxRental: false
+          }
+        }
+      })
+
       const formattedProyecto = {
         ...proyectoJson,
-        Locations: locations
+        Locations: locations,
+        Crews: crews
       }
       
       res.json(formattedProyecto)
@@ -379,10 +463,41 @@ router.post('/', upload.single('logo'), async (req, res) => {
     }
 
     if (crew) {
-      const crewIds = JSON.parse(crew)
+      const crewData = JSON.parse(crew)
+      // crewData puede ser array de IDs o array de objetos con {id, startDate, endDate, weeklyRate, carAllowance, boxRental}
+      const crewIds = Array.isArray(crewData) && crewData.length > 0 && typeof crewData[0] === 'object'
+        ? crewData.map(c => parseInt(c.id))
+        : crewData.map(id => parseInt(id))
+
       const crewInstances = await Crew.findAll({
         where: { id: crewIds }
       })
+
+      // Eliminar relaciones existentes en la tabla intermedia
+      await ProyectoCrew.destroy({
+        where: { proyectoId: proyecto.id }
+      })
+
+      // Crear relaciones con datos extra
+      for (const crewInstance of crewInstances) {
+        const cData = Array.isArray(crewData) && crewData.length > 0 && typeof crewData[0] === 'object'
+          ? crewData.find(c => parseInt(c.id) === crewInstance.id)
+          : null
+
+        await ProyectoCrew.create({
+          proyectoId: proyecto.id,
+          crewId: crewInstance.id,
+          startDate: cData?.startDate || null,
+          endDate: cData?.endDate || null,
+          weeklyRate: cData?.weeklyRate || '',
+          carAllowance: cData?.carAllowance === true,
+          boxRental: cData?.boxRental === true
+        }, {
+          fields: ['proyectoId', 'crewId', 'startDate', 'endDate', 'weeklyRate', 'carAllowance', 'boxRental']
+        })
+      }
+
+      // Asegurar que la relación many-to-many de Sequelize también se actualiza
       await proyecto.setCrews(crewInstances)
     }
 
@@ -543,10 +658,67 @@ router.put('/:id', upload.single('logo'), async (req, res) => {
     }
 
     if (crew) {
-      const crewIds = JSON.parse(crew)
+      const crewData = JSON.parse(crew)
+      // crewData puede ser array de IDs o array de objetos con {id, startDate, endDate, weeklyRate, carAllowance, boxRental}
+      const crewIds = Array.isArray(crewData) && crewData.length > 0 && typeof crewData[0] === 'object'
+        ? crewData.map(c => parseInt(c.id))
+        : crewData.map(id => parseInt(id))
+
       const crewInstances = await Crew.findAll({
         where: { id: crewIds }
       })
+
+      // CARGAR relaciones existentes ANTES de eliminarlas para preservar datos
+      const existingProyectoCrew = await ProyectoCrew.findAll({
+        where: { proyectoId: proyecto.id },
+        attributes: ['proyectoId', 'crewId', 'startDate', 'endDate', 'weeklyRate', 'carAllowance', 'boxRental']
+      })
+
+      const existingCrewDataMap = {}
+      existingProyectoCrew.forEach(pc => {
+        existingCrewDataMap[pc.crewId] = {
+          startDate: pc.startDate || null,
+          endDate: pc.endDate || null,
+          weeklyRate: pc.weeklyRate || '',
+          carAllowance: pc.carAllowance === true,
+          boxRental: pc.boxRental === true
+        }
+      })
+
+      // Eliminar relaciones existentes
+      await ProyectoCrew.destroy({
+        where: { proyectoId: proyecto.id }
+      })
+
+      // Crear relaciones con datos extra (preservar datos existentes si no hay nuevos)
+      for (const crewInstance of crewInstances) {
+        const cData = Array.isArray(crewData) && crewData.length > 0 && typeof crewData[0] === 'object'
+          ? crewData.find(c => parseInt(c.id) === crewInstance.id)
+          : null
+
+        const existingData = existingCrewDataMap[crewInstance.id] || {}
+        const finalCrewData = {
+          startDate: cData?.startDate || existingData.startDate || null,
+          endDate: cData?.endDate || existingData.endDate || null,
+          weeklyRate: (cData?.weeklyRate && cData.weeklyRate.toString().trim() !== '') ? cData.weeklyRate : (existingData.weeklyRate || ''),
+          carAllowance: cData?.carAllowance !== undefined ? cData.carAllowance === true : (existingData.carAllowance === true),
+          boxRental: cData?.boxRental !== undefined ? cData.boxRental === true : (existingData.boxRental === true)
+        }
+
+        await ProyectoCrew.create({
+          proyectoId: proyecto.id,
+          crewId: crewInstance.id,
+          startDate: finalCrewData.startDate,
+          endDate: finalCrewData.endDate,
+          weeklyRate: finalCrewData.weeklyRate,
+          carAllowance: finalCrewData.carAllowance,
+          boxRental: finalCrewData.boxRental
+        }, {
+          fields: ['proyectoId', 'crewId', 'startDate', 'endDate', 'weeklyRate', 'carAllowance', 'boxRental']
+        })
+      }
+
+      // Asegurar que la relación many-to-many de Sequelize también se actualiza
       await proyecto.setCrews(crewInstances)
     }
 

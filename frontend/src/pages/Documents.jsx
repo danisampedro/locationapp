@@ -362,6 +362,206 @@ export default function Documents() {
     }
   }
 
+  const generateCrewListPDF = async () => {
+    if (!proyecto || !proyecto.Crews || proyecto.Crews.length === 0) {
+      alert('Este proyecto no tiene crew asignado')
+      return
+    }
+
+    setGenerating(true)
+
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4')
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      const marginTop = 25
+      const marginBottom = 20
+      const marginSides = 20
+
+      let yPosition = marginTop
+
+      // ===== CABECERA (reutilizar estilo de Location List, cambiando título de documento) =====
+      const headerHeight = 25
+      const headerPadding = 5
+      const headerStartY = yPosition - headerPadding
+      const logoWidth = 40
+      const logoHeight = 25
+      let logoActualHeight = logoHeight
+
+      doc.setFillColor(248, 248, 248)
+      doc.rect(marginSides - 2, headerStartY, pageWidth - (2 * marginSides) + 4, headerHeight + (headerPadding * 2), 'F')
+
+      if (proyecto.logoUrl) {
+        try {
+          const logoImg = await loadImage(proyecto.logoUrl)
+          const logoAspect = logoImg.width / logoImg.height
+          let finalLogoWidth = logoWidth
+          let finalLogoHeight = logoHeight
+
+          if (logoAspect > (logoWidth / logoHeight)) {
+            finalLogoHeight = logoWidth / logoAspect
+          } else {
+            finalLogoWidth = logoHeight * logoAspect
+          }
+
+          logoActualHeight = finalLogoHeight
+          doc.addImage(logoImg, 'PNG', marginSides, yPosition, finalLogoWidth, finalLogoHeight)
+        } catch (error) {
+          console.error('Error cargando logo:', error)
+        }
+      }
+
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(30, 30, 30)
+      const titleText = proyecto.nombre.toUpperCase()
+      const titleWidth = doc.getTextWidth(titleText)
+      const titleX = (pageWidth - titleWidth) / 2
+      const titleY = yPosition + (logoActualHeight / 2) + 3
+      doc.text(titleText, titleX, titleY)
+
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(60, 60, 60)
+      const docTypeText = 'CREW LIST'
+      const docTypeWidth = doc.getTextWidth(docTypeText)
+      const docTypeX = pageWidth - marginSides - docTypeWidth
+      const docTypeY = yPosition + (logoActualHeight / 2) + 3
+      doc.text(docTypeText, docTypeX, docTypeY)
+
+      doc.setDrawColor(200, 200, 200)
+      doc.setLineWidth(0.5)
+      const headerBoxY = headerStartY
+      const headerBoxHeight = headerHeight + (headerPadding * 2)
+      doc.rect(marginSides - 2, headerBoxY, pageWidth - (2 * marginSides) + 4, headerBoxHeight, 'S')
+
+      doc.setDrawColor(180, 180, 180)
+      doc.setLineWidth(0.8)
+      const bottomLineY = headerBoxY + headerBoxHeight
+      doc.line(marginSides - 2, bottomLineY, pageWidth - marginSides + 2, bottomLineY)
+
+      yPosition += Math.max(logoActualHeight, headerHeight) + headerPadding + 15
+
+      // ===== TÍTULO DE LISTA =====
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(30, 30, 30)
+      doc.text('Crew List', marginSides, yPosition)
+      yPosition += 8
+
+      // ===== BLOQUES DE CREW =====
+      const rowHeight = 20
+      const usableWidth = pageWidth - (2 * marginSides)
+
+      proyecto.Crews.forEach((member, index) => {
+        if (yPosition > pageHeight - marginBottom - rowHeight) {
+          doc.addPage()
+          yPosition = marginTop
+        }
+
+        const startY = yPosition
+
+        // Foto pequeña del crew (si existe)
+        const photoSize = 16
+        if (member.fotoUrl) {
+          // Nota: para simplificar y evitar problemas CORS extra, podríamos omitir foto
+          // o reutilizar loadImage si las URLs son accesibles. Por ahora, usaremos un placeholder simple.
+        }
+
+        // Nombre + rol
+        const textX = marginSides
+        let textY = yPosition + 4
+
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(30, 30, 30)
+        doc.text(member.nombre || 'Sin nombre', textX, textY)
+        textY += 5
+
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(80, 80, 80)
+        if (member.rol) {
+          doc.text(member.rol, textX, textY)
+          textY += 4
+        }
+
+        if (member.email) {
+          doc.text(member.email, textX, textY)
+          textY += 4
+        }
+        if (member.telefono) {
+          doc.text(member.telefono, textX, textY)
+          textY += 4
+        }
+
+        // Datos extra del proyecto (ProyectoCrew)
+        const pc = member.ProyectoCrew || {}
+        const rightX = marginSides + usableWidth * 0.45
+        let rightY = startY + 4
+
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(50, 50, 50)
+
+        const formatDate = (d) => {
+          if (!d) return ''
+          const dateObj = typeof d === 'string' ? new Date(d) : d
+          if (Number.isNaN(dateObj.getTime())) return ''
+          return dateObj.toLocaleDateString('es-ES')
+        }
+
+        doc.text('START DATE:', rightX, rightY)
+        doc.setFont('helvetica', 'normal')
+        doc.text(formatDate(pc.startDate) || '-', rightX + 25, rightY)
+        rightY += 4
+
+        doc.setFont('helvetica', 'bold')
+        doc.text('END DATE:', rightX, rightY)
+        doc.setFont('helvetica', 'normal')
+        doc.text(formatDate(pc.endDate) || '-', rightX + 25, rightY)
+        rightY += 4
+
+        doc.setFont('helvetica', 'bold')
+        doc.text('WEEKLY RATE:', rightX, rightY)
+        doc.setFont('helvetica', 'normal')
+        doc.text((pc.weeklyRate && pc.weeklyRate.toString().trim() !== '') ? pc.weeklyRate.toString() : '-', rightX + 30, rightY)
+        rightY += 4
+
+        doc.setFont('helvetica', 'bold')
+        doc.text('CAR ALLOWANCE:', rightX, rightY)
+        doc.setFont('helvetica', 'normal')
+        doc.text(pc.carAllowance ? 'Sí' : 'No', rightX + 35, rightY)
+        rightY += 4
+
+        doc.setFont('helvetica', 'bold')
+        doc.text('BOX RENTAL:', rightX, rightY)
+        doc.setFont('helvetica', 'normal')
+        doc.text(pc.boxRental ? 'Sí' : 'No', rightX + 30, rightY)
+        rightY += 4
+
+        // Caja visual para cada fila de crew
+        const blockHeight = Math.max(rowHeight, rightY - startY + 2)
+        doc.setDrawColor(230, 230, 230)
+        doc.setLineWidth(0.3)
+        doc.rect(marginSides, startY, usableWidth, blockHeight, 'S')
+
+        yPosition = startY + blockHeight + 4
+      })
+
+      const fileName = `Crew_List_${proyecto.nombre.replace(/[^a-z0-9]/gi, '_')}.pdf`
+      doc.save(fileName)
+
+      setGenerating(false)
+      alert('PDF de Crew generado exitosamente')
+    } catch (error) {
+      console.error('Error generando Crew PDF:', error)
+      setGenerating(false)
+      alert('Error al generar el PDF de Crew. Por favor, intenta de nuevo.')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -440,6 +640,52 @@ export default function Documents() {
             {(!proyecto.Locations || proyecto.Locations.length === 0) && (
               <p className="text-xs text-gray-500 mt-2 text-center">
                 Este proyecto no tiene locations asignadas
+              </p>
+            )}
+          </div>
+
+          {/* Plantilla Crew List */}
+          <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20v-2a4 4 0 00-3-3.87M9 20v-2a4 4 0 013-3.87M12 7a4 4 0 110-8 4 4 0 010 8z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 8a4 4 0 100-8 4 4 0 000 8zm12 0a4 4 0 100-8 4 4 0 000 8z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800">Crew List</h3>
+                <p className="text-xs text-gray-500">Listado de crew</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Exporta el listado de crew del proyecto con las fechas, tarifas y condiciones específicas de este proyecto.
+            </p>
+            <button
+              onClick={generateCrewListPDF}
+              disabled={generating || !proyecto.Crews || proyecto.Crews.length === 0}
+              className="w-full bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            >
+              {generating ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Generar PDF
+                </>
+              )}
+            </button>
+            {(!proyecto.Crews || proyecto.Crews.length === 0) && (
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Este proyecto no tiene crew asignado
               </p>
             )}
           </div>

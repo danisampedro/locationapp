@@ -23,7 +23,7 @@ export default function ProyectoDetail() {
     basecampManager: '',
     projectDate: '',
     locations: [], // Array de objetos {id, setName, basecampLink, distanceLocBase}
-    crew: [],
+    crew: [], // Array de objetos {id, startDate, endDate, weeklyRate, carAllowance, boxRental}
     vendors: []
   })
   const [availableLocations, setAvailableLocations] = useState([])
@@ -52,17 +52,20 @@ export default function ProyectoDetail() {
         assistantLocationManager: response.data.assistantLocationManager || '',
         basecampManager: response.data.basecampManager || '',
         projectDate: response.data.projectDate ? response.data.projectDate.slice(0, 10) : '',
-        locations: response.data.Locations?.map(l => {
-          // Debug: verificar que los datos se reciben correctamente
-          console.log('📍 Location cargada:', l.id, 'ProyectoLocation:', l.ProyectoLocation)
-          return {
-            id: l.id.toString(),
-            setName: l.ProyectoLocation?.setName || '',
-            basecampLink: l.ProyectoLocation?.basecampLink || '',
-            distanceLocBase: l.ProyectoLocation?.distanceLocBase || ''
-          }
-        }) || [],
-        crew: response.data.Crews?.map(c => c.id.toString()) || [],
+        locations: response.data.Locations?.map(l => ({
+          id: l.id.toString(),
+          setName: l.ProyectoLocation?.setName || '',
+          basecampLink: l.ProyectoLocation?.basecampLink || '',
+          distanceLocBase: l.ProyectoLocation?.distanceLocBase || ''
+        })) || [],
+        crew: response.data.Crews?.map(c => ({
+          id: c.id.toString(),
+          startDate: c.ProyectoCrew?.startDate ? c.ProyectoCrew.startDate.slice(0, 10) : '',
+          endDate: c.ProyectoCrew?.endDate ? c.ProyectoCrew.endDate.slice(0, 10) : '',
+          weeklyRate: c.ProyectoCrew?.weeklyRate || '',
+          carAllowance: c.ProyectoCrew?.carAllowance === true,
+          boxRental: c.ProyectoCrew?.boxRental === true
+        })) || [],
         vendors: response.data.Vendors?.map(v => v.id.toString()) || []
       })
       setLoading(false)
@@ -134,7 +137,16 @@ export default function ProyectoDetail() {
         distanceLocBase: loc.distanceLocBase || ''
       }))
       data.append('locations', JSON.stringify(locationsData))
-      data.append('crew', JSON.stringify(formData.crew))
+      // Enviar crew como array de objetos con campos extra
+      const crewData = formData.crew.map(c => ({
+        id: parseInt(c.id),
+        startDate: c.startDate || '',
+        endDate: c.endDate || '',
+        weeklyRate: c.weeklyRate || '',
+        carAllowance: !!c.carAllowance,
+        boxRental: !!c.boxRental
+      }))
+      data.append('crew', JSON.stringify(crewData))
       data.append('vendors', JSON.stringify(formData.vendors))
 
       const response = await axios.put(
@@ -681,17 +693,124 @@ export default function ProyectoDetail() {
                 <label className="block text-gray-700 mb-2">Crew</label>
                 <select
                   multiple
-                  value={formData.crew}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    crew: Array.from(e.target.selectedOptions, option => option.value)
-                  })}
-                  className="w-full px-4 py-2 border rounded-lg"
+                  value={formData.crew.map(c => c.id)}
+                  onChange={(e) => {
+                    const selectedIds = Array.from(e.target.selectedOptions, option => option.value)
+                    const currentCrew = formData.crew
+                    const newCrew = selectedIds.map(id => {
+                      const existing = currentCrew.find(c => c.id.toString() === id.toString())
+                      if (existing) {
+                        return existing
+                      }
+                      return {
+                        id: id.toString(),
+                        startDate: '',
+                        endDate: '',
+                        weeklyRate: '',
+                        carAllowance: false,
+                        boxRental: false
+                      }
+                    })
+                    setFormData({
+                      ...formData,
+                      crew: newCrew
+                    })
+                  }}
+                  className="w-full px-4 py-2 border rounded-lg mb-4"
                 >
                   {availableCrew.map((c) => (
                     <option key={c.id} value={c.id}>{c.nombre}</option>
                   ))}
                 </select>
+
+                {/* Campos extra para cada miembro de crew seleccionado */}
+                {formData.crew.length > 0 && (
+                  <div className="space-y-4 mt-4 p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm font-semibold text-gray-700 mb-3">Información adicional por miembro de crew:</p>
+                    {formData.crew.map((member, index) => {
+                      const crewName = availableCrew.find(c => c.id.toString() === member.id)?.nombre || `Crew ${member.id}`
+                      const crewRole = availableCrew.find(c => c.id.toString() === member.id)?.rol || ''
+                      return (
+                        <div key={member.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-semibold text-gray-800">{crewName}</h4>
+                            {crewRole && (
+                              <span className="text-xs text-gray-500">{crewRole}</span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Fecha de alta</label>
+                              <input
+                                type="date"
+                                value={member.startDate || ''}
+                                onChange={(e) => {
+                                  const updatedCrew = [...formData.crew]
+                                  updatedCrew[index] = { ...updatedCrew[index], startDate: e.target.value }
+                                  setFormData({ ...formData, crew: updatedCrew })
+                                }}
+                                className="w-full px-3 py-2 border rounded-lg text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Fecha de baja</label>
+                              <input
+                                type="date"
+                                value={member.endDate || ''}
+                                onChange={(e) => {
+                                  const updatedCrew = [...formData.crew]
+                                  updatedCrew[index] = { ...updatedCrew[index], endDate: e.target.value }
+                                  setFormData({ ...formData, crew: updatedCrew })
+                                }}
+                                className="w-full px-3 py-2 border rounded-lg text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Tarifa semanal</label>
+                              <input
+                                type="text"
+                                value={member.weeklyRate || ''}
+                                onChange={(e) => {
+                                  const updatedCrew = [...formData.crew]
+                                  updatedCrew[index] = { ...updatedCrew[index], weeklyRate: e.target.value }
+                                  setFormData({ ...formData, crew: updatedCrew })
+                                }}
+                                className="w-full px-3 py-2 border rounded-lg text-sm"
+                                placeholder="Ej: 1.500 €"
+                              />
+                            </div>
+                            <div className="flex items-center gap-4 mt-2">
+                              <label className="flex items-center gap-2 text-xs text-gray-600">
+                                <input
+                                  type="checkbox"
+                                  checked={!!member.carAllowance}
+                                  onChange={(e) => {
+                                    const updatedCrew = [...formData.crew]
+                                    updatedCrew[index] = { ...updatedCrew[index], carAllowance: e.target.checked }
+                                    setFormData({ ...formData, crew: updatedCrew })
+                                  }}
+                                />
+                                <span>Car Allowance</span>
+                              </label>
+                              <label className="flex items-center gap-2 text-xs text-gray-600">
+                                <input
+                                  type="checkbox"
+                                  checked={!!member.boxRental}
+                                  onChange={(e) => {
+                                    const updatedCrew = [...formData.crew]
+                                    updatedCrew[index] = { ...updatedCrew[index], boxRental: e.target.checked }
+                                    setFormData({ ...formData, crew: updatedCrew })
+                                  }}
+                                />
+                                <span>Box Rental</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
               <div className="mb-6">
                 <label className="block text-gray-700 mb-2">Vendors</label>
