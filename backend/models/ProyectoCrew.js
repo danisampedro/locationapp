@@ -62,3 +62,4 @@ const ProyectoCrew = sequelize.define('ProyectoCrew', {
 export default ProyectoCrew
 
 
+
