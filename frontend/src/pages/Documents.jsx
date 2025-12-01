@@ -68,6 +68,10 @@ export default function Documents() {
       const headerY = 0
       const logoMaxWidth = 28
       const logoMaxHeight = 14
+      const secondaryLogoMaxWidth = 22
+      const secondaryLogoMaxHeight = 12
+      const secondaryLogoMaxWidth = 22
+      const secondaryLogoMaxHeight = 12
 
       // Banda superior sólida (color corporativo oscuro)
       doc.setFillColor(10, 25, 47)
@@ -97,6 +101,28 @@ export default function Documents() {
         }
       }
 
+      // Segundo logo a la derecha (por ahora reutilizamos el mismo logo del proyecto)
+      if (proyecto.logoUrl) {
+        try {
+          const logoImgRight = await loadImage(proyecto.logoUrl)
+          const aspectRight = logoImgRight.width / logoImgRight.height
+          let wRight = secondaryLogoMaxWidth
+          let hRight = secondaryLogoMaxHeight
+
+          if (aspectRight > (secondaryLogoMaxWidth / secondaryLogoMaxHeight)) {
+            hRight = wRight / aspectRight
+          } else {
+            wRight = hRight * aspectRight
+          }
+
+          const logoRightX = pageWidth - marginSides - wRight
+          const logoRightY = headerY + (headerHeight - hRight) / 2
+          doc.addImage(logoImgRight, 'PNG', logoRightX, logoRightY, wRight, hRight)
+        } catch (e) {
+          console.error('Error cargando segundo logo:', e)
+        }
+      }
+
       // Nombre de la productora cerca del logo
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(8)
@@ -122,7 +148,7 @@ export default function Documents() {
       doc.setTextColor(185, 193, 210)
       const docTypeWidth = doc.getTextWidth(docTypeText)
 
-      const rightPadding = marginSides
+      const rightPadding = marginSides + secondaryLogoMaxWidth + 4
       const textRightX = pageWidth - rightPadding
 
       // Tipo de documento (arriba, pequeño, gris claro)
@@ -158,6 +184,8 @@ export default function Documents() {
       // Calcular el ancho máximo de las etiquetas para alinear mejor
       const labels = [
         'PRODUCTION COMPANY: ',
+        'ADDRESS: ',
+        'CIF: ',
         'LOCATION MANAGER: ',
         'LOCATION COORDINATOR: ',
         'ASSISTANT LOCATION MANAGER: ',
@@ -174,6 +202,24 @@ export default function Documents() {
         doc.text('PRODUCTION COMPANY: ', labelX, yPosition)
         doc.setFont('helvetica', 'normal')
         doc.text(proyecto.company, valueX, yPosition)
+        yPosition += 6
+      }
+
+      // Dirección de la compañía
+      if (proyecto.address) {
+        doc.setFont('helvetica', 'bold')
+        doc.text('ADDRESS: ', labelX, yPosition)
+        doc.setFont('helvetica', 'normal')
+        doc.text(proyecto.address, valueX, yPosition)
+        yPosition += 6
+      }
+
+      // CIF de la compañía
+      if (proyecto.cif) {
+        doc.setFont('helvetica', 'bold')
+        doc.text('CIF: ', labelX, yPosition)
+        doc.setFont('helvetica', 'normal')
+        doc.text(proyecto.cif, valueX, yPosition)
         yPosition += 6
       }
 
@@ -433,6 +479,28 @@ export default function Documents() {
         }
       }
 
+      // Segundo logo a la derecha
+      if (proyecto.logoUrl) {
+        try {
+          const logoImgRight = await loadImage(proyecto.logoUrl)
+          const aspectRight = logoImgRight.width / logoImgRight.height
+          let wRight = secondaryLogoMaxWidth
+          let hRight = secondaryLogoMaxHeight
+
+          if (aspectRight > (secondaryLogoMaxWidth / secondaryLogoMaxHeight)) {
+            hRight = wRight / aspectRight
+          } else {
+            wRight = hRight * aspectRight
+          }
+
+          const logoRightX = pageWidth - marginSides - wRight
+          const logoRightY = headerY + (headerHeight - hRight) / 2
+          doc.addImage(logoImgRight, 'PNG', logoRightX, logoRightY, wRight, hRight)
+        } catch (e) {
+          console.error('Error cargando segundo logo:', e)
+        }
+      }
+
       // Nombre de la productora
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(8)
@@ -458,7 +526,7 @@ export default function Documents() {
       doc.setTextColor(185, 193, 210)
       const docTypeWidth = doc.getTextWidth(docTypeText)
 
-      const rightPadding = marginSides
+      const rightPadding = marginSides + secondaryLogoMaxWidth + 4
       const textRightX = pageWidth - rightPadding
 
       // Tipo de documento
