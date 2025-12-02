@@ -221,93 +221,114 @@ export default function Crew() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="space-y-4">
           {crew.map((member) => (
-            <div 
-              key={member.id} 
-              className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-2xl transition-shadow border border-gray-100 hover:border-accent-green/40"
+            <div
+              key={member.id}
+              className="bg-white rounded-xl shadow-md px-5 py-4 border border-gray-100 hover:border-accent-green/50 hover:shadow-lg transition"
             >
-              <div className="p-5 space-y-2">
-                <div className="flex items-center gap-3">
-                  {member.fotoUrl ? (
+              <div className="flex items-start gap-4">
+                {member.fotoUrl ? (
+                  <div className="w-16 h-16 flex-shrink-0 rounded-lg bg-gray-50 overflow-hidden flex items-center justify-center">
                     <img
                       src={member.fotoUrl}
                       alt={member.nombre}
-                      className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
+                      className="max-w-full max-h-full object-cover"
                     />
-                  ) : (
-                    <div className="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-1 truncate">{member.nombre}</h2>
-                    {member.rol && (
-                      <p className="text-xs text-gray-600">
-                        <span className="font-semibold text-gray-800">Rol: </span>
-                        {member.rol}
-                      </p>
-                    )}
                   </div>
-                </div>
-                <div className="space-y-1 pt-2 border-t border-gray-100">
-                  {member.dni && (
-                    <p className="text-xs text-gray-600">
-                      <span className="font-semibold text-gray-800">DNI: </span>
-                      {member.dni}
-                    </p>
-                  )}
-                  {member.fechaNacimiento && (
-                    <p className="text-xs text-gray-600">
-                      <span className="font-semibold text-gray-800">Fecha de nacimiento: </span>
-                      {new Date(member.fechaNacimiento).toLocaleDateString('es-ES')}
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-600">
-                    <span className="font-semibold text-gray-800">Carnet de conducir: </span>
-                    {member.carnetConducir ? (
-                      <span className="text-green-600 font-medium">Sí</span>
-                    ) : (
-                      <span className="text-gray-500">No</span>
+                ) : (
+                  <div className="w-16 h-16 flex-shrink-0 rounded-lg bg-gray-200 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                )}
+                <div className="flex-1">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        {member.nombre}
+                      </h2>
+                      {member.rol && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          <span className="font-semibold text-gray-700">Rol: </span>
+                          {member.rol}
+                        </p>
+                      )}
+                    </div>
+                    <div
+                      className="flex gap-1 flex-shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => handleEdit(member)}
+                        className="p-1.5 text-gray-600 hover:text-dark-blue hover:bg-gray-100 rounded transition-colors"
+                        title="Editar"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(member.id, member.nombre)}
+                        className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Eliminar"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-600 mt-2">
+                    <div>
+                      <p className="font-semibold text-gray-700 mb-0.5">DNI</p>
+                      <p>{member.dni || <span className="text-gray-300">—</span>}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-700 mb-0.5">Email</p>
+                      <p className="truncate">
+                        {member.email || <span className="text-gray-300">—</span>}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-700 mb-0.5">Teléfono</p>
+                      <p>{member.telefono || <span className="text-gray-300">—</span>}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-600 mt-2">
+                    {member.fechaNacimiento && (
+                      <div>
+                        <p className="font-semibold text-gray-700 mb-0.5">Fecha de nacimiento</p>
+                        <p>{new Date(member.fechaNacimiento).toLocaleDateString('es-ES')}</p>
+                      </div>
                     )}
-                  </p>
-                  {member.email && (
-                    <p className="text-xs text-gray-600 truncate">
-                      <span className="font-semibold text-gray-800">Email: </span>
-                      {member.email}
-                    </p>
-                  )}
-                  {member.telefono && (
-                    <p className="text-xs text-gray-600">
-                      <span className="font-semibold text-gray-800">Teléfono: </span>
-                      {member.telefono}
-                    </p>
-                  )}
+                    <div>
+                      <p className="font-semibold text-gray-700 mb-0.5">Carnet de conducir</p>
+                      <p>
+                        {member.carnetConducir ? (
+                          <span className="text-green-600 font-medium">Sí</span>
+                        ) : (
+                          <span className="text-gray-500">No</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
                   {member.notas && (
-                    <p className="text-sm text-gray-500 line-clamp-2 mt-2">{member.notas}</p>
+                    <p className="text-xs text-gray-500 mt-3 line-clamp-2">
+                      {member.notas}
+                    </p>
                   )}
-                </div>
-                <div className="flex justify-end gap-1 pt-2 border-t border-gray-100">
-                  <button
-                    onClick={() => handleEdit(member)}
-                    className="p-1.5 text-gray-600 hover:text-dark-blue hover:bg-gray-100 rounded transition-colors"
-                    title="Editar"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => handleDelete(member.id, member.nombre)}
-                    className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                    title="Eliminar"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
                 </div>
               </div>
             </div>
