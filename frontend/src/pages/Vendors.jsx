@@ -15,6 +15,7 @@ export default function Vendors() {
   const [showModal, setShowModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('all')
+  const [editingVendor, setEditingVendor] = useState(null)
   const [formData, setFormData] = useState({
     nombre: '',
     cif: '',
@@ -41,6 +42,40 @@ export default function Vendors() {
     }
   }
 
+  const openCreateModal = () => {
+    setEditingVendor(null)
+    setFormData({
+      nombre: '',
+      cif: '',
+      direccion: '',
+      contacto: '',
+      telefonoFijo: '',
+      telefonoMovil: '',
+      email: '',
+      tipo: '',
+      notas: '',
+      logoFile: null
+    })
+    setShowModal(true)
+  }
+
+  const openEditModal = (vendor) => {
+    setEditingVendor(vendor)
+    setFormData({
+      nombre: vendor.nombre || '',
+      cif: vendor.cif || '',
+      direccion: vendor.direccion || '',
+      contacto: vendor.contacto || '',
+      telefonoFijo: vendor.telefonoFijo || '',
+      telefonoMovil: vendor.telefonoMovil || '',
+      email: vendor.email || '',
+      tipo: vendor.tipo || '',
+      notas: vendor.notas || '',
+      logoFile: null
+    })
+    setShowModal(true)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     e.stopPropagation()
@@ -61,36 +96,54 @@ export default function Vendors() {
         data.append('logo', formData.logoFile)
       }
 
-      const response = await axios.post(`${API_URL}/vendors`, data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 30000,
-        withCredentials: true
-      })
-
-      if (response.status === 201 || response.status === 200) {
-        setShowModal(false)
-        setFormData({
-          nombre: '',
-          cif: '',
-          direccion: '',
-          contacto: '',
-          telefonoFijo: '',
-          telefonoMovil: '',
-          email: '',
-          tipo: '',
-          notas: '',
-          logoFile: null
+      if (editingVendor) {
+        await axios.put(`${API_URL}/vendors/${editingVendor.id}`, data, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 30000,
+          withCredentials: true
         })
-        await loadVendors()
       } else {
-        throw new Error('Respuesta inesperada del servidor')
+        await axios.post(`${API_URL}/vendors`, data, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 30000,
+          withCredentials: true
+        })
       }
+
+      setShowModal(false)
+      setEditingVendor(null)
+      setFormData({
+        nombre: '',
+        cif: '',
+        direccion: '',
+        contacto: '',
+        telefonoFijo: '',
+        telefonoMovil: '',
+        email: '',
+        tipo: '',
+        notas: '',
+        logoFile: null
+      })
+      await loadVendors()
     } catch (error) {
-      console.error('Error creando vendor:', error)
-      const errorMessage = error.response?.data?.error || error.message || 'Error al crear el vendor'
+      console.error('Error guardando vendor:', error)
+      const errorMessage = error.response?.data?.error || error.message || 'Error al guardar el vendor'
       alert(`Error: ${errorMessage}`)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleDelete = async (vendor) => {
+    if (!window.confirm(`¿Seguro que quieres eliminar el vendor "${vendor.nombre}"?`)) return
+    try {
+      await axios.delete(`${API_URL}/vendors/${vendor.id}`, {
+        withCredentials: true
+      })
+      await loadVendors()
+    } catch (error) {
+      console.error('Error eliminando vendor:', error)
+      alert('Error eliminando el vendor')
     }
   }
 
@@ -121,7 +174,7 @@ export default function Vendors() {
             ))}
           </select>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={openCreateModal}
             className="bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light transition-colors text-sm"
           >
             Nuevo vendor
@@ -208,6 +261,41 @@ export default function Vendors() {
                     </p>
                   )}
                 </div>
+                <div
+                  className="flex flex-col items-end gap-2 flex-shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => openEditModal(vendor)}
+                      className="p-1.5 text-gray-600 hover:text-dark-blue hover:bg-gray-100 rounded transition-colors"
+                      title="Editar"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(vendor)}
+                      className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Eliminar"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -217,10 +305,22 @@ export default function Vendors() {
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-6">Nuevo vendor</h2>
+            <h2 className="text-2xl font-bold mb-6">
+              {editingVendor ? 'Editar vendor' : 'Nuevo vendor'}
+            </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-gray-700 mb-1">Imagen logo</label>
+                {editingVendor && editingVendor.logoUrl && (
+                  <div className="mb-2">
+                    <p className="text-xs text-gray-500 mb-1">Logo actual:</p>
+                    <img
+                      src={editingVendor.logoUrl}
+                      alt="Logo actual"
+                      className="w-16 h-16 object-contain border rounded"
+                    />
+                  </div>
+                )}
                 <input
                   type="file"
                   accept="image/*"
@@ -232,6 +332,11 @@ export default function Vendors() {
                   }
                   className="w-full text-sm text-gray-600"
                 />
+                {editingVendor && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Deja vacío para mantener el logo actual
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-gray-700 mb-1">Empresa</label>
@@ -337,11 +442,26 @@ export default function Vendors() {
                   disabled={isSubmitting}
                   className="bg-dark-blue text-white px-6 py-2 rounded-lg hover:bg-dark-blue-light disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? 'Guardando...' : 'Crear'}
+                  {isSubmitting ? 'Guardando...' : editingVendor ? 'Guardar cambios' : 'Crear'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false)
+                    setEditingVendor(null)
+                    setFormData({
+                      nombre: '',
+                      cif: '',
+                      direccion: '',
+                      contacto: '',
+                      telefonoFijo: '',
+                      telefonoMovil: '',
+                      email: '',
+                      tipo: '',
+                      notas: '',
+                      logoFile: null
+                    })
+                  }}
                   className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400"
                 >
                   Cancelar
