@@ -5,7 +5,8 @@ import Crew from './Crew.js'
 import Vendor from './Vendor.js'
 import User from './User.js'
 import ProyectoCrew from './ProyectoCrew.js'
+import Permit from './Permit.js'
 
 // Exportar todos los modelos
-export { Proyecto, Location, Crew, Vendor, User, ProyectoCrew }
+export { Proyecto, Location, Crew, Vendor, User, ProyectoCrew, Permit }
 

@@ -8,6 +8,7 @@ import Crew from './pages/Crew'
 import Vendors from './pages/Vendors'
 import Users from './pages/Users'
 import Documents from './pages/Documents'
+import Permits from './pages/Permits'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 
@@ -96,6 +97,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Vendors />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/permits"
+            element={
+              <PrivateRoute>
+                <Permits />
               </PrivateRoute>
             }
           />

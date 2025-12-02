@@ -10,6 +10,7 @@ import proyectoRoutes from './routes/proyectos.js'
 import locationRoutes from './routes/locations.js'
 import crewRoutes from './routes/crew.js'
 import vendorRoutes from './routes/vendors.js'
+import permitRoutes from './routes/permits.js'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/users.js'
 import { authMiddleware } from './middleware/auth.js'
@@ -43,6 +44,7 @@ app.use('/api/proyectos', authMiddleware, proyectoRoutes)
 app.use('/api/locations', authMiddleware, locationRoutes)
 app.use('/api/crew', authMiddleware, crewRoutes)
 app.use('/api/vendors', authMiddleware, vendorRoutes)
+app.use('/api/permits', authMiddleware, permitRoutes)
 app.use('/api/users', userRoutes)
 
 // Health check
@@ -232,6 +234,73 @@ const migrateProyectoTable = async () => {
   }
 }
 
+// Migración: Crear tabla permits si no existe
+const migratePermitsTable = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface()
+    const tableExists = await queryInterface.tableExists('permits')
+
+    if (!tableExists) {
+      console.log('ℹ️  Tabla permits no existe, creando...')
+      await queryInterface.createTable('permits', {
+        id: {
+          type: sequelize.Sequelize.INTEGER,
+          primaryKey: true,
+          autoIncrement: true
+        },
+        administracion: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: false
+        },
+        area: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        contacto: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        telefono: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        correo: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        notas: {
+          type: sequelize.Sequelize.TEXT,
+          allowNull: true
+        },
+        categoria: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        createdAt: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        },
+        updatedAt: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        }
+      })
+      console.log('✅ Tabla permits creada')
+    } else {
+      console.log('ℹ️  Tabla permits ya existe')
+    }
+  } catch (error) {
+    console.error('⚠️  Error en migración de permits:', error.message)
+  }
+}
+
 // Migración: Añadir columnas nuevas a la tabla crew
 const migrateCrewTable = async () => {
   try {
@@ -332,6 +401,7 @@ const connectDB = async () => {
     await migrateProyectoLocationsTable()
     await migrateProyectoTable()
     await migrateProyectoCrewTable()
+    await migratePermitsTable()
     
     await seedAdminUser()
     console.log('✅ Database models synchronized')
