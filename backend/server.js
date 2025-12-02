@@ -353,6 +353,42 @@ const migrateCrewTable = async () => {
   }
 }
 
+// Migración: Añadir columnas nuevas a la tabla vendors
+const migrateVendorTable = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface()
+    const tableDescription = await queryInterface.describeTable('vendors')
+
+    const newColumns = {
+      logoUrl: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+      cif: { type: 'VARCHAR(100)', allowNull: true, defaultValue: '' },
+      direccion: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+      telefonoFijo: { type: 'VARCHAR(50)', allowNull: true, defaultValue: '' },
+      telefonoMovil: { type: 'VARCHAR(50)', allowNull: true, defaultValue: '' }
+    }
+
+    for (const [columnName] of Object.entries(newColumns)) {
+      if (!tableDescription[columnName]) {
+        console.log(`🔄 Añadiendo columna ${columnName} a la tabla vendors...`)
+        await queryInterface.addColumn('vendors', columnName, {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        })
+        console.log(`✅ Columna ${columnName} añadida exitosamente`)
+      } else {
+        console.log(`ℹ️  Columna ${columnName} ya existe en vendors`)
+      }
+    }
+  } catch (error) {
+    if (error.name === 'SequelizeDatabaseError' && error.message.includes("doesn't exist")) {
+      console.log('ℹ️  Tabla vendors no existe aún, se creará con sync')
+    } else {
+      console.error('⚠️  Error en migración de vendors:', error.message)
+    }
+  }
+}
+
 // Crear o actualizar usuario admin inicial
 const seedAdminUser = async () => {
   const adminUsername = process.env.INIT_ADMIN_USERNAME || 'danisampedro'
@@ -401,6 +437,7 @@ const connectDB = async () => {
     await migrateProyectoLocationsTable()
     await migrateProyectoTable()
     await migrateProyectoCrewTable()
+    await migrateVendorTable()
     await migratePermitsTable()
     
     await seedAdminUser()

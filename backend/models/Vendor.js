@@ -11,6 +11,21 @@ const Vendor = sequelize.define('Vendor', {
     type: DataTypes.STRING,
     allowNull: false
   },
+  logoUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  cif: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  direccion: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
   tipo: {
     type: DataTypes.STRING,
     allowNull: true,
@@ -27,6 +42,16 @@ const Vendor = sequelize.define('Vendor', {
     defaultValue: ''
   },
   telefono: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  telefonoFijo: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  telefonoMovil: {
     type: DataTypes.STRING,
     allowNull: true,
     defaultValue: ''
