@@ -68,8 +68,12 @@ router.post('/', upload.single('logo'), async (req, res) => {
       notas
     } = req.body
 
+    if (!nombre || !nombre.trim()) {
+      return res.status(400).json({ error: 'El nombre de la empresa es obligatorio' })
+    }
+
     const vendorData = {
-      nombre,
+      nombre: nombre.trim(),
       tipo: tipo || '',
       contacto: contacto || '',
       email: email || '',
