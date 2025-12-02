@@ -19,6 +19,7 @@ export default function Permits() {
   const navigate = useNavigate()
   const [permits, setPermits] = useState([])
   const [loading, setLoading] = useState(true)
+  const [selectedCategory, setSelectedCategory] = useState('all')
   const [showModal, setShowModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingPermit, setEditingPermit] = useState(null)
@@ -130,14 +131,33 @@ export default function Permits() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Permits</h1>
-        <button
-          onClick={openCreateModal}
-          className="bg-accent-green text-white px-4 py-2 rounded-lg hover:bg-accent-green/90 transition-colors"
-        >
-          Añadir registro
-        </button>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Permits</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Base de datos de permisos y contactos por administración
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="px-3 py-2 border rounded-lg bg-white text-sm text-gray-700"
+          >
+            <option value="all">Todas las categorías</option>
+            {CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={openCreateModal}
+            className="bg-accent-green text-white px-4 py-2 rounded-lg hover:bg-accent-green/90 transition-colors text-sm"
+          >
+            Añadir registro
+          </button>
+        </div>
       </div>
 
       {permits.length === 0 ? (
@@ -146,7 +166,13 @@ export default function Permits() {
         </div>
       ) : (
         <div className="space-y-4">
-          {permits.map((permit) => (
+          {permits
+            .filter((permit) =>
+              selectedCategory === 'all'
+                ? true
+                : permit.categoria === selectedCategory
+            )
+            .map((permit) => (
             <div
               key={permit.id}
               className="bg-white rounded-xl shadow-md px-5 py-4 border border-gray-100 hover:border-accent-green/50 hover:shadow-lg transition cursor-pointer"
