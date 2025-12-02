@@ -9,6 +9,7 @@ import Vendors from './pages/Vendors'
 import Users from './pages/Users'
 import Documents from './pages/Documents'
 import Permits from './pages/Permits'
+import PermitDetail from './pages/PermitDetail'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 
@@ -105,6 +106,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Permits />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/permits/:id"
+            element={
+              <PrivateRoute>
+                <PermitDetail />
               </PrivateRoute>
             }
           />

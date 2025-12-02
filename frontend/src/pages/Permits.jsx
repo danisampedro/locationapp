@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import axios, { API_URL } from '../config/axios.js'
 
 const CATEGORIES = [
@@ -15,6 +16,7 @@ const CATEGORIES = [
 ]
 
 export default function Permits() {
+  const navigate = useNavigate()
   const [permits, setPermits] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -143,70 +145,94 @@ export default function Permits() {
           No hay registros de permisos. Pulsa &quot;Añadir registro&quot; para crear el primero.
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Administración
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Área
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Categoría
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contacto
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Teléfono
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Correo
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {permits.map((permit) => (
-                <tr key={permit.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-900">{permit.administracion}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {permit.area || <span className="text-gray-300">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {permit.categoria || <span className="text-gray-300">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {permit.contacto || <span className="text-gray-300">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {permit.telefono || <span className="text-gray-300">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {permit.correo || <span className="text-gray-300">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-right space-x-2">
+        <div className="space-y-4">
+          {permits.map((permit) => (
+            <div
+              key={permit.id}
+              className="bg-white rounded-xl shadow-md px-5 py-4 border border-gray-100 hover:border-accent-green/50 hover:shadow-lg transition cursor-pointer"
+              onClick={() => navigate(`/permits/${permit.id}`)}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {permit.administracion}
+                    </h2>
+                    {permit.categoria && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                        {permit.categoria}
+                      </span>
+                    )}
+                  </div>
+                  {permit.area && (
+                    <p className="text-sm text-gray-500 mb-1">{permit.area}</p>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-600 mt-2">
+                    <div>
+                      <p className="font-semibold text-gray-700 mb-0.5">Contacto</p>
+                      <p>{permit.contacto || <span className="text-gray-300">—</span>}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-700 mb-0.5">Teléfono</p>
+                      <p>{permit.telefono || <span className="text-gray-300">—</span>}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-700 mb-0.5">Correo</p>
+                      <p className="truncate">
+                        {permit.correo || <span className="text-gray-300">—</span>}
+                      </p>
+                    </div>
+                  </div>
+                  {permit.notas && (
+                    <p className="text-xs text-gray-500 mt-3 line-clamp-2">
+                      {permit.notas}
+                    </p>
+                  )}
+                </div>
+                <div
+                  className="flex flex-col items-end gap-2 flex-shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex gap-1">
                     <button
                       onClick={() => openEditModal(permit)}
-                      className="text-dark-blue hover:underline text-xs"
+                      className="p-1.5 text-gray-600 hover:text-dark-blue hover:bg-gray-100 rounded transition-colors"
+                      title="Editar"
                     >
-                      Editar
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
                     </button>
                     <button
                       onClick={() => handleDelete(permit)}
-                      className="text-red-600 hover:underline text-xs"
+                      className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Eliminar"
                     >
-                      Eliminar
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/permits/${permit.id}`)}
+                    className="text-xs text-dark-blue hover:text-dark-blue-light"
+                  >
+                    Ver detalle →
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
