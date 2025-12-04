@@ -1035,15 +1035,11 @@ export default function Documents() {
           const blockStartY = y
           const padding = 3
 
-          // Marco sutil alrededor del bloque de localización
-          doc.setDrawColor(220, 220, 220)
-          doc.setLineWidth(0.3)
-
-          // Primera fila: nombre + arrival/depart
+          // Primera fila: nombre + arrival/depart (dentro del marco)
           doc.setFontSize(10)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(30, 30, 30)
-          doc.text(loc.nombre || 'Location', marginSides + padding, y)
+          doc.text(loc.nombre || 'Location', marginSides + padding, y + padding + 3)
 
           if (row) {
             doc.setFontSize(8)
@@ -1056,11 +1052,11 @@ export default function Documents() {
               .filter(Boolean)
               .join('   |   ')
             if (timesText) {
-              doc.text(timesText, pageWidth - marginSides, y, { align: 'right' })
+              doc.text(timesText, pageWidth - marginSides - padding, y + padding + 3, { align: 'right' })
             }
           }
 
-          y += 6
+          y += 6 + padding
 
           // Segunda fila: link Google (mostrar URL completo)
           if (loc.googleMapsLink) {
@@ -1076,6 +1072,10 @@ export default function Documents() {
             })
             y += linkLines.length * 3.5 + 2
           }
+
+          // Marco sutil alrededor del bloque de localización (dibujar después de calcular el contenido)
+          doc.setDrawColor(220, 220, 220)
+          doc.setLineWidth(0.3)
 
           // Tercera fila: dos imágenes lado a lado
           const imagenes =
@@ -1638,9 +1638,9 @@ export default function Documents() {
                               sunriseTime: savedDoc.sunriseTime || '',
                               sunsetTime: savedDoc.sunsetTime || '',
                               weatherForecast: savedDoc.weatherForecast || '',
-                              attendants: savedDoc.attendants || [],
-                              legs: savedDoc.legs || [],
-                              freeEntries: savedDoc.freeEntries || []
+                              attendants: Array.isArray(savedDoc.attendants) ? savedDoc.attendants : (savedDoc.attendants ? [savedDoc.attendants] : []),
+                              legs: Array.isArray(savedDoc.legs) ? savedDoc.legs : (savedDoc.legs ? [savedDoc.legs] : []),
+                              freeEntries: Array.isArray(savedDoc.freeEntries) ? savedDoc.freeEntries : (savedDoc.freeEntries ? [savedDoc.freeEntries] : [])
                             })
                             setShowRecceModal(true)
                           } catch (error) {
@@ -1689,9 +1689,9 @@ export default function Documents() {
                               sunriseTime: savedDoc.sunriseTime || '',
                               sunsetTime: savedDoc.sunsetTime || '',
                               weatherForecast: savedDoc.weatherForecast || '',
-                              attendants: savedDoc.attendants || [],
-                              legs: savedDoc.legs || [],
-                              freeEntries: savedDoc.freeEntries || []
+                              attendants: Array.isArray(savedDoc.attendants) ? savedDoc.attendants : (savedDoc.attendants ? [savedDoc.attendants] : []),
+                              legs: Array.isArray(savedDoc.legs) ? savedDoc.legs : (savedDoc.legs ? [savedDoc.legs] : []),
+                              freeEntries: Array.isArray(savedDoc.freeEntries) ? savedDoc.freeEntries : (savedDoc.freeEntries ? [savedDoc.freeEntries] : [])
                             })
                             await generateLocationReccePDF()
                           } catch (error) {
@@ -2154,7 +2154,7 @@ export default function Documents() {
                           return (
                             <div
                               key={`free-${item.originalIndex}`}
-                              className="grid grid-cols-1 md:grid-cols-[auto_100px_1fr_auto] gap-2 items-center text-xs bg-blue-50/30 p-2 rounded border border-blue-100"
+                              className="grid grid-cols-1 md:grid-cols-[auto_auto_80px_1fr_auto] gap-2 items-center text-xs bg-blue-50/30 p-2 rounded border border-blue-100"
                             >
                               <div className="flex flex-col gap-1">
                                 <button
@@ -2222,7 +2222,7 @@ export default function Documents() {
                           return (
                             <div
                               key={`leg-${item.originalIndex}`}
-                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_100px_80px_80px] gap-2 items-center text-xs bg-green-50/30 p-2 rounded border border-green-100"
+                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_80px] gap-2 items-center text-xs bg-green-50/30 p-2 rounded border border-green-100"
                             >
                               <div className="flex flex-col gap-1">
                                 <button
