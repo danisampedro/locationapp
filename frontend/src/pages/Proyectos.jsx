@@ -23,13 +23,13 @@ const CrewIcon = () => (
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={2}
-      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2a3 3 0 00-.879-2.121M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2a3 3 0 01.879-2.121M16 7a3 3 0 11-6 0 3 3 0 016 0z"
+      d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z"
     />
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={2}
-      d="M5 8a3 3 0 106 0M18 8a3 3 0 10-6 0"
+      d="M6 20a6 6 0 1112 0H6z"
     />
   </svg>
 )
