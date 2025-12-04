@@ -614,7 +614,8 @@ export default function Documents() {
 
       // ===== SECCIÓN 2: TABLA DATOS GENERALES =====
       const rowHeight = 8
-      const colWidth = usableWidth / 2
+      const col1Width = usableWidth / 3 // Columna 1 más pequeña (1/3)
+      const col2Width = (usableWidth * 2) / 3 // Columna 2 más grande (2/3)
       const tableX = marginSides
 
       doc.setFontSize(9)
@@ -622,17 +623,17 @@ export default function Documents() {
       doc.setFont('helvetica', 'bold')
 
       // Fila 1: RECCE SCHEDULE
-      doc.rect(tableX, y, colWidth, rowHeight, 'S')
-      doc.rect(tableX + colWidth, y, colWidth, rowHeight, 'S')
+      doc.rect(tableX, y, col1Width, rowHeight, 'S')
+      doc.rect(tableX + col1Width, y, col2Width, rowHeight, 'S')
       doc.text('RECCE SCHEDULE', tableX + 2, y + 5)
       doc.setFont('helvetica', 'normal')
-      doc.text(recceConfig.recceSchedule || '', tableX + colWidth + 2, y + 5)
+      doc.text(recceConfig.recceSchedule || '', tableX + col1Width + 2, y + 5)
       y += rowHeight
 
       // Fila 2: MEETING POINT
       doc.setFont('helvetica', 'bold')
-      doc.rect(tableX, y, colWidth, rowHeight, 'S')
-      doc.rect(tableX + colWidth, y, colWidth, rowHeight, 'S')
+      doc.rect(tableX, y, col1Width, rowHeight, 'S')
+      doc.rect(tableX + col1Width, y, col2Width, rowHeight, 'S')
       doc.text('MEETING POINT', tableX + 2, y + 5)
       doc.setFont('helvetica', 'normal')
       const meetingPointText = [
@@ -641,7 +642,7 @@ export default function Documents() {
       ]
         .filter(Boolean)
         .join('  |  ')
-      doc.text(meetingPointText, tableX + colWidth + 2, y + 5)
+      doc.text(meetingPointText, tableX + col1Width + 2, y + 5)
       y += rowHeight
 
       // Fila 3: LOCATION MANAGER
@@ -654,11 +655,11 @@ export default function Documents() {
         .join('  |  ')
 
       doc.setFont('helvetica', 'bold')
-      doc.rect(tableX, y, colWidth, rowHeight, 'S')
-      doc.rect(tableX + colWidth, y, colWidth, rowHeight, 'S')
+      doc.rect(tableX, y, col1Width, rowHeight, 'S')
+      doc.rect(tableX + col1Width, y, col2Width, rowHeight, 'S')
       doc.text('LOCATION MANAGER', tableX + 2, y + 5)
       doc.setFont('helvetica', 'normal')
-      doc.text(lmText || '', tableX + colWidth + 2, y + 5)
+      doc.text(lmText || '', tableX + col1Width + 2, y + 5)
       y += rowHeight + 4
 
       // ===== MINI SECCIÓN 3: SOL / METEO =====
@@ -936,7 +937,7 @@ export default function Documents() {
         y += 10
       }
 
-      // ===== SECCIÓN 6: ENTRADAS LIBRES + LOCALIZACIONES =====
+      // ===== SECCIÓN 6: ENTRADAS LIBRES + LOCALIZACIONES (ORDEN COMBINADO) =====
       const recceRowsByLocation = {}
       recceRows.forEach((row) => {
         if (row.locationId) {
@@ -944,26 +945,6 @@ export default function Documents() {
         }
       })
 
-      // Entradas libres (sin título "NOTES")
-      if (recceConfig.freeEntries && recceConfig.freeEntries.length > 0) {
-        doc.setFontSize(8)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(60, 60, 60)
-
-        recceConfig.freeEntries.forEach((entry) => {
-          if (y > pageHeight - marginBottom - 20) {
-            doc.addPage()
-            y = marginTop
-          }
-          const line = entry.time ? `${entry.time}  -  ${entry.text || ''}` : entry.text
-          doc.text(line || '', marginSides, y)
-          y += 5
-        })
-
-        y += 8
-      }
-
-      // Bloques de localización en el orden de las legs
       const locationsById = {}
       if (proyecto.Locations) {
         proyecto.Locations.forEach((loc) => {
@@ -971,138 +952,207 @@ export default function Documents() {
         })
       }
 
+      // Crear lista combinada de elementos (entradas libres y localizaciones) con orden
+      // Usar el índice como orden por defecto si no hay campo order
+      const combinedItems = []
+      
+      // Añadir entradas libres
+      if (recceConfig.freeEntries && recceConfig.freeEntries.length > 0) {
+        recceConfig.freeEntries.forEach((entry, index) => {
+          combinedItems.push({
+            type: 'freeEntry',
+            order: entry.order !== undefined ? entry.order : index,
+            data: entry
+          })
+        })
+      }
+
+      // Añadir localizaciones incluidas
       const includedLegs = (recceConfig.legs || []).filter(
         (leg) => leg.include && leg.locationId
       )
+      includedLegs.forEach((leg, index) => {
+        combinedItems.push({
+          type: 'location',
+          order: leg.order !== undefined ? leg.order : index + (recceConfig.freeEntries?.length || 0),
+          data: leg
+        })
+      })
 
-      for (let index = 0; index < includedLegs.length; index++) {
-        const leg = includedLegs[index]
-        const loc = locationsById[leg.locationId.toString()]
-        if (!loc) continue
+      // Ordenar por el campo order
+      combinedItems.sort((a, b) => a.order - b.order)
 
-        const row = recceRowsByLocation[leg.locationId.toString()]
-
-        if (y > pageHeight - marginBottom - 80) {
-          doc.addPage()
-          y = marginTop
-        }
-
-        // Texto "Travel to ..."
-        if (index > 0 && loc.nombre) {
-          doc.setFontSize(9)
-          doc.setFont('helvetica', 'italic')
-          doc.setTextColor(90, 90, 90)
-          doc.text(`Travel to ${loc.nombre}`, marginSides, y)
-          y += 6
-        }
-
-        const blockStartY = y
-
-        // Primera fila: nombre + arrival/depart
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(30, 30, 30)
-        doc.text(loc.nombre || 'Location', marginSides, y)
-
-        if (row) {
+      // Renderizar elementos en orden combinado
+      let locationIndex = 0
+      for (const item of combinedItems) {
+        if (item.type === 'freeEntry') {
+          // Renderizar entrada libre
+          if (y > pageHeight - marginBottom - 30) {
+            doc.addPage()
+            y = marginTop
+          }
+          
+          const entryStartY = y
+          const padding = 3
+          
           doc.setFontSize(8)
           doc.setFont('helvetica', 'normal')
-          doc.setTextColor(70, 70, 70)
-          const timesText = [
-            row.arrivalTime ? `Arrival: ${row.arrivalTime}` : '',
-            row.departTime ? `Depart: ${row.departTime}` : ''
-          ]
-            .filter(Boolean)
-            .join('   |   ')
-          if (timesText) {
-            doc.text(timesText, pageWidth - marginSides, y, { align: 'right' })
+          doc.setTextColor(60, 60, 60)
+          
+          const line = item.data.time ? `${item.data.time}  -  ${item.data.text || ''}` : item.data.text
+          const textLines = doc.splitTextToSize(line || '', usableWidth - padding * 2)
+          const entryHeight = textLines.length * 4 + padding * 2
+          
+          // Marco sutil alrededor de la entrada libre
+          doc.setDrawColor(220, 220, 220)
+          doc.setLineWidth(0.3)
+          doc.rect(marginSides, entryStartY, usableWidth, entryHeight, 'S')
+          
+          doc.text(textLines, marginSides + padding, entryStartY + padding + 3)
+          y = entryStartY + entryHeight + 4
+        } else if (item.type === 'location') {
+          // Renderizar bloque de localización
+          const leg = item.data
+          const loc = locationsById[leg.locationId.toString()]
+          if (!loc) continue
+
+          const row = recceRowsByLocation[leg.locationId.toString()]
+
+          if (y > pageHeight - marginBottom - 80) {
+            doc.addPage()
+            y = marginTop
           }
-        }
 
-        y += 6
+          // Texto "Travel to ..."
+          if (locationIndex > 0 && loc.nombre) {
+            doc.setFontSize(9)
+            doc.setFont('helvetica', 'italic')
+            doc.setTextColor(90, 90, 90)
+            doc.text(`Travel to ${loc.nombre}`, marginSides, y)
+            y += 6
+          }
 
-        // Segunda fila: link Google (mostrar URL completo)
-        if (loc.googleMapsLink) {
-          doc.setFontSize(7)
-          doc.setFont('helvetica', 'normal')
-          doc.setTextColor(30, 60, 150)
-          // Dividir el link si es muy largo
-          const linkLines = doc.splitTextToSize(loc.googleMapsLink, usableWidth)
-          linkLines.forEach((line, idx) => {
-            doc.textWithLink(line, marginSides, y + (idx * 3.5), {
-              url: loc.googleMapsLink
-            })
-          })
-          y += linkLines.length * 3.5 + 2
-        }
+          const blockStartY = y
+          const padding = 3
 
-        // Tercera fila: dos imágenes lado a lado
-        const imagenes =
-          Array.isArray(loc.imagenes) && loc.imagenes.length > 0
-            ? loc.imagenes
-            : typeof loc.imagenes === 'string' && loc.imagenes
-              ? JSON.parse(loc.imagenes)
-              : []
+          // Marco sutil alrededor del bloque de localización
+          doc.setDrawColor(220, 220, 220)
+          doc.setLineWidth(0.3)
 
-        if (imagenes && imagenes.length > 0) {
-          const gap = 4
-          const imageWidth = (usableWidth - gap) / 2
-          const imageHeight = imageWidth * (9 / 16)
-          const imageY = y
+          // Primera fila: nombre + arrival/depart
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(30, 30, 30)
+          doc.text(loc.nombre || 'Location', marginSides + padding, y)
 
-          // Cargar y mostrar las imágenes reales
-          const imagesToShow = imagenes.slice(0, 2)
-          const imagePromises = imagesToShow.map((imgUrl, i) => {
-            if (!imgUrl) return Promise.resolve(null)
-            return loadImage(imgUrl)
-              .then((img) => ({ img, index: i }))
-              .catch((e) => {
-                console.error('Error cargando imagen:', e)
-                return null
+          if (row) {
+            doc.setFontSize(8)
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(70, 70, 70)
+            const timesText = [
+              row.arrivalTime ? `Arrival: ${row.arrivalTime}` : '',
+              row.departTime ? `Depart: ${row.departTime}` : ''
+            ]
+              .filter(Boolean)
+              .join('   |   ')
+            if (timesText) {
+              doc.text(timesText, pageWidth - marginSides, y, { align: 'right' })
+            }
+          }
+
+          y += 6
+
+          // Segunda fila: link Google (mostrar URL completo)
+          if (loc.googleMapsLink) {
+            doc.setFontSize(7)
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(30, 60, 150)
+            // Dividir el link si es muy largo
+            const linkLines = doc.splitTextToSize(loc.googleMapsLink, usableWidth - padding * 2)
+            linkLines.forEach((line, idx) => {
+              doc.textWithLink(line, marginSides + padding, y + (idx * 3.5), {
+                url: loc.googleMapsLink
               })
-          })
+            })
+            y += linkLines.length * 3.5 + 2
+          }
 
-          // Esperar a que todas las imágenes se carguen
-          const loadedImages = await Promise.all(imagePromises)
+          // Tercera fila: dos imágenes lado a lado
+          const imagenes =
+            Array.isArray(loc.imagenes) && loc.imagenes.length > 0
+              ? loc.imagenes
+              : typeof loc.imagenes === 'string' && loc.imagenes
+                ? JSON.parse(loc.imagenes)
+                : []
 
-          for (let i = 0; i < imagesToShow.length; i++) {
-            const x = marginSides + i * (imageWidth + gap)
-            const loaded = loadedImages[i]
-            if (loaded && loaded.img) {
-              try {
-                doc.addImage(loaded.img, 'JPEG', x, imageY, imageWidth, imageHeight)
-              } catch (e) {
-                console.error('Error añadiendo imagen al PDF:', e)
-                // Placeholder si falla
+          if (imagenes && imagenes.length > 0) {
+            const gap = 4
+            const imageWidth = (usableWidth - gap - padding * 2) / 2
+            const imageHeight = imageWidth * (9 / 16)
+            const imageY = y
+
+            // Cargar y mostrar las imágenes reales
+            const imagesToShow = imagenes.slice(0, 2)
+            const imagePromises = imagesToShow.map((imgUrl, i) => {
+              if (!imgUrl) return Promise.resolve(null)
+              return loadImage(imgUrl)
+                .then((img) => ({ img, index: i }))
+                .catch((e) => {
+                  console.error('Error cargando imagen:', e)
+                  return null
+                })
+            })
+
+            // Esperar a que todas las imágenes se carguen
+            const loadedImages = await Promise.all(imagePromises)
+
+            for (let i = 0; i < imagesToShow.length; i++) {
+              const x = marginSides + padding + i * (imageWidth + gap)
+              const loaded = loadedImages[i]
+              if (loaded && loaded.img) {
+                try {
+                  doc.addImage(loaded.img, 'JPEG', x, imageY, imageWidth, imageHeight)
+                } catch (e) {
+                  console.error('Error añadiendo imagen al PDF:', e)
+                  // Placeholder si falla
+                  doc.setFillColor(240, 240, 240)
+                  doc.rect(x, imageY, imageWidth, imageHeight, 'F')
+                  doc.setFontSize(8)
+                  doc.setTextColor(150, 150, 150)
+                  doc.text('Error', x + imageWidth / 2, imageY + imageHeight / 2, {
+                    align: 'center'
+                  })
+                }
+              } else {
+                // Placeholder si no hay imagen
                 doc.setFillColor(240, 240, 240)
                 doc.rect(x, imageY, imageWidth, imageHeight, 'F')
                 doc.setFontSize(8)
                 doc.setTextColor(150, 150, 150)
-                doc.text('Error', x + imageWidth / 2, imageY + imageHeight / 2, {
+                doc.text('Sin imagen', x + imageWidth / 2, imageY + imageHeight / 2, {
                   align: 'center'
                 })
               }
-            } else {
-              // Placeholder si no hay imagen
-              doc.setFillColor(240, 240, 240)
-              doc.rect(x, imageY, imageWidth, imageHeight, 'F')
-              doc.setFontSize(8)
-              doc.setTextColor(150, 150, 150)
-              doc.text('Sin imagen', x + imageWidth / 2, imageY + imageHeight / 2, {
-                align: 'center'
-              })
+              doc.setTextColor(0, 0, 0)
             }
-            doc.setTextColor(0, 0, 0)
+
+            y = imageY + imageHeight + padding
+          } else {
+            y += padding
           }
 
-          y = imageY + imageHeight + 10
-        } else {
-          y += 6
-        }
+          // Cerrar el marco del bloque de localización
+          const blockHeight = y - blockStartY
+          doc.rect(marginSides, blockStartY, usableWidth, blockHeight, 'S')
+          
+          // Restaurar color de línea para el siguiente elemento
+          doc.setDrawColor(0, 0, 0)
+          doc.setLineWidth(0.5)
 
-        // Separación entre bloques
-        y = Math.max(y, blockStartY + 20)
-        y += 4
+          // Separación entre bloques
+          y += 6
+          locationIndex++
+        }
       }
 
       doc.save(`${proyecto.nombre || 'proyecto'}_location_recce.pdf`)
@@ -1971,8 +2021,52 @@ export default function Documents() {
                       return (
                         <div
                           key={leg.locationId || index}
-                          className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center text-xs"
+                          className="grid grid-cols-1 md:grid-cols-[auto_1fr_100px_80px_80px_auto] gap-2 items-center text-xs"
                         >
+                          <div className="flex flex-col gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (index > 0) {
+                                  const updated = [...recceConfig.legs]
+                                  // Actualizar el campo order
+                                  const currentOrder = updated[index].order !== undefined ? updated[index].order : index + (recceConfig.freeEntries?.length || 0)
+                                  const prevOrder = updated[index - 1].order !== undefined ? updated[index - 1].order : index - 1 + (recceConfig.freeEntries?.length || 0)
+                                  updated[index] = { ...updated[index], order: prevOrder }
+                                  updated[index - 1] = { ...updated[index - 1], order: currentOrder }
+                                  setRecceConfig({ ...recceConfig, legs: updated })
+                                }
+                              }}
+                              disabled={index === 0}
+                              className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Mover arriba"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (index < recceConfig.legs.length - 1) {
+                                  const updated = [...recceConfig.legs]
+                                  // Actualizar el campo order
+                                  const currentOrder = updated[index].order !== undefined ? updated[index].order : index + (recceConfig.freeEntries?.length || 0)
+                                  const nextOrder = updated[index + 1].order !== undefined ? updated[index + 1].order : index + 1 + (recceConfig.freeEntries?.length || 0)
+                                  updated[index] = { ...updated[index], order: nextOrder }
+                                  updated[index + 1] = { ...updated[index + 1], order: currentOrder }
+                                  setRecceConfig({ ...recceConfig, legs: updated })
+                                }
+                              }}
+                              disabled={index === recceConfig.legs.length - 1}
+                              className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Mover abajo"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                          </div>
                           <label className="flex items-center gap-2">
                             <input
                               type="checkbox"
@@ -2076,8 +2170,52 @@ export default function Documents() {
                     {recceConfig.freeEntries.map((entry, index) => (
                       <div
                         key={index}
-                        className="grid grid-cols-1 md:grid-cols-[100px_1fr_auto] gap-2 items-center text-xs"
+                        className="grid grid-cols-1 md:grid-cols-[auto_100px_1fr_auto] gap-2 items-center text-xs"
                       >
+                          <div className="flex flex-col gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (index > 0) {
+                                  const updated = [...recceConfig.freeEntries]
+                                  // Actualizar el campo order
+                                  const currentOrder = updated[index].order !== undefined ? updated[index].order : index
+                                  const prevOrder = updated[index - 1].order !== undefined ? updated[index - 1].order : index - 1
+                                  updated[index] = { ...updated[index], order: prevOrder }
+                                  updated[index - 1] = { ...updated[index - 1], order: currentOrder }
+                                  setRecceConfig({ ...recceConfig, freeEntries: updated })
+                                }
+                              }}
+                              disabled={index === 0}
+                              className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Mover arriba"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (index < recceConfig.freeEntries.length - 1) {
+                                  const updated = [...recceConfig.freeEntries]
+                                  // Actualizar el campo order
+                                  const currentOrder = updated[index].order !== undefined ? updated[index].order : index
+                                  const nextOrder = updated[index + 1].order !== undefined ? updated[index + 1].order : index + 1
+                                  updated[index] = { ...updated[index], order: nextOrder }
+                                  updated[index + 1] = { ...updated[index + 1], order: currentOrder }
+                                  setRecceConfig({ ...recceConfig, freeEntries: updated })
+                                }
+                              }}
+                              disabled={index === recceConfig.freeEntries.length - 1}
+                              className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Mover abajo"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                          </div>
                         <input
                           type="text"
                           value={entry.time}
