@@ -409,6 +409,58 @@ const migrateRecceDocumentsTable = async () => {
   }
 }
 
+// Migración: Crear tabla contract_documents si no existe
+const migrateContractDocumentsTable = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface()
+    const tableExists = await queryInterface.tableExists('contract_documents')
+
+    if (!tableExists) {
+      console.log('ℹ️  Tabla contract_documents no existe, creando...')
+      await queryInterface.createTable('contract_documents', {
+        id: {
+          type: sequelize.Sequelize.INTEGER,
+          primaryKey: true,
+          autoIncrement: true
+        },
+        proyectoId: {
+          type: sequelize.Sequelize.INTEGER,
+          allowNull: false
+        },
+        nombre: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: false
+        },
+        textoEspanol: {
+          type: sequelize.Sequelize.TEXT,
+          allowNull: true,
+          defaultValue: ''
+        },
+        textoIngles: {
+          type: sequelize.Sequelize.TEXT,
+          allowNull: true,
+          defaultValue: ''
+        },
+        createdAt: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        },
+        updatedAt: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        }
+      })
+      console.log('✅ Tabla contract_documents creada')
+    } else {
+      console.log('ℹ️  Tabla contract_documents ya existe')
+    }
+  } catch (error) {
+    console.error('⚠️  Error en migración de contract_documents:', error.message)
+  }
+}
+
 // Migración: Añadir columnas nuevas a la tabla crew
 const migrateCrewTable = async () => {
   try {
