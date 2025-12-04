@@ -14,6 +14,7 @@ export default function Documents() {
     documentTitle: 'LOCATION RECCE',
     recceSchedule: '',
     meetingPoint: '',
+    meetingPointLink: '',
     locationManagerName: '',
     locationManagerPhone: '',
     locationManagerEmail: '',
@@ -596,7 +597,7 @@ export default function Documents() {
       doc.setTextColor(200, 210, 225)
       doc.text(documentTitle, pageWidth / 2, headerY + 16, { align: 'center' })
 
-      let y = marginTop
+      let y = marginTop + 8 // Margen adicional entre cabecera y primera tabla
 
       // ===== SECCIÓN 2: TABLA DATOS GENERALES =====
       const rowHeight = 8
@@ -621,7 +622,13 @@ export default function Documents() {
       doc.rect(tableX + colWidth, y, colWidth, rowHeight, 'S')
       doc.text('MEETING POINT', tableX + 2, y + 5)
       doc.setFont('helvetica', 'normal')
-      doc.text(recceConfig.meetingPoint || '', tableX + colWidth + 2, y + 5)
+      const meetingPointText = [
+        recceConfig.meetingPoint || '',
+        recceConfig.meetingPointLink || ''
+      ]
+        .filter(Boolean)
+        .join('  |  ')
+      doc.text(meetingPointText, tableX + colWidth + 2, y + 5)
       y += rowHeight
 
       // Fila 3: LOCATION MANAGER
@@ -674,13 +681,27 @@ export default function Documents() {
         const colAttMail = usableWidth * 0.25
 
         const headerY = y
-        doc.setFontSize(8)
-        doc.setTextColor(90, 90, 90)
-        doc.text('Name', marginSides + 2, headerY + 4)
-        doc.text('Position', marginSides + colAttName + 2, headerY + 4)
-        doc.text('Phone', marginSides + colAttName + colAttPos + 2, headerY + 4)
-        doc.text('Email', marginSides + colAttName + colAttPos + colAttPhone + 2, headerY + 4)
-
+        // Fondo azul para la cabecera
+        doc.setFillColor(10, 25, 47)
+        doc.rect(marginSides, headerY, colAttName, rowHeight, 'F')
+        doc.rect(marginSides + colAttName, headerY, colAttPos, rowHeight, 'F')
+        doc.rect(
+          marginSides + colAttName + colAttPos,
+          headerY,
+          colAttPhone,
+          rowHeight,
+          'F'
+        )
+        doc.rect(
+          marginSides + colAttName + colAttPos + colAttPhone,
+          headerY,
+          colAttMail,
+          rowHeight,
+          'F'
+        )
+        // Bordes más finos
+        doc.setDrawColor(10, 25, 47)
+        doc.setLineWidth(0.2)
         doc.rect(marginSides, headerY, colAttName, rowHeight, 'S')
         doc.rect(marginSides + colAttName, headerY, colAttPos, rowHeight, 'S')
         doc.rect(
@@ -697,6 +718,17 @@ export default function Documents() {
           rowHeight,
           'S'
         )
+        // Texto blanco, alineado a la izquierda
+        doc.setFontSize(8)
+        doc.setTextColor(255, 255, 255)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Name', marginSides + 2, headerY + 4)
+        doc.text('Position', marginSides + colAttName + 2, headerY + 4)
+        doc.text('Phone', marginSides + colAttName + colAttPos + 2, headerY + 4)
+        doc.text('Email', marginSides + colAttName + colAttPos + colAttPhone + 2, headerY + 4)
+        // Restaurar color y grosor de línea
+        doc.setDrawColor(0, 0, 0)
+        doc.setLineWidth(0.5)
 
         y += rowHeight
 
@@ -757,25 +789,36 @@ export default function Documents() {
         const colTimeLoc = usableWidth * 0.12
 
         const headerY2 = y
-        doc.setFontSize(7)
-        doc.setTextColor(90, 90, 90)
         const baseX = marginSides
-        doc.text('Depart', baseX + 2, headerY2 + 4)
-        doc.text('From', baseX + colDepart + 2, headerY2 + 4)
-        doc.text('To', baseX + colDepart + colFrom + 2, headerY2 + 4)
-        doc.text('Travel', baseX + colDepart + colFrom + colTo + 2, headerY2 + 4)
-        doc.text(
-          'Arrival',
-          baseX + colDepart + colFrom + colTo + colTravel + 2,
-          headerY2 + 4
+        // Fondo azul para la cabecera
+        doc.setFillColor(10, 25, 47)
+        doc.rect(baseX, headerY2, colDepart, rowHeight, 'F')
+        doc.rect(baseX + colDepart, headerY2, colFrom, rowHeight, 'F')
+        doc.rect(baseX + colDepart + colFrom, headerY2, colTo, rowHeight, 'F')
+        doc.rect(
+          baseX + colDepart + colFrom + colTo,
+          headerY2,
+          colTravel,
+          rowHeight,
+          'F'
         )
-        doc.text(
-          'Time on loc.',
-          baseX + colDepart + colFrom + colTo + colTravel + colArrival + 2,
-          headerY2 + 4
+        doc.rect(
+          baseX + colDepart + colFrom + colTo + colTravel,
+          headerY2,
+          colArrival,
+          rowHeight,
+          'F'
         )
-
-        // Bordes cabecera
+        doc.rect(
+          baseX + colDepart + colFrom + colTo + colTravel + colArrival,
+          headerY2,
+          colTimeLoc,
+          rowHeight,
+          'F'
+        )
+        // Bordes más finos
+        doc.setDrawColor(10, 25, 47)
+        doc.setLineWidth(0.2)
         doc.rect(baseX, headerY2, colDepart, rowHeight, 'S')
         doc.rect(baseX + colDepart, headerY2, colFrom, rowHeight, 'S')
         doc.rect(baseX + colDepart + colFrom, headerY2, colTo, rowHeight, 'S')
@@ -800,6 +843,27 @@ export default function Documents() {
           rowHeight,
           'S'
         )
+        // Texto blanco, alineado a la izquierda
+        doc.setFontSize(7)
+        doc.setTextColor(255, 255, 255)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Depart', baseX + 2, headerY2 + 4)
+        doc.text('From', baseX + colDepart + 2, headerY2 + 4)
+        doc.text('To', baseX + colDepart + colFrom + 2, headerY2 + 4)
+        doc.text('Travel', baseX + colDepart + colFrom + colTo + 2, headerY2 + 4)
+        doc.text(
+          'Arrival',
+          baseX + colDepart + colFrom + colTo + colTravel + 2,
+          headerY2 + 4
+        )
+        doc.text(
+          'Time on loc.',
+          baseX + colDepart + colFrom + colTo + colTravel + colArrival + 2,
+          headerY2 + 4
+        )
+        // Restaurar color y grosor de línea
+        doc.setDrawColor(0, 0, 0)
+        doc.setLineWidth(0.5)
 
         y += rowHeight
 
@@ -867,14 +931,8 @@ export default function Documents() {
         }
       })
 
-      // Entradas libres
+      // Entradas libres (sin título "NOTES")
       if (recceConfig.freeEntries && recceConfig.freeEntries.length > 0) {
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(30, 30, 30)
-        doc.text('NOTES', marginSides, y)
-        y += 5
-
         doc.setFontSize(8)
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(60, 60, 60)
@@ -904,9 +962,10 @@ export default function Documents() {
         (leg) => leg.include && leg.locationId
       )
 
-      includedLegs.forEach((leg, index) => {
+      for (let index = 0; index < includedLegs.length; index++) {
+        const leg = includedLegs[index]
         const loc = locationsById[leg.locationId.toString()]
-        if (!loc) return
+        if (!loc) continue
 
         const row = recceRowsByLocation[leg.locationId.toString()]
 
@@ -949,15 +1008,19 @@ export default function Documents() {
 
         y += 6
 
-        // Segunda fila: link Google
+        // Segunda fila: link Google (mostrar URL completo)
         if (loc.googleMapsLink) {
-          doc.setFontSize(8)
+          doc.setFontSize(7)
           doc.setFont('helvetica', 'normal')
           doc.setTextColor(30, 60, 150)
-          doc.textWithLink('Google Maps', marginSides, y, {
-            url: loc.googleMapsLink
+          // Dividir el link si es muy largo
+          const linkLines = doc.splitTextToSize(loc.googleMapsLink, usableWidth)
+          linkLines.forEach((line, idx) => {
+            doc.textWithLink(line, marginSides, y + (idx * 3.5), {
+              url: loc.googleMapsLink
+            })
           })
-          y += 6
+          y += linkLines.length * 3.5 + 2
         }
 
         // Tercera fila: dos imágenes lado a lado
@@ -969,22 +1032,53 @@ export default function Documents() {
               : []
 
         if (imagenes && imagenes.length > 0) {
-          // Para simplificar y evitar problemas con await en bucles,
-          // usamos placeholders de imagen en 16:9.
           const gap = 4
           const imageWidth = (usableWidth - gap) / 2
           const imageHeight = imageWidth * (9 / 16)
           const imageY = y
 
-          for (let i = 0; i < Math.min(imagenes.length, 2); i++) {
+          // Cargar y mostrar las imágenes reales
+          const imagesToShow = imagenes.slice(0, 2)
+          const imagePromises = imagesToShow.map((imgUrl, i) => {
+            if (!imgUrl) return Promise.resolve(null)
+            return loadImage(imgUrl)
+              .then((img) => ({ img, index: i }))
+              .catch((e) => {
+                console.error('Error cargando imagen:', e)
+                return null
+              })
+          })
+
+          // Esperar a que todas las imágenes se carguen
+          const loadedImages = await Promise.all(imagePromises)
+
+          for (let i = 0; i < imagesToShow.length; i++) {
             const x = marginSides + i * (imageWidth + gap)
-            doc.setFillColor(240, 240, 240)
-            doc.rect(x, imageY, imageWidth, imageHeight, 'F')
-            doc.setFontSize(8)
-            doc.setTextColor(150, 150, 150)
-            doc.text('Image', x + imageWidth / 2, imageY + imageHeight / 2, {
-              align: 'center'
-            })
+            const loaded = loadedImages[i]
+            if (loaded && loaded.img) {
+              try {
+                doc.addImage(loaded.img, 'JPEG', x, imageY, imageWidth, imageHeight)
+              } catch (e) {
+                console.error('Error añadiendo imagen al PDF:', e)
+                // Placeholder si falla
+                doc.setFillColor(240, 240, 240)
+                doc.rect(x, imageY, imageWidth, imageHeight, 'F')
+                doc.setFontSize(8)
+                doc.setTextColor(150, 150, 150)
+                doc.text('Error', x + imageWidth / 2, imageY + imageHeight / 2, {
+                  align: 'center'
+                })
+              }
+            } else {
+              // Placeholder si no hay imagen
+              doc.setFillColor(240, 240, 240)
+              doc.rect(x, imageY, imageWidth, imageHeight, 'F')
+              doc.setFontSize(8)
+              doc.setTextColor(150, 150, 150)
+              doc.text('Sin imagen', x + imageWidth / 2, imageY + imageHeight / 2, {
+                align: 'center'
+              })
+            }
             doc.setTextColor(0, 0, 0)
           }
 
@@ -996,7 +1090,7 @@ export default function Documents() {
         // Separación entre bloques
         y = Math.max(y, blockStartY + 20)
         y += 4
-      })
+      }
 
       doc.save(`${proyecto.nombre || 'proyecto'}_location_recce.pdf`)
     } catch (error) {
@@ -1511,7 +1605,7 @@ export default function Documents() {
                     placeholder="Ej: Día completo / Mañana / Tarde"
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Meeting point
                   </label>
@@ -1523,6 +1617,20 @@ export default function Documents() {
                     }
                     className="w-full px-3 py-2 border rounded-lg text-sm"
                     placeholder="Dirección o punto de encuentro"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Meeting point - Link Google Maps
+                  </label>
+                  <input
+                    type="url"
+                    value={recceConfig.meetingPointLink}
+                    onChange={(e) =>
+                      setRecceConfig({ ...recceConfig, meetingPointLink: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="https://maps.google.com/..."
                   />
                 </div>
                 <div>
