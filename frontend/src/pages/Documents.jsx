@@ -2119,26 +2119,32 @@ export default function Documents() {
                     const newOrder = targetItem.order
                     const targetNewOrder = tempOrder
 
-                    // Actualizar en el estado usando los índices originales
-                    if (item.type === 'freeEntry') {
-                      const updated = [...recceConfig.freeEntries]
-                      updated[item.originalIndex] = { ...updated[item.originalIndex], order: newOrder }
-                      setRecceConfig(prev => ({ ...prev, freeEntries: updated }))
-                    } else {
-                      const updated = [...recceConfig.legs]
-                      updated[item.originalIndex] = { ...updated[item.originalIndex], order: newOrder }
-                      setRecceConfig(prev => ({ ...prev, legs: updated }))
-                    }
+                    // Actualizar en el estado de forma atómica
+                    setRecceConfig(prev => {
+                      const newConfig = { ...prev }
+                      
+                      if (item.type === 'freeEntry') {
+                        const updated = [...newConfig.freeEntries]
+                        updated[item.originalIndex] = { ...updated[item.originalIndex], order: newOrder }
+                        newConfig.freeEntries = updated
+                      } else {
+                        const updated = [...newConfig.legs]
+                        updated[item.originalIndex] = { ...updated[item.originalIndex], order: newOrder }
+                        newConfig.legs = updated
+                      }
 
-                    if (targetItem.type === 'freeEntry') {
-                      const updated = [...recceConfig.freeEntries]
-                      updated[targetItem.originalIndex] = { ...updated[targetItem.originalIndex], order: targetNewOrder }
-                      setRecceConfig(prev => ({ ...prev, freeEntries: updated }))
-                    } else {
-                      const updated = [...recceConfig.legs]
-                      updated[targetItem.originalIndex] = { ...updated[targetItem.originalIndex], order: targetNewOrder }
-                      setRecceConfig(prev => ({ ...prev, legs: updated }))
-                    }
+                      if (targetItem.type === 'freeEntry') {
+                        const updated = [...newConfig.freeEntries]
+                        updated[targetItem.originalIndex] = { ...updated[targetItem.originalIndex], order: targetNewOrder }
+                        newConfig.freeEntries = updated
+                      } else {
+                        const updated = [...newConfig.legs]
+                        updated[targetItem.originalIndex] = { ...updated[targetItem.originalIndex], order: targetNewOrder }
+                        newConfig.legs = updated
+                      }
+
+                      return newConfig
+                    })
                   }
 
                   return (
