@@ -1141,8 +1141,8 @@ export default function Documents() {
             y += padding
           }
 
-          // Cerrar el marco del bloque de localización
-          const blockHeight = y - blockStartY
+          // Cerrar el marco del bloque de localización (incluye todo el contenido)
+          const blockHeight = y - blockStartY + padding
           doc.rect(marginSides, blockStartY, usableWidth, blockHeight, 'S')
           
           // Restaurar color de línea para el siguiente elemento
