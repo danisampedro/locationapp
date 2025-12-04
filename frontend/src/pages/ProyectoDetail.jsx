@@ -31,6 +31,7 @@ export default function ProyectoDetail() {
   const [availableCrew, setAvailableCrew] = useState([])
   const [availableVendors, setAvailableVendors] = useState([])
   const [isQuickSaving, setIsQuickSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState('info')
 
   useEffect(() => {
     loadProyecto()
@@ -353,573 +354,659 @@ export default function ProyectoDetail() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-md p-8 space-y-6">
-        {proyecto.projectDate && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Fecha del proyecto</h3>
-            <p className="text-gray-800">
-              {new Date(proyecto.projectDate).toLocaleDateString('es-ES')}
-            </p>
-          </div>
-        )}
-        {proyecto.descripcion && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Descripción</h3>
-            <p className="text-gray-700 leading-relaxed">{proyecto.descripcion}</p>
-          </div>
-        )}
-
-        {(proyecto.company || proyecto.cif || proyecto.address || proyecto.locationManager || proyecto.locationCoordinator || proyecto.assistantLocationManager || proyecto.basecampManager) && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Información de la Empresa</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {proyecto.company && (
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Company</p>
-                  <p className="text-gray-800">{proyecto.company}</p>
-                </div>
-              )}
-              {proyecto.cif && (
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">CIF</p>
-                  <p className="text-gray-800">{proyecto.cif}</p>
-                </div>
-              )}
-              {proyecto.address && (
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Address</p>
-                  <p className="text-gray-800">{proyecto.address}</p>
-                </div>
-              )}
-              {proyecto.locationManager && (
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Location Manager</p>
-                  <p className="text-gray-800">{proyecto.locationManager}</p>
-                </div>
-              )}
-              {proyecto.locationCoordinator && (
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Location Coordinator</p>
-                  <p className="text-gray-800">{proyecto.locationCoordinator}</p>
-                </div>
-              )}
-              {proyecto.assistantLocationManager && (
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Assistant Location Manager</p>
-                  <p className="text-gray-800">{proyecto.assistantLocationManager}</p>
-                </div>
-              )}
-              {proyecto.basecampManager && (
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Basecamp Manager</p>
-                  <p className="text-gray-800">{proyecto.basecampManager}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Locations Section */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">
+      <div className="bg-white rounded-xl shadow-md p-8">
+        {/* Tabs */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="-mb-px flex flex-wrap gap-4">
+            <button
+              type="button"
+              onClick={() => setActiveTab('info')}
+              className={`pb-2 px-1 text-sm font-medium border-b-2 ${
+                activeTab === 'info'
+                  ? 'border-dark-blue text-dark-blue'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Info
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('locations')}
+              className={`pb-2 px-1 text-sm font-medium border-b-2 ${
+                activeTab === 'locations'
+                  ? 'border-dark-blue text-dark-blue'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
               Locations ({proyecto.Locations?.length || 0})
-            </h3>
-          </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('crew')}
+              className={`pb-2 px-1 text-sm font-medium border-b-2 ${
+                activeTab === 'crew'
+                  ? 'border-dark-blue text-dark-blue'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Crew ({proyecto.Crews?.length || 0})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('vendors')}
+              className={`pb-2 px-1 text-sm font-medium border-b-2 ${
+                activeTab === 'vendors'
+                  ? 'border-dark-blue text-dark-blue'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Vendors ({proyecto.Vendors?.length || 0})
+            </button>
+          </nav>
+        </div>
 
-          {/* Selector moderno con checkboxes y edición inline */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                Seleccionar locations para este proyecto
-              </h4>
-              <span className="text-xs text-gray-500">
-                {formData.locations.length} seleccionadas
-              </span>
-            </div>
+        <div className="space-y-6">
+          {/* Info Tab */}
+          {activeTab === 'info' && (
+            <>
+              {proyecto.projectDate && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">
+                    Fecha del proyecto
+                  </h3>
+                  <p className="text-gray-800">
+                    {new Date(proyecto.projectDate).toLocaleDateString('es-ES')}
+                  </p>
+                </div>
+              )}
+              {proyecto.descripcion && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">
+                    Descripción
+                  </h3>
+                  <p className="text-gray-700 leading-relaxed">{proyecto.descripcion}</p>
+                </div>
+              )}
 
-            {availableLocations.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                No hay locations disponibles para asignar.
-              </p>
-            ) : (
-              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                {availableLocations.map((loc) => {
-                  const existing = formData.locations.find(
-                    (l) => l.id.toString() === loc.id.toString()
-                  )
-                  const isSelected = !!existing
-
-                  return (
-                    <div
-                      key={loc.id}
-                      className="bg-white rounded-lg border border-gray-200 px-3 py-2"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            className="rounded border-gray-300 text-dark-blue focus:ring-dark-blue"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              const checked = e.target.checked
-                              if (checked) {
-                                // Añadir manteniendo datos si existían
-                                const current = formData.locations
-                                const already = current.find(
-                                  (l) => l.id.toString() === loc.id.toString()
-                                )
-                                const updated = already
-                                  ? current
-                                  : [
-                                      ...current,
-                                      {
-                                        id: loc.id.toString(),
-                                        setName: '',
-                                        basecampLink: '',
-                                        distanceLocBase: ''
-                                      }
-                                    ]
-                                setFormData({
-                                  ...formData,
-                                  locations: updated
-                                })
-                              } else {
-                                // Quitar
-                                setFormData({
-                                  ...formData,
-                                  locations: formData.locations.filter(
-                                    (l) => l.id.toString() !== loc.id.toString()
-                                  )
-                                })
-                              }
-                            }}
-                          />
-                          <span className="text-sm font-medium text-gray-800">
-                            {loc.nombre}
-                          </span>
-                        </label>
-                        {loc.direccion && (
-                          <span className="hidden md:block text-xs text-gray-500 truncate max-w-[220px]">
-                            {loc.direccion}
-                          </span>
-                        )}
+              {(proyecto.company ||
+                proyecto.cif ||
+                proyecto.address ||
+                proyecto.locationManager ||
+                proyecto.locationCoordinator ||
+                proyecto.assistantLocationManager ||
+                proyecto.basecampManager) && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">
+                    Información de la Empresa
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {proyecto.company && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Company</p>
+                        <p className="text-gray-800">{proyecto.company}</p>
                       </div>
-
-                      {/* Campos extra solo cuando está seleccionada */}
-                      {isSelected && (
-                        <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div>
-                            <label className="block text-[11px] text-gray-600 mb-1">
-                              SET NAME
-                            </label>
-                            <input
-                              type="text"
-                              value={existing?.setName || ''}
-                              onChange={(e) => {
-                                const updated = formData.locations.map((l) =>
-                                  l.id.toString() === loc.id.toString()
-                                    ? { ...l, setName: e.target.value }
-                                    : l
-                                )
-                                setFormData({ ...formData, locations: updated })
-                              }}
-                              className="w-full px-2 py-1.5 border rounded-lg text-xs"
-                              placeholder="Nombre del set"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] text-gray-600 mb-1">
-                              Google Link de BASECAMP
-                            </label>
-                            <input
-                              type="url"
-                              value={existing?.basecampLink || ''}
-                              onChange={(e) => {
-                                const updated = formData.locations.map((l) =>
-                                  l.id.toString() === loc.id.toString()
-                                    ? { ...l, basecampLink: e.target.value }
-                                    : l
-                                )
-                                setFormData({ ...formData, locations: updated })
-                              }}
-                              className="w-full px-2 py-1.5 border rounded-lg text-xs"
-                              placeholder="https://..."
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] text-gray-600 mb-1">
-                              Distance LOC - BASE
-                            </label>
-                            <input
-                              type="text"
-                              value={existing?.distanceLocBase || ''}
-                              onChange={(e) => {
-                                const updated = formData.locations.map((l) =>
-                                  l.id.toString() === loc.id.toString()
-                                    ? { ...l, distanceLocBase: e.target.value }
-                                    : l
-                                )
-                                setFormData({ ...formData, locations: updated })
-                              }}
-                              className="w-full px-2 py-1.5 border rounded-lg text-xs"
-                              placeholder="Ej: 15 km"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={handleQuickSaveProjectRelations}
-                disabled={isQuickSaving}
-                className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-dark-blue text-white hover:bg-dark-blue-light disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isQuickSaving ? 'Guardando...' : 'Guardar locations y crew'}
-              </button>
-            </div>
-          </div>
-
-          {/* Resumen de locations asignadas (solo lectura) */}
-          {proyecto.Locations && proyecto.Locations.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {proyecto.Locations.map((loc) => {
-                const proyectoLocation = loc.ProyectoLocation || {}
-                return (
-                  <div
-                    key={loc.id}
-                    className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h4
-                        className="font-semibold text-gray-800 cursor-pointer hover:text-dark-blue"
-                        onClick={() => navigate(`/locations/${loc.id}`)}
-                      >
-                        {loc.nombre}
-                      </h4>
-                    </div>
-                    {loc.direccion && (
-                      <p className="text-sm text-gray-600 mb-1">📍 {loc.direccion}</p>
                     )}
-                    {proyectoLocation.setName && (
-                      <p className="text-xs text-gray-600 mb-1">
-                        <span className="font-semibold">SET NAME:</span>{' '}
-                        {proyectoLocation.setName}
-                      </p>
+                    {proyecto.cif && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">CIF</p>
+                        <p className="text-gray-800">{proyecto.cif}</p>
+                      </div>
                     )}
-                    {proyectoLocation.basecampLink && (
-                      <p className="text-xs text-gray-600 mb-1">
-                        <span className="font-semibold">Basecamp:</span>{' '}
-                        <a
-                          href={proyectoLocation.basecampLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-dark-blue hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Ver en Basecamp
-                        </a>
-                      </p>
+                    {proyecto.address && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Address</p>
+                        <p className="text-gray-800">{proyecto.address}</p>
+                      </div>
                     )}
-                    {proyectoLocation.distanceLocBase && (
-                      <p className="text-xs text-gray-600 mb-1">
-                        <span className="font-semibold">Distance LOC - BASE:</span>{' '}
-                        {proyectoLocation.distanceLocBase}
-                      </p>
+                    {proyecto.locationManager && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Location Manager</p>
+                        <p className="text-gray-800">{proyecto.locationManager}</p>
+                      </div>
                     )}
-                    {loc.descripcion && (
-                      <p className="text-sm text-gray-500 line-clamp-2 mt-2">
-                        {loc.descripcion}
-                      </p>
+                    {proyecto.locationCoordinator && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Location Coordinator</p>
+                        <p className="text-gray-800">{proyecto.locationCoordinator}</p>
+                      </div>
+                    )}
+                    {proyecto.assistantLocationManager && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Assistant Location Manager</p>
+                        <p className="text-gray-800">{proyecto.assistantLocationManager}</p>
+                      </div>
+                    )}
+                    {proyecto.basecampManager && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Basecamp Manager</p>
+                        <p className="text-gray-800">{proyecto.basecampManager}</p>
+                      </div>
                     )}
                   </div>
-                )
-              })}
-            </div>
-          ) : (
-            <p className="text-gray-500 italic">
-              No hay locations asignadas a este proyecto
-            </p>
+                </div>
+              )}
+            </>
           )}
-        </div>
 
-        {/* Crew Section */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">
-              Crew ({proyecto.Crews?.length || 0})
-            </h3>
-          </div>
+          {/* Locations Tab */}
+          {activeTab === 'locations' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Locations ({proyecto.Locations?.length || 0})
+                </h3>
+              </div>
 
-          {/* Selector moderno de crew con checkboxes */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                Seleccionar crew para este proyecto
-              </h4>
-              <span className="text-xs text-gray-500">
-                {formData.crew.length} miembros seleccionados
-              </span>
-            </div>
+              {/* Selector moderno con checkboxes y edición inline */}
+              <div className="mb-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                    Seleccionar locations para este proyecto
+                  </h4>
+                  <span className="text-xs text-gray-500">
+                    {formData.locations.length} seleccionadas
+                  </span>
+                </div>
 
-            {availableCrew.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                No hay miembros de crew disponibles para asignar.
-              </p>
-            ) : (
-              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                {availableCrew.map((member) => {
-                  const existing = formData.crew.find(
-                    (c) => c.id.toString() === member.id.toString()
-                  )
-                  const isSelected = !!existing
+                {availableLocations.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    No hay locations disponibles para asignar.
+                  </p>
+                ) : (
+                  <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                    {availableLocations.map((loc) => {
+                      const existing = formData.locations.find(
+                        (l) => l.id.toString() === loc.id.toString()
+                      )
+                      const isSelected = !!existing
 
-                  return (
-                    <div
-                      key={member.id}
-                      className="bg-white rounded-lg border border-gray-200 px-3 py-2"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <label className="flex items-center gap-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            className="rounded border-gray-300 text-dark-blue focus:ring-dark-blue"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              const checked = e.target.checked
-                              if (checked) {
-                                const current = formData.crew
-                                const already = current.find(
-                                  (c) => c.id.toString() === member.id.toString()
-                                )
-                                const updated = already
-                                  ? current
-                                  : [
-                                      ...current,
-                                      {
-                                        id: member.id.toString(),
-                                        startDate: '',
-                                        endDate: '',
-                                        weeklyRate: '',
-                                        carAllowance: false,
-                                        boxRental: false
-                                      }
-                                    ]
-                                setFormData({
-                                  ...formData,
-                                  crew: updated
-                                })
-                              } else {
-                                setFormData({
-                                  ...formData,
-                                  crew: formData.crew.filter(
-                                    (c) => c.id.toString() !== member.id.toString()
-                                  )
-                                })
-                              }
-                            }}
-                          />
-                          <div>
-                            <p className="text-sm font-medium text-gray-800">
-                              {member.nombre}
-                            </p>
-                            {member.rol && (
-                              <p className="text-xs text-gray-500">{member.rol}</p>
+                      return (
+                        <div
+                          key={loc.id}
+                          className="bg-white rounded-lg border border-gray-200 px-3 py-2"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="rounded border-gray-300 text-dark-blue focus:ring-dark-blue"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  const checked = e.target.checked
+                                  if (checked) {
+                                    // Añadir manteniendo datos si existían
+                                    const current = formData.locations
+                                    const already = current.find(
+                                      (l) => l.id.toString() === loc.id.toString()
+                                    )
+                                    const updated = already
+                                      ? current
+                                      : [
+                                          ...current,
+                                          {
+                                            id: loc.id.toString(),
+                                            setName: '',
+                                            basecampLink: '',
+                                            distanceLocBase: ''
+                                          }
+                                        ]
+                                    setFormData({
+                                      ...formData,
+                                      locations: updated
+                                    })
+                                  } else {
+                                    // Quitar
+                                    setFormData({
+                                      ...formData,
+                                      locations: formData.locations.filter(
+                                        (l) => l.id.toString() !== loc.id.toString()
+                                      )
+                                    })
+                                  }
+                                }}
+                              />
+                              <span className="text-sm font-medium text-gray-800">
+                                {loc.nombre}
+                              </span>
+                            </label>
+                            {loc.direccion && (
+                              <span className="hidden md:block text-xs text-gray-500 truncate max-w-[220px]">
+                                {loc.direccion}
+                              </span>
                             )}
                           </div>
-                        </label>
-                        {member.email && (
-                          <span className="hidden md:block text-xs text-gray-500 truncate max-w-[200px]">
-                            {member.email}
-                          </span>
+
+                          {/* Campos extra solo cuando está seleccionada */}
+                          {isSelected && (
+                            <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-[11px] text-gray-600 mb-1">
+                                  SET NAME
+                                </label>
+                                <input
+                                  type="text"
+                                  value={existing?.setName || ''}
+                                  onChange={(e) => {
+                                    const updated = formData.locations.map((l) =>
+                                      l.id.toString() === loc.id.toString()
+                                        ? { ...l, setName: e.target.value }
+                                        : l
+                                    )
+                                    setFormData({ ...formData, locations: updated })
+                                  }}
+                                  className="w-full px-2 py-1.5 border rounded-lg text-xs"
+                                  placeholder="Nombre del set"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] text-gray-600 mb-1">
+                                  Google Link de BASECAMP
+                                </label>
+                                <input
+                                  type="url"
+                                  value={existing?.basecampLink || ''}
+                                  onChange={(e) => {
+                                    const updated = formData.locations.map((l) =>
+                                      l.id.toString() === loc.id.toString()
+                                        ? { ...l, basecampLink: e.target.value }
+                                        : l
+                                    )
+                                    setFormData({ ...formData, locations: updated })
+                                  }}
+                                  className="w-full px-2 py-1.5 border rounded-lg text-xs"
+                                  placeholder="https://..."
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] text-gray-600 mb-1">
+                                  Distance LOC - BASE
+                                </label>
+                                <input
+                                  type="text"
+                                  value={existing?.distanceLocBase || ''}
+                                  onChange={(e) => {
+                                    const updated = formData.locations.map((l) =>
+                                      l.id.toString() === loc.id.toString()
+                                        ? { ...l, distanceLocBase: e.target.value }
+                                        : l
+                                    )
+                                    setFormData({ ...formData, locations: updated })
+                                  }}
+                                  className="w-full px-2 py-1.5 border rounded-lg text-xs"
+                                  placeholder="Ej: 15 km"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleQuickSaveProjectRelations}
+                    disabled={isQuickSaving}
+                    className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-dark-blue text-white hover:bg-dark-blue-light disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isQuickSaving ? 'Guardando...' : 'Guardar locations y crew'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Resumen de locations asignadas (solo lectura) */}
+              {proyecto.Locations && proyecto.Locations.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {proyecto.Locations.map((loc) => {
+                    const proyectoLocation = loc.ProyectoLocation || {}
+                    return (
+                      <div
+                        key={loc.id}
+                        className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <h4
+                            className="font-semibold text-gray-800 cursor-pointer hover:text-dark-blue"
+                            onClick={() => navigate(`/locations/${loc.id}`)}
+                          >
+                            {loc.nombre}
+                          </h4>
+                        </div>
+                        {loc.direccion && (
+                          <p className="text-sm text-gray-600 mb-1">📍 {loc.direccion}</p>
+                        )}
+                        {proyectoLocation.setName && (
+                          <p className="text-xs text-gray-600 mb-1">
+                            <span className="font-semibold">SET NAME:</span>{' '}
+                            {proyectoLocation.setName}
+                          </p>
+                        )}
+                        {proyectoLocation.basecampLink && (
+                          <p className="text-xs text-gray-600 mb-1">
+                            <span className="font-semibold">Basecamp:</span>{' '}
+                            <a
+                              href={proyectoLocation.basecampLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-dark-blue hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Ver en Basecamp
+                            </a>
+                          </p>
+                        )}
+                        {proyectoLocation.distanceLocBase && (
+                          <p className="text-xs text-gray-600 mb-1">
+                            <span className="font-semibold">Distance LOC - BASE:</span>{' '}
+                            {proyectoLocation.distanceLocBase}
+                          </p>
+                        )}
+                        {loc.descripcion && (
+                          <p className="text-sm text-gray-500 line-clamp-2 mt-2">
+                            {loc.descripcion}
+                          </p>
                         )}
                       </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-500 italic">
+                  No hay locations asignadas a este proyecto
+                </p>
+              )}
+            </div>
+          )}
 
-                      {/* Campos extra solo cuando está seleccionado */}
-                      {isSelected && (
-                        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] text-gray-600 mb-1">
-                              Fecha de alta
-                            </label>
-                            <input
-                              type="date"
-                              value={existing?.startDate || ''}
-                              onChange={(e) => {
-                                const updated = formData.crew.map((c) =>
-                                  c.id.toString() === member.id.toString()
-                                    ? { ...c, startDate: e.target.value }
-                                    : c
-                                )
-                                setFormData({ ...formData, crew: updated })
-                              }}
-                              className="w-full px-2 py-1.5 border rounded-lg text-xs"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] text-gray-600 mb-1">
-                              Fecha de baja
-                            </label>
-                            <input
-                              type="date"
-                              value={existing?.endDate || ''}
-                              onChange={(e) => {
-                                const updated = formData.crew.map((c) =>
-                                  c.id.toString() === member.id.toString()
-                                    ? { ...c, endDate: e.target.value }
-                                    : c
-                                )
-                                setFormData({ ...formData, crew: updated })
-                              }}
-                              className="w-full px-2 py-1.5 border rounded-lg text-xs"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] text-gray-600 mb-1">
-                              Tarifa semanal
-                            </label>
-                            <input
-                              type="text"
-                              value={existing?.weeklyRate || ''}
-                              onChange={(e) => {
-                                const updated = formData.crew.map((c) =>
-                                  c.id.toString() === member.id.toString()
-                                    ? { ...c, weeklyRate: e.target.value }
-                                    : c
-                                )
-                                setFormData({ ...formData, crew: updated })
-                              }}
-                              className="w-full px-2 py-1.5 border rounded-lg text-xs"
-                              placeholder="Ej: 1.500 €"
-                            />
-                          </div>
-                          <div className="flex items-center gap-4 mt-2">
-                            <label className="flex items-center gap-2 text-[11px] text-gray-600">
+          {/* Crew Tab */}
+          {activeTab === 'crew' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Crew ({proyecto.Crews?.length || 0})
+                </h3>
+              </div>
+
+              {/* Selector moderno de crew con checkboxes */}
+              <div className="mb-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                    Seleccionar crew para este proyecto
+                  </h4>
+                  <span className="text-xs text-gray-500">
+                    {formData.crew.length} miembros seleccionados
+                  </span>
+                </div>
+
+                {availableCrew.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    No hay miembros de crew disponibles para asignar.
+                  </p>
+                ) : (
+                  <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                    {availableCrew.map((member) => {
+                      const existing = formData.crew.find(
+                        (c) => c.id.toString() === member.id.toString()
+                      )
+                      const isSelected = !!existing
+
+                      return (
+                        <div
+                          key={member.id}
+                          className="bg-white rounded-lg border border-gray-200 px-3 py-2"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <label className="flex items-center gap-3 cursor-pointer">
                               <input
                                 type="checkbox"
-                                checked={!!existing?.carAllowance}
+                                className="rounded border-gray-300 text-dark-blue focus:ring-dark-blue"
+                                checked={isSelected}
                                 onChange={(e) => {
-                                  const updated = formData.crew.map((c) =>
-                                    c.id.toString() === member.id.toString()
-                                      ? { ...c, carAllowance: e.target.checked }
-                                      : c
-                                  )
-                                  setFormData({ ...formData, crew: updated })
+                                  const checked = e.target.checked
+                                  if (checked) {
+                                    const current = formData.crew
+                                    const already = current.find(
+                                      (c) => c.id.toString() === member.id.toString()
+                                    )
+                                    const updated = already
+                                      ? current
+                                      : [
+                                          ...current,
+                                          {
+                                            id: member.id.toString(),
+                                            startDate: '',
+                                            endDate: '',
+                                            weeklyRate: '',
+                                            carAllowance: false,
+                                            boxRental: false
+                                          }
+                                        ]
+                                    setFormData({
+                                      ...formData,
+                                      crew: updated
+                                    })
+                                  } else {
+                                    setFormData({
+                                      ...formData,
+                                      crew: formData.crew.filter(
+                                        (c) => c.id.toString() !== member.id.toString()
+                                      )
+                                    })
+                                  }
                                 }}
                               />
-                              <span>Car Allowance</span>
+                              <div>
+                                <p className="text-sm font-medium text-gray-800">
+                                  {member.nombre}
+                                </p>
+                                {member.rol && (
+                                  <p className="text-xs text-gray-500">{member.rol}</p>
+                                )}
+                              </div>
                             </label>
-                            <label className="flex items-center gap-2 text-[11px] text-gray-600">
-                              <input
-                                type="checkbox"
-                                checked={!!existing?.boxRental}
-                                onChange={(e) => {
-                                  const updated = formData.crew.map((c) =>
-                                    c.id.toString() === member.id.toString()
-                                      ? { ...c, boxRental: e.target.checked }
-                                      : c
-                                  )
-                                  setFormData({ ...formData, crew: updated })
-                                }}
-                              />
-                              <span>Box Rental</span>
-                            </label>
+                            {member.email && (
+                              <span className="hidden md:block text-xs text-gray-500 truncate max-w-[200px]">
+                                {member.email}
+                              </span>
+                            )}
                           </div>
+
+                          {/* Campos extra solo cuando está seleccionado */}
+                          {isSelected && (
+                            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[11px] text-gray-600 mb-1">
+                                  Fecha de alta
+                                </label>
+                                <input
+                                  type="date"
+                                  value={existing?.startDate || ''}
+                                  onChange={(e) => {
+                                    const updated = formData.crew.map((c) =>
+                                      c.id.toString() === member.id.toString()
+                                        ? { ...c, startDate: e.target.value }
+                                        : c
+                                    )
+                                    setFormData({ ...formData, crew: updated })
+                                  }}
+                                  className="w-full px-2 py-1.5 border rounded-lg text-xs"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] text-gray-600 mb-1">
+                                  Fecha de baja
+                                </label>
+                                <input
+                                  type="date"
+                                  value={existing?.endDate || ''}
+                                  onChange={(e) => {
+                                    const updated = formData.crew.map((c) =>
+                                      c.id.toString() === member.id.toString()
+                                        ? { ...c, endDate: e.target.value }
+                                        : c
+                                    )
+                                    setFormData({ ...formData, crew: updated })
+                                  }}
+                                  className="w-full px-2 py-1.5 border rounded-lg text-xs"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] text-gray-600 mb-1">
+                                  Tarifa semanal
+                                </label>
+                                <input
+                                  type="text"
+                                  value={existing?.weeklyRate || ''}
+                                  onChange={(e) => {
+                                    const updated = formData.crew.map((c) =>
+                                      c.id.toString() === member.id.toString()
+                                        ? { ...c, weeklyRate: e.target.value }
+                                        : c
+                                    )
+                                    setFormData({ ...formData, crew: updated })
+                                  }}
+                                  className="w-full px-2 py-1.5 border rounded-lg text-xs"
+                                  placeholder="Ej: 1.500 €"
+                                />
+                              </div>
+                              <div className="flex items-center gap-4 mt-2">
+                                <label className="flex items-center gap-2 text-[11px] text-gray-600">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!existing?.carAllowance}
+                                    onChange={(e) => {
+                                      const updated = formData.crew.map((c) =>
+                                        c.id.toString() === member.id.toString()
+                                          ? { ...c, carAllowance: e.target.checked }
+                                          : c
+                                      )
+                                      setFormData({ ...formData, crew: updated })
+                                    }}
+                                  />
+                                  <span>Car Allowance</span>
+                                </label>
+                                <label className="flex items-center gap-2 text-[11px] text-gray-600">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!existing?.boxRental}
+                                    onChange={(e) => {
+                                      const updated = formData.crew.map((c) =>
+                                        c.id.toString() === member.id.toString()
+                                          ? { ...c, boxRental: e.target.checked }
+                                          : c
+                                      )
+                                      setFormData({ ...formData, crew: updated })
+                                    }}
+                                  />
+                                  <span>Box Rental</span>
+                                </label>
+                              </div>
+                            </div>
+                          )}
                         </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* El botón de guardado rápido ya está en la pestaña de locations y guarda también crew */}
+              </div>
+
+              {/* Resumen de crew asignado (solo lectura) */}
+              {proyecto.Crews && proyecto.Crews.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {proyecto.Crews.map((member) => (
+                    <div
+                      key={member.id}
+                      className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                    >
+                      <h4 className="font-semibold text-gray-800 mb-2">
+                        {member.nombre}
+                      </h4>
+                      {member.rol && (
+                        <p className="text-sm text-gray-600 mb-1">
+                          <span className="text-gray-500">Rol:</span> {member.rol}
+                        </p>
+                      )}
+                      {member.email && (
+                        <p className="text-sm text-gray-600 mb-1">
+                          <span className="text-gray-500">Email:</span> {member.email}
+                        </p>
+                      )}
+                      {member.telefono && (
+                        <p className="text-sm text-gray-600 mb-1">
+                          <span className="text-gray-500">Teléfono:</span>{' '}
+                          {member.telefono}
+                        </p>
+                      )}
+                      {member.notas && (
+                        <p className="text-sm text-gray-500 mt-2">{member.notas}</p>
                       )}
                     </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* El botón de guardado rápido ya está en la sección de locations y guarda también crew */}
-          </div>
-
-          {/* Resumen de crew asignado (solo lectura) */}
-          {proyecto.Crews && proyecto.Crews.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {proyecto.Crews.map((member) => (
-                <div
-                  key={member.id}
-                  className="bg-gray-50 rounded-lg p-4 border border-gray-200"
-                >
-                  <h4 className="font-semibold text-gray-800 mb-2">
-                    {member.nombre}
-                  </h4>
-                  {member.rol && (
-                    <p className="text-sm text-gray-600 mb-1">
-                      <span className="text-gray-500">Rol:</span> {member.rol}
-                    </p>
-                  )}
-                  {member.email && (
-                    <p className="text-sm text-gray-600 mb-1">
-                      <span className="text-gray-500">Email:</span> {member.email}
-                    </p>
-                  )}
-                  {member.telefono && (
-                    <p className="text-sm text-gray-600 mb-1">
-                      <span className="text-gray-500">Teléfono:</span>{' '}
-                      {member.telefono}
-                    </p>
-                  )}
-                  {member.notas && (
-                    <p className="text-sm text-gray-500 mt-2">{member.notas}</p>
-                  )}
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <p className="text-gray-500 italic">
+                  No hay miembros del crew asignados a este proyecto
+                </p>
+              )}
             </div>
-          ) : (
-            <p className="text-gray-500 italic">
-              No hay miembros del crew asignados a este proyecto
-            </p>
           )}
-        </div>
 
-        {/* Vendors Section */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Vendors ({proyecto.Vendors?.length || 0})</h3>
-          </div>
-          {proyecto.Vendors && proyecto.Vendors.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {proyecto.Vendors.map((vendor) => (
-                <div key={vendor.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <h4 className="font-semibold text-gray-800 mb-2">{vendor.nombre}</h4>
-                  {vendor.tipo && (
-                    <p className="text-sm text-gray-600 mb-1">
-                      <span className="font-medium">Tipo:</span> {vendor.tipo}
-                    </p>
-                  )}
-                  {vendor.contacto && (
-                    <p className="text-sm text-gray-600 mb-1">
-                      <span className="font-medium">Contacto:</span> {vendor.contacto}
-                    </p>
-                  )}
-                  {vendor.email && (
-                    <p className="text-sm text-gray-600 mb-1">
-                      <span className="font-medium">Email:</span> {vendor.email}
-                    </p>
-                  )}
-                  {vendor.telefono && (
-                    <p className="text-sm text-gray-600 mb-1">
-                      <span className="font-medium">Teléfono:</span> {vendor.telefono}
-                    </p>
-                  )}
-                  {vendor.notas && (
-                    <p className="text-sm text-gray-500 mt-2">{vendor.notas}</p>
-                  )}
+          {/* Vendors Tab */}
+          {activeTab === 'vendors' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Vendors ({proyecto.Vendors?.length || 0})
+                </h3>
+              </div>
+              {proyecto.Vendors && proyecto.Vendors.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {proyecto.Vendors.map((vendor) => (
+                    <div
+                      key={vendor.id}
+                      className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                    >
+                      <h4 className="font-semibold text-gray-800 mb-2">
+                        {vendor.nombre}
+                      </h4>
+                      {vendor.tipo && (
+                        <p className="text-sm text-gray-600 mb-1">
+                          <span className="font-medium">Tipo:</span> {vendor.tipo}
+                        </p>
+                      )}
+                      {vendor.contacto && (
+                        <p className="text-sm text-gray-600 mb-1">
+                          <span className="font-medium">Contacto:</span>{' '}
+                          {vendor.contacto}
+                        </p>
+                      )}
+                      {vendor.email && (
+                        <p className="text-sm text-gray-600 mb-1">
+                          <span className="font-medium">Email:</span> {vendor.email}
+                        </p>
+                      )}
+                      {vendor.telefono && (
+                        <p className="text-sm text-gray-600 mb-1">
+                          <span className="font-medium">Teléfono:</span>{' '}
+                          {vendor.telefono}
+                        </p>
+                      )}
+                      {vendor.notas && (
+                        <p className="text-sm text-gray-500 mt-2">{vendor.notas}</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <p className="text-gray-500 italic">
+                  No hay vendors asignados a este proyecto
+                </p>
+              )}
             </div>
-          ) : (
-            <p className="text-gray-500 italic">No hay vendors asignados a este proyecto</p>
           )}
         </div>
       </div>
