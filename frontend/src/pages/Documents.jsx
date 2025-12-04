@@ -1577,13 +1577,14 @@ export default function Documents() {
                       phone: c.telefono || '',
                       email: c.email || ''
                     })),
-                    legs: (proyecto.Locations || []).map((loc, index) => ({
-                      include: true,
-                      locationId: loc.id?.toString(),
-                      departTime: index === 0 ? '08:00' : '',
-                      travelTimeMinutes: '15',
-                      timeOnLocationMinutes: '60'
-                    })),
+                  legs: (proyecto.Locations || []).map((loc, index) => ({
+                    include: true,
+                    locationId: loc.id?.toString(),
+                    departTime: index === 0 ? '08:00' : '',
+                    travelTimeMinutes: '15',
+                    timeOnLocationMinutes: '60',
+                    order: index
+                  })),
                     freeEntries: []
                   })
                   setShowRecceModal(true)
@@ -1997,261 +1998,320 @@ export default function Documents() {
                 )}
               </div>
 
-              {/* Legs / Recce times */}
+              {/* Lista combinada de elementos (localizaciones y entradas libres) */}
               <div className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
-                    Recce times (por localización)
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Indica la hora de salida inicial, el tiempo de viaje y el tiempo en cada localización.
-                  </p>
-                </div>
-                {(!recceConfig.legs || recceConfig.legs.length === 0) ? (
-                  <p className="text-xs text-gray-500">
-                    No hay legs configurados. Asegúrate de que el proyecto tenga locations asignadas.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {recceConfig.legs.map((leg, index) => {
-                      const loc =
-                        (proyecto.Locations || []).find(
-                          (l) => l.id?.toString() === leg.locationId?.toString()
-                        ) || {}
-                      return (
-                        <div
-                          key={leg.locationId || index}
-                          className="grid grid-cols-1 md:grid-cols-[auto_1fr_100px_80px_80px_auto] gap-2 items-center text-xs"
-                        >
-                          <div className="flex flex-col gap-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (index > 0) {
-                                  const updated = [...recceConfig.legs]
-                                  // Actualizar el campo order
-                                  const currentOrder = updated[index].order !== undefined ? updated[index].order : index + (recceConfig.freeEntries?.length || 0)
-                                  const prevOrder = updated[index - 1].order !== undefined ? updated[index - 1].order : index - 1 + (recceConfig.freeEntries?.length || 0)
-                                  updated[index] = { ...updated[index], order: prevOrder }
-                                  updated[index - 1] = { ...updated[index - 1], order: currentOrder }
-                                  setRecceConfig({ ...recceConfig, legs: updated })
-                                }
-                              }}
-                              disabled={index === 0}
-                              className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                              title="Mover arriba"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (index < recceConfig.legs.length - 1) {
-                                  const updated = [...recceConfig.legs]
-                                  // Actualizar el campo order
-                                  const currentOrder = updated[index].order !== undefined ? updated[index].order : index + (recceConfig.freeEntries?.length || 0)
-                                  const nextOrder = updated[index + 1].order !== undefined ? updated[index + 1].order : index + 1 + (recceConfig.freeEntries?.length || 0)
-                                  updated[index] = { ...updated[index], order: nextOrder }
-                                  updated[index + 1] = { ...updated[index + 1], order: currentOrder }
-                                  setRecceConfig({ ...recceConfig, legs: updated })
-                                }
-                              }}
-                              disabled={index === recceConfig.legs.length - 1}
-                              className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                              title="Mover abajo"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </button>
-                          </div>
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={!!leg.include}
-                              onChange={(e) => {
-                                const updated = [...recceConfig.legs]
-                                updated[index] = { ...updated[index], include: e.target.checked }
-                                setRecceConfig({ ...recceConfig, legs: updated })
-                              }}
-                            />
-                            <span className="font-medium text-gray-800">
-                              {loc.nombre || `Location ${leg.locationId}`}
-                            </span>
-                          </label>
-                          <input
-                            type="text"
-                            value={leg.departTime || ''}
-                            onChange={(e) => {
-                              const updated = [...recceConfig.legs]
-                              updated[index] = { ...updated[index], departTime: e.target.value }
-                              setRecceConfig({ ...recceConfig, legs: updated })
-                            }}
-                            className="px-2 py-1.5 border rounded-lg"
-                            placeholder={index === 0 ? 'Hora salida (ej: 08:00)' : 'Auto'}
-                          />
-                          <input
-                            type="number"
-                            value={leg.travelTimeMinutes || ''}
-                            onChange={(e) => {
-                              const updated = [...recceConfig.legs]
-                              updated[index] = {
-                                ...updated[index],
-                                travelTimeMinutes: e.target.value
-                              }
-                              setRecceConfig({ ...recceConfig, legs: updated })
-                            }}
-                            className="px-2 py-1.5 border rounded-lg"
-                            placeholder="Travel (min)"
-                          />
-                          <input
-                            type="number"
-                            value={leg.timeOnLocationMinutes || ''}
-                            onChange={(e) => {
-                              const updated = [...recceConfig.legs]
-                              updated[index] = {
-                                ...updated[index],
-                                timeOnLocationMinutes: e.target.value
-                              }
-                              setRecceConfig({ ...recceConfig, legs: updated })
-                            }}
-                            className="px-2 py-1.5 border rounded-lg"
-                            placeholder="Time on loc (min)"
-                          />
-                          <div className="text-[11px] text-gray-500">
-                            {index === 0
-                              ? 'From: Meeting point'
-                              : `From: ${recceConfig.legs[index - 1]?.locationId
-                                  ? (proyecto.Locations || []).find(
-                                      (l) =>
-                                        l.id?.toString() ===
-                                        recceConfig.legs[index - 1].locationId?.toString()
-                                    )?.nombre || 'Anterior'
-                                  : 'Anterior'
-                                }`}
-                          </div>
-                        </div>
-                      )
-                    })}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide mb-1">
+                      Orden de elementos en el documento
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Arrastra o usa los botones para reordenar localizaciones y entradas libres
+                    </p>
                   </div>
-                )}
-              </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Añadir nueva entrada libre al final
+                        const maxOrder = Math.max(
+                          ...(recceConfig.freeEntries || []).map(e => e.order !== undefined ? e.order : -1),
+                          ...(recceConfig.legs || []).map(l => l.order !== undefined ? l.order : -1),
+                          -1
+                        )
+                        setRecceConfig({
+                          ...recceConfig,
+                          freeEntries: [
+                            ...(recceConfig.freeEntries || []),
+                            { time: '', text: '', order: maxOrder + 1 }
+                          ]
+                        })
+                      }}
+                      className="text-xs text-dark-blue hover:text-dark-blue-light px-2 py-1 border border-dark-blue rounded"
+                    >
+                      + Entrada libre
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Añadir nueva localización al final (si hay locations disponibles)
+                        const availableLocations = (proyecto.Locations || []).filter(
+                          loc => !(recceConfig.legs || []).some(leg => leg.locationId?.toString() === loc.id?.toString())
+                        )
+                        if (availableLocations.length === 0) {
+                          alert('Todas las localizaciones ya están añadidas')
+                          return
+                        }
+                        const maxOrder = Math.max(
+                          ...(recceConfig.freeEntries || []).map(e => e.order !== undefined ? e.order : -1),
+                          ...(recceConfig.legs || []).map(l => l.order !== undefined ? l.order : -1),
+                          -1
+                        )
+                        const newLeg = {
+                          locationId: availableLocations[0].id?.toString(),
+                          include: true,
+                          departTime: '',
+                          travelTimeMinutes: '',
+                          timeOnLocationMinutes: '',
+                          order: maxOrder + 1
+                        }
+                        setRecceConfig({
+                          ...recceConfig,
+                          legs: [...(recceConfig.legs || []), newLeg]
+                        })
+                      }}
+                      className="text-xs text-dark-blue hover:text-dark-blue-light px-2 py-1 border border-dark-blue rounded"
+                    >
+                      + Localización
+                    </button>
+                  </div>
+                </div>
 
-              {/* Entradas libres */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
-                    Entradas libres
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setRecceConfig({
-                        ...recceConfig,
-                        freeEntries: [
-                          ...(recceConfig.freeEntries || []),
-                          { time: '', text: '' }
-                        ]
+                {(() => {
+                  // Crear lista combinada ordenada
+                  const combinedItems = []
+                  
+                  // Añadir entradas libres
+                  if (recceConfig.freeEntries && recceConfig.freeEntries.length > 0) {
+                    recceConfig.freeEntries.forEach((entry, index) => {
+                      combinedItems.push({
+                        type: 'freeEntry',
+                        order: entry.order !== undefined ? entry.order : index,
+                        data: entry,
+                        originalIndex: index
                       })
+                    })
+                  }
+
+                  // Añadir localizaciones
+                  if (recceConfig.legs && recceConfig.legs.length > 0) {
+                    recceConfig.legs.forEach((leg, index) => {
+                      combinedItems.push({
+                        type: 'location',
+                        order: leg.order !== undefined ? leg.order : index + (recceConfig.freeEntries?.length || 0),
+                        data: leg,
+                        originalIndex: index
+                      })
+                    })
+                  }
+
+                  // Ordenar por order
+                  combinedItems.sort((a, b) => a.order - b.order)
+
+                  if (combinedItems.length === 0) {
+                    return (
+                      <p className="text-xs text-gray-500">
+                        No hay elementos. Añade localizaciones o entradas libres para comenzar.
+                      </p>
+                    )
+                  }
+
+                  const moveItem = (currentIndex, direction) => {
+                    if (direction === 'up' && currentIndex === 0) return
+                    if (direction === 'down' && currentIndex === combinedItems.length - 1) return
+
+                    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+                    const item = combinedItems[currentIndex]
+                    const targetItem = combinedItems[newIndex]
+
+                    // Intercambiar orders
+                    const tempOrder = item.order
+                    const newOrder = targetItem.order
+                    const targetNewOrder = tempOrder
+
+                    // Actualizar en el estado usando los índices originales
+                    if (item.type === 'freeEntry') {
+                      const updated = [...recceConfig.freeEntries]
+                      updated[item.originalIndex] = { ...updated[item.originalIndex], order: newOrder }
+                      setRecceConfig(prev => ({ ...prev, freeEntries: updated }))
+                    } else {
+                      const updated = [...recceConfig.legs]
+                      updated[item.originalIndex] = { ...updated[item.originalIndex], order: newOrder }
+                      setRecceConfig(prev => ({ ...prev, legs: updated }))
                     }
-                    className="text-xs text-dark-blue hover:text-dark-blue-light"
-                  >
-                    + Añadir entrada
-                  </button>
-                </div>
-                {(!recceConfig.freeEntries || recceConfig.freeEntries.length === 0) ? (
-                  <p className="text-xs text-gray-500">
-                    No hay entradas libres. Úsalas para notas adicionales del día.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {recceConfig.freeEntries.map((entry, index) => (
-                      <div
-                        key={index}
-                        className="grid grid-cols-1 md:grid-cols-[auto_100px_1fr_auto] gap-2 items-center text-xs"
-                      >
-                          <div className="flex flex-col gap-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (index > 0) {
-                                  const updated = [...recceConfig.freeEntries]
-                                  // Actualizar el campo order
-                                  const currentOrder = updated[index].order !== undefined ? updated[index].order : index
-                                  const prevOrder = updated[index - 1].order !== undefined ? updated[index - 1].order : index - 1
-                                  updated[index] = { ...updated[index], order: prevOrder }
-                                  updated[index - 1] = { ...updated[index - 1], order: currentOrder }
-                                  setRecceConfig({ ...recceConfig, freeEntries: updated })
-                                }
-                              }}
-                              disabled={index === 0}
-                              className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                              title="Mover arriba"
+
+                    if (targetItem.type === 'freeEntry') {
+                      const updated = [...recceConfig.freeEntries]
+                      updated[targetItem.originalIndex] = { ...updated[targetItem.originalIndex], order: targetNewOrder }
+                      setRecceConfig(prev => ({ ...prev, freeEntries: updated }))
+                    } else {
+                      const updated = [...recceConfig.legs]
+                      updated[targetItem.originalIndex] = { ...updated[targetItem.originalIndex], order: targetNewOrder }
+                      setRecceConfig(prev => ({ ...prev, legs: updated }))
+                    }
+                  }
+
+                  return (
+                    <div className="space-y-2">
+                      {combinedItems.map((item, displayIndex) => {
+                        if (item.type === 'freeEntry') {
+                          return (
+                            <div
+                              key={`free-${item.originalIndex}`}
+                              className="grid grid-cols-1 md:grid-cols-[auto_100px_1fr_auto] gap-2 items-center text-xs bg-blue-50/30 p-2 rounded border border-blue-100"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (index < recceConfig.freeEntries.length - 1) {
+                              <div className="flex flex-col gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => moveItem(displayIndex, 'up')}
+                                  disabled={displayIndex === 0}
+                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  title="Mover arriba"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                  </svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveItem(displayIndex, 'down')}
+                                  disabled={displayIndex === combinedItems.length - 1}
+                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  title="Mover abajo"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </button>
+                              </div>
+                              <div className="text-[10px] text-gray-500 font-medium">ENTRADA</div>
+                              <input
+                                type="text"
+                                value={item.data.time || ''}
+                                onChange={(e) => {
                                   const updated = [...recceConfig.freeEntries]
-                                  // Actualizar el campo order
-                                  const currentOrder = updated[index].order !== undefined ? updated[index].order : index
-                                  const nextOrder = updated[index + 1].order !== undefined ? updated[index + 1].order : index + 1
-                                  updated[index] = { ...updated[index], order: nextOrder }
-                                  updated[index + 1] = { ...updated[index + 1], order: currentOrder }
+                                  updated[item.originalIndex] = { ...updated[item.originalIndex], time: e.target.value }
                                   setRecceConfig({ ...recceConfig, freeEntries: updated })
-                                }
-                              }}
-                              disabled={index === recceConfig.freeEntries.length - 1}
-                              className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                              title="Mover abajo"
+                                }}
+                                className="px-2 py-1.5 border rounded-lg"
+                                placeholder="Hora"
+                              />
+                              <input
+                                type="text"
+                                value={item.data.text || ''}
+                                onChange={(e) => {
+                                  const updated = [...recceConfig.freeEntries]
+                                  updated[item.originalIndex] = { ...updated[item.originalIndex], text: e.target.value }
+                                  setRecceConfig({ ...recceConfig, freeEntries: updated })
+                                }}
+                                className="px-2 py-1.5 border rounded-lg"
+                                placeholder="Texto de la entrada"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = recceConfig.freeEntries.filter((_, i) => i !== item.originalIndex)
+                                  setRecceConfig({ ...recceConfig, freeEntries: updated })
+                                }}
+                                className="text-xs text-red-500 hover:text-red-600"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          )
+                        } else {
+                          const loc = (proyecto.Locations || []).find(
+                            (l) => l.id?.toString() === item.data.locationId?.toString()
+                          ) || {}
+                          return (
+                            <div
+                              key={`leg-${item.originalIndex}`}
+                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_100px_80px_80px] gap-2 items-center text-xs bg-green-50/30 p-2 rounded border border-green-100"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </button>
-                          </div>
-                        <input
-                          type="text"
-                          value={entry.time}
-                          onChange={(e) => {
-                            const updated = [...recceConfig.freeEntries]
-                            updated[index] = { ...updated[index], time: e.target.value }
-                            setRecceConfig({ ...recceConfig, freeEntries: updated })
-                          }}
-                          className="px-2 py-1.5 border rounded-lg"
-                          placeholder="Hora"
-                        />
-                        <input
-                          type="text"
-                          value={entry.text}
-                          onChange={(e) => {
-                            const updated = [...recceConfig.freeEntries]
-                            updated[index] = { ...updated[index], text: e.target.value }
-                            setRecceConfig({ ...recceConfig, freeEntries: updated })
-                          }}
-                          className="px-2 py-1.5 border rounded-lg"
-                          placeholder="Texto de la entrada"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = recceConfig.freeEntries.filter((_, i) => i !== index)
-                            setRecceConfig({ ...recceConfig, freeEntries: updated })
-                          }}
-                          className="text-xs text-red-500 hover:text-red-600"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                              <div className="flex flex-col gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => moveItem(displayIndex, 'up')}
+                                  disabled={displayIndex === 0}
+                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  title="Mover arriba"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                  </svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveItem(displayIndex, 'down')}
+                                  disabled={displayIndex === combinedItems.length - 1}
+                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  title="Mover abajo"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </button>
+                              </div>
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={!!item.data.include}
+                                  onChange={(e) => {
+                                    const updated = [...recceConfig.legs]
+                                    updated[item.originalIndex] = { ...updated[item.originalIndex], include: e.target.checked }
+                                    setRecceConfig({ ...recceConfig, legs: updated })
+                                  }}
+                                />
+                                <span className="font-medium text-gray-800 text-[10px]">
+                                  {loc.nombre || `Location ${item.data.locationId}`}
+                                </span>
+                              </label>
+                              <input
+                                type="text"
+                                value={item.data.departTime || ''}
+                                onChange={(e) => {
+                                  const updated = [...recceConfig.legs]
+                                  updated[item.originalIndex] = { ...updated[item.originalIndex], departTime: e.target.value }
+                                  setRecceConfig({ ...recceConfig, legs: updated })
+                                }}
+                                className="px-2 py-1.5 border rounded-lg text-[10px]"
+                                placeholder="Hora salida"
+                              />
+                              <input
+                                type="number"
+                                value={item.data.travelTimeMinutes || ''}
+                                onChange={(e) => {
+                                  const updated = [...recceConfig.legs]
+                                  updated[item.originalIndex] = {
+                                    ...updated[item.originalIndex],
+                                    travelTimeMinutes: e.target.value
+                                  }
+                                  setRecceConfig({ ...recceConfig, legs: updated })
+                                }}
+                                className="px-2 py-1.5 border rounded-lg text-[10px]"
+                                placeholder="Travel"
+                              />
+                              <input
+                                type="number"
+                                value={item.data.timeOnLocationMinutes || ''}
+                                onChange={(e) => {
+                                  const updated = [...recceConfig.legs]
+                                  updated[item.originalIndex] = {
+                                    ...updated[item.originalIndex],
+                                    timeOnLocationMinutes: e.target.value
+                                  }
+                                  setRecceConfig({ ...recceConfig, legs: updated })
+                                }}
+                                className="px-2 py-1.5 border rounded-lg text-[10px]"
+                                placeholder="Time on loc"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = recceConfig.legs.filter((_, i) => i !== item.originalIndex)
+                                  setRecceConfig({ ...recceConfig, legs: updated })
+                                }}
+                                className="text-xs text-red-500 hover:text-red-600"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          )
+                        }
+                      })}
+                    </div>
+                  )
+                })()}
               </div>
 
               <div className="flex justify-end gap-3 pt-2">
