@@ -9,6 +9,21 @@ export default function Documents() {
   const [proyecto, setProyecto] = useState(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [showRecceModal, setShowRecceModal] = useState(false)
+  const [recceConfig, setRecceConfig] = useState({
+    documentTitle: 'LOCATION RECCE',
+    recceSchedule: '',
+    meetingPoint: '',
+    locationManagerName: '',
+    locationManagerPhone: '',
+    locationManagerEmail: '',
+    sunriseTime: '',
+    sunsetTime: '',
+    weatherForecast: '',
+    attendants: [],
+    legs: [],
+    freeEntries: [] // { time: '08:00', text: 'Nota...' }
+  })
 
   useEffect(() => {
     loadProyecto()
@@ -37,6 +52,77 @@ export default function Documents() {
       // Añadir parámetro para evitar problemas de caché
       img.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now()
     })
+  }
+
+  const parseTimeToMinutes = (timeString) => {
+    if (!timeString || typeof timeString !== 'string') return null
+    const parts = timeString.split(':')
+    if (parts.length !== 2) return null
+    const hours = parseInt(parts[0], 10)
+    const minutes = parseInt(parts[1], 10)
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
+    return hours * 60 + minutes
+  }
+
+  const formatMinutesToTime = (minutesTotal) => {
+    if (minutesTotal == null || Number.isNaN(minutesTotal)) return ''
+    let mins = minutesTotal
+    // Normalizar a rango 0-1439
+    mins = ((mins % (24 * 60)) + (24 * 60)) % (24 * 60)
+    const hours = Math.floor(mins / 60)
+    const minutes = mins % 60
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+  }
+
+  const computeRecceRows = (config, proyecto) => {
+    const meetingPointName = config.meetingPoint || 'MEETING POINT'
+    const rows = []
+    if (!config.legs || config.legs.length === 0) return rows
+
+    let currentFrom = meetingPointName
+    let currentDepartMinutes = null
+
+    const locationsById = {}
+    if (proyecto?.Locations) {
+      proyecto.Locations.forEach((loc) => {
+        locationsById[loc.id?.toString()] = loc
+      })
+    }
+
+    config.legs
+      .filter((leg) => leg.include && leg.locationId)
+      .forEach((leg, index) => {
+        const loc = locationsById[leg.locationId?.toString()]
+        const toName = loc?.nombre || `Location ${leg.locationId}`
+
+        // Primer depart: el que indique el usuario
+        if (index === 0) {
+          currentDepartMinutes = parseTimeToMinutes(leg.departTime)
+        }
+        const departMinutes = currentDepartMinutes
+        const travelMinutes = parseInt(leg.travelTimeMinutes || '0', 10) || 0
+        const timeOnLocationMinutes = parseInt(leg.timeOnLocationMinutes || '0', 10) || 0
+
+        const arrivalMinutes = departMinutes != null ? departMinutes + travelMinutes : null
+
+        rows.push({
+          from: currentFrom,
+          to: toName,
+          departTime: formatMinutesToTime(departMinutes),
+          travelTime: `${travelMinutes} min`,
+          arrivalTime: formatMinutesToTime(arrivalMinutes),
+          timeOnLocation: `${timeOnLocationMinutes} min`,
+          locationId: leg.locationId
+        })
+
+        // El siguiente from es el destino actual
+        currentFrom = toName
+        if (arrivalMinutes != null) {
+          currentDepartMinutes = arrivalMinutes + timeOnLocationMinutes
+        }
+      })
+
+    return rows
   }
 
   const generateLocationListPDF = async () => {
@@ -425,6 +511,503 @@ export default function Documents() {
     }
   }
 
+  const generateLocationReccePDF = async () => {
+    if (!proyecto || !proyecto.Locations || proyecto.Locations.length === 0) {
+      alert('Este proyecto no tiene locations asignadas')
+      return
+    }
+
+    setGenerating(true)
+
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4')
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      const marginTop = 25
+      const marginBottom = 20
+      const marginSides = 20
+      const usableWidth = pageWidth - marginSides * 2
+
+      // ===== CABECERA NUEVA LOCATION RECCE =====
+      const headerHeight = 24
+      const headerY = 0
+      const logoMaxWidth = 26
+      const logoMaxHeight = 14
+      const secondaryLogoMaxWidth = 22
+      const secondaryLogoMaxHeight = 12
+
+      // Banda superior
+      doc.setFillColor(10, 25, 47)
+      doc.rect(0, headerY, pageWidth, headerHeight, 'F')
+
+      // Logo izquierdo
+      if (proyecto.logoUrl) {
+        try {
+          const logoImg = await loadImage(proyecto.logoUrl)
+          const aspect = logoImg.width / logoImg.height
+          let w = logoMaxWidth
+          let h = logoMaxHeight
+          if (aspect > logoMaxWidth / logoMaxHeight) {
+            h = w / aspect
+          } else {
+            w = h * aspect
+          }
+          const logoX = marginSides
+          const logoY = headerY + (headerHeight - h) / 2
+          doc.addImage(logoImg, 'PNG', logoX, logoY, w, h)
+        } catch (e) {
+          console.error('Error cargando logo principal en Location Recce:', e)
+        }
+      }
+
+      // Logo derecho
+      const rightLogoUrl = proyecto.secondaryLogoUrl || proyecto.logoUrl
+      if (rightLogoUrl) {
+        try {
+          const logoImgRight = await loadImage(rightLogoUrl)
+          const aspectRight = logoImgRight.width / logoImgRight.height
+          let wRight = secondaryLogoMaxWidth
+          let hRight = secondaryLogoMaxHeight
+          if (aspectRight > secondaryLogoMaxWidth / secondaryLogoMaxHeight) {
+            hRight = wRight / aspectRight
+          } else {
+            wRight = hRight * aspectRight
+          }
+          const logoRightX = pageWidth - marginSides - wRight
+          const logoRightY = headerY + (headerHeight - hRight) / 2
+          doc.addImage(logoImgRight, 'PNG', logoRightX, logoRightY, wRight, hRight)
+        } catch (e) {
+          console.error('Error cargando segundo logo en Location Recce:', e)
+        }
+      }
+
+      // Títulos centrados
+      const projectTitle = (proyecto.nombre || '').toUpperCase()
+      const documentTitle = recceConfig.documentTitle || 'LOCATION RECCE'
+
+      doc.setTextColor(255, 255, 255)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(12)
+      doc.text(projectTitle, pageWidth / 2, headerY + 9, { align: 'center' })
+
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(200, 210, 225)
+      doc.text(documentTitle, pageWidth / 2, headerY + 16, { align: 'center' })
+
+      let y = marginTop
+
+      // ===== SECCIÓN 2: TABLA DATOS GENERALES =====
+      const rowHeight = 8
+      const colWidth = usableWidth / 2
+      const tableX = marginSides
+
+      doc.setFontSize(9)
+      doc.setTextColor(40, 40, 40)
+      doc.setFont('helvetica', 'bold')
+
+      // Fila 1: RECCE SCHEDULE
+      doc.rect(tableX, y, colWidth, rowHeight, 'S')
+      doc.rect(tableX + colWidth, y, colWidth, rowHeight, 'S')
+      doc.text('RECCE SCHEDULE', tableX + 2, y + 5)
+      doc.setFont('helvetica', 'normal')
+      doc.text(recceConfig.recceSchedule || '', tableX + colWidth + 2, y + 5)
+      y += rowHeight
+
+      // Fila 2: MEETING POINT
+      doc.setFont('helvetica', 'bold')
+      doc.rect(tableX, y, colWidth, rowHeight, 'S')
+      doc.rect(tableX + colWidth, y, colWidth, rowHeight, 'S')
+      doc.text('MEETING POINT', tableX + 2, y + 5)
+      doc.setFont('helvetica', 'normal')
+      doc.text(recceConfig.meetingPoint || '', tableX + colWidth + 2, y + 5)
+      y += rowHeight
+
+      // Fila 3: LOCATION MANAGER
+      const lmText = [
+        recceConfig.locationManagerName || proyecto.locationManager || '',
+        recceConfig.locationManagerPhone || '',
+        recceConfig.locationManagerEmail || ''
+      ]
+        .filter(Boolean)
+        .join('  |  ')
+
+      doc.setFont('helvetica', 'bold')
+      doc.rect(tableX, y, colWidth, rowHeight, 'S')
+      doc.rect(tableX + colWidth, y, colWidth, rowHeight, 'S')
+      doc.text('LOCATION MANAGER', tableX + 2, y + 5)
+      doc.setFont('helvetica', 'normal')
+      doc.text(lmText || '', tableX + colWidth + 2, y + 5)
+      y += rowHeight + 4
+
+      // ===== MINI SECCIÓN 3: SOL / METEO =====
+      doc.setFontSize(8)
+      doc.setTextColor(80, 80, 80)
+
+      const miniText = [
+        recceConfig.sunriseTime ? `Sunrise: ${recceConfig.sunriseTime}` : '',
+        recceConfig.sunsetTime ? `Sunset: ${recceConfig.sunsetTime}` : '',
+        recceConfig.weatherForecast
+          ? `Weather: ${recceConfig.weatherForecast}`
+          : ''
+      ]
+        .filter(Boolean)
+        .join('   •   ')
+
+      if (miniText) {
+        doc.text(miniText, marginSides, y)
+        y += 8
+      }
+
+      // ===== SECCIÓN 4: ATTENDANTS =====
+      if (recceConfig.attendants && recceConfig.attendants.length > 0) {
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(30, 30, 30)
+        doc.text('ATTENDANTS', marginSides, y)
+        y += 4
+
+        const colAttName = usableWidth * 0.3
+        const colAttPos = usableWidth * 0.25
+        const colAttPhone = usableWidth * 0.2
+        const colAttMail = usableWidth * 0.25
+
+        const headerY = y
+        doc.setFontSize(8)
+        doc.setTextColor(90, 90, 90)
+        doc.text('Name', marginSides + 2, headerY + 4)
+        doc.text('Position', marginSides + colAttName + 2, headerY + 4)
+        doc.text('Phone', marginSides + colAttName + colAttPos + 2, headerY + 4)
+        doc.text('Email', marginSides + colAttName + colAttPos + colAttPhone + 2, headerY + 4)
+
+        doc.rect(marginSides, headerY, colAttName, rowHeight, 'S')
+        doc.rect(marginSides + colAttName, headerY, colAttPos, rowHeight, 'S')
+        doc.rect(
+          marginSides + colAttName + colAttPos,
+          headerY,
+          colAttPhone,
+          rowHeight,
+          'S'
+        )
+        doc.rect(
+          marginSides + colAttName + colAttPos + colAttPhone,
+          headerY,
+          colAttMail,
+          rowHeight,
+          'S'
+        )
+
+        y += rowHeight
+
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(50, 50, 50)
+
+        recceConfig.attendants.forEach((att) => {
+          if (y > pageHeight - marginBottom - 20) {
+            doc.addPage()
+            y = marginTop
+          }
+          doc.rect(marginSides, y, colAttName, rowHeight, 'S')
+          doc.rect(marginSides + colAttName, y, colAttPos, rowHeight, 'S')
+          doc.rect(
+            marginSides + colAttName + colAttPos,
+            y,
+            colAttPhone,
+            rowHeight,
+            'S'
+          )
+          doc.rect(
+            marginSides + colAttName + colAttPos + colAttPhone,
+            y,
+            colAttMail,
+            rowHeight,
+            'S'
+          )
+
+          doc.text(att.name || '', marginSides + 2, y + 5)
+          doc.text(att.position || '', marginSides + colAttName + 2, y + 5)
+          doc.text(att.phone || '', marginSides + colAttName + colAttPos + 2, y + 5)
+          doc.text(
+            att.email || '',
+            marginSides + colAttName + colAttPos + colAttPhone + 2,
+            y + 5
+          )
+
+          y += rowHeight
+        })
+
+        y += 8
+      }
+
+      // ===== SECCIÓN 5: RECCE TIMES =====
+      const recceRows = computeRecceRows(recceConfig, proyecto)
+      if (recceRows.length > 0) {
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(30, 30, 30)
+        doc.text('RECCE TIMES', marginSides, y)
+        y += 4
+
+        const colDepart = usableWidth * 0.16
+        const colFrom = usableWidth * 0.2
+        const colTo = usableWidth * 0.2
+        const colTravel = usableWidth * 0.16
+        const colArrival = usableWidth * 0.16
+        const colTimeLoc = usableWidth * 0.12
+
+        const headerY2 = y
+        doc.setFontSize(7)
+        doc.setTextColor(90, 90, 90)
+        const baseX = marginSides
+        doc.text('Depart', baseX + 2, headerY2 + 4)
+        doc.text('From', baseX + colDepart + 2, headerY2 + 4)
+        doc.text('To', baseX + colDepart + colFrom + 2, headerY2 + 4)
+        doc.text('Travel', baseX + colDepart + colFrom + colTo + 2, headerY2 + 4)
+        doc.text(
+          'Arrival',
+          baseX + colDepart + colFrom + colTo + colTravel + 2,
+          headerY2 + 4
+        )
+        doc.text(
+          'Time on loc.',
+          baseX + colDepart + colFrom + colTo + colTravel + colArrival + 2,
+          headerY2 + 4
+        )
+
+        // Bordes cabecera
+        doc.rect(baseX, headerY2, colDepart, rowHeight, 'S')
+        doc.rect(baseX + colDepart, headerY2, colFrom, rowHeight, 'S')
+        doc.rect(baseX + colDepart + colFrom, headerY2, colTo, rowHeight, 'S')
+        doc.rect(
+          baseX + colDepart + colFrom + colTo,
+          headerY2,
+          colTravel,
+          rowHeight,
+          'S'
+        )
+        doc.rect(
+          baseX + colDepart + colFrom + colTo + colTravel,
+          headerY2,
+          colArrival,
+          rowHeight,
+          'S'
+        )
+        doc.rect(
+          baseX + colDepart + colFrom + colTo + colTravel + colArrival,
+          headerY2,
+          colTimeLoc,
+          rowHeight,
+          'S'
+        )
+
+        y += rowHeight
+
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(50, 50, 50)
+
+        recceRows.forEach((row) => {
+          if (y > pageHeight - marginBottom - 20) {
+            doc.addPage()
+            y = marginTop
+          }
+
+          doc.rect(baseX, y, colDepart, rowHeight, 'S')
+          doc.rect(baseX + colDepart, y, colFrom, rowHeight, 'S')
+          doc.rect(baseX + colDepart + colFrom, y, colTo, rowHeight, 'S')
+          doc.rect(
+            baseX + colDepart + colFrom + colTo,
+            y,
+            colTravel,
+            rowHeight,
+            'S'
+          )
+          doc.rect(
+            baseX + colDepart + colFrom + colTo + colTravel,
+            y,
+            colArrival,
+            rowHeight,
+            'S'
+          )
+          doc.rect(
+            baseX + colDepart + colFrom + colTo + colTravel + colArrival,
+            y,
+            colTimeLoc,
+            rowHeight,
+            'S'
+          )
+
+          doc.text(row.departTime || '', baseX + 2, y + 5)
+          doc.text(row.from || '', baseX + colDepart + 2, y + 5)
+          doc.text(row.to || '', baseX + colDepart + colFrom + 2, y + 5)
+          doc.text(row.travelTime || '', baseX + colDepart + colFrom + colTo + 2, y + 5)
+          doc.text(
+            row.arrivalTime || '',
+            baseX + colDepart + colFrom + colTo + colTravel + 2,
+            y + 5
+          )
+          doc.text(
+            row.timeOnLocation || '',
+            baseX + colDepart + colFrom + colTo + colTravel + colArrival + 2,
+            y + 5
+          )
+
+          y += rowHeight
+        })
+
+        y += 10
+      }
+
+      // ===== SECCIÓN 6: ENTRADAS LIBRES + LOCALIZACIONES =====
+      const recceRowsByLocation = {}
+      recceRows.forEach((row) => {
+        if (row.locationId) {
+          recceRowsByLocation[row.locationId.toString()] = row
+        }
+      })
+
+      // Entradas libres
+      if (recceConfig.freeEntries && recceConfig.freeEntries.length > 0) {
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(30, 30, 30)
+        doc.text('NOTES', marginSides, y)
+        y += 5
+
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(60, 60, 60)
+
+        recceConfig.freeEntries.forEach((entry) => {
+          if (y > pageHeight - marginBottom - 20) {
+            doc.addPage()
+            y = marginTop
+          }
+          const line = entry.time ? `${entry.time}  -  ${entry.text || ''}` : entry.text
+          doc.text(line || '', marginSides, y)
+          y += 5
+        })
+
+        y += 8
+      }
+
+      // Bloques de localización en el orden de las legs
+      const locationsById = {}
+      if (proyecto.Locations) {
+        proyecto.Locations.forEach((loc) => {
+          locationsById[loc.id?.toString()] = loc
+        })
+      }
+
+      const includedLegs = (recceConfig.legs || []).filter(
+        (leg) => leg.include && leg.locationId
+      )
+
+      includedLegs.forEach((leg, index) => {
+        const loc = locationsById[leg.locationId.toString()]
+        if (!loc) return
+
+        const row = recceRowsByLocation[leg.locationId.toString()]
+
+        if (y > pageHeight - marginBottom - 80) {
+          doc.addPage()
+          y = marginTop
+        }
+
+        // Texto "Travel to ..."
+        if (index > 0 && loc.nombre) {
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'italic')
+          doc.setTextColor(90, 90, 90)
+          doc.text(`Travel to ${loc.nombre}`, marginSides, y)
+          y += 6
+        }
+
+        const blockStartY = y
+
+        // Primera fila: nombre + arrival/depart
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(30, 30, 30)
+        doc.text(loc.nombre || 'Location', marginSides, y)
+
+        if (row) {
+          doc.setFontSize(8)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(70, 70, 70)
+          const timesText = [
+            row.arrivalTime ? `Arrival: ${row.arrivalTime}` : '',
+            row.departTime ? `Depart: ${row.departTime}` : ''
+          ]
+            .filter(Boolean)
+            .join('   |   ')
+          if (timesText) {
+            doc.text(timesText, pageWidth - marginSides, y, { align: 'right' })
+          }
+        }
+
+        y += 6
+
+        // Segunda fila: link Google
+        if (loc.googleMapsLink) {
+          doc.setFontSize(8)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(30, 60, 150)
+          doc.textWithLink('Google Maps', marginSides, y, {
+            url: loc.googleMapsLink
+          })
+          y += 6
+        }
+
+        // Tercera fila: dos imágenes lado a lado
+        const imagenes =
+          Array.isArray(loc.imagenes) && loc.imagenes.length > 0
+            ? loc.imagenes
+            : typeof loc.imagenes === 'string' && loc.imagenes
+              ? JSON.parse(loc.imagenes)
+              : []
+
+        if (imagenes && imagenes.length > 0) {
+          // Para simplificar y evitar problemas con await en bucles,
+          // usamos placeholders de imagen en 16:9.
+          const gap = 4
+          const imageWidth = (usableWidth - gap) / 2
+          const imageHeight = imageWidth * (9 / 16)
+          const imageY = y
+
+          for (let i = 0; i < Math.min(imagenes.length, 2); i++) {
+            const x = marginSides + i * (imageWidth + gap)
+            doc.setFillColor(240, 240, 240)
+            doc.rect(x, imageY, imageWidth, imageHeight, 'F')
+            doc.setFontSize(8)
+            doc.setTextColor(150, 150, 150)
+            doc.text('Image', x + imageWidth / 2, imageY + imageHeight / 2, {
+              align: 'center'
+            })
+            doc.setTextColor(0, 0, 0)
+          }
+
+          y = imageY + imageHeight + 10
+        } else {
+          y += 6
+        }
+
+        // Separación entre bloques
+        y = Math.max(y, blockStartY + 20)
+        y += 4
+      })
+
+      doc.save(`${proyecto.nombre || 'proyecto'}_location_recce.pdf`)
+    } catch (error) {
+      console.error('Error generando Location Recce PDF:', error)
+      alert('Error al generar el PDF de Location Recce')
+    } finally {
+      setGenerating(false)
+      setShowRecceModal(false)
+    }
+  }
+
   const generateCrewListPDF = async () => {
     if (!proyecto || !proyecto.Crews || proyecto.Crews.length === 0) {
       alert('Este proyecto no tiene crew asignado')
@@ -802,12 +1385,528 @@ export default function Documents() {
             )}
           </div>
 
-          {/* Espacio para futuras plantillas */}
-          <div className="border border-gray-200 border-dashed rounded-lg p-6 flex items-center justify-center">
-            <p className="text-gray-400 text-sm">Más plantillas próximamente</p>
+          {/* Plantilla Location Recce */}
+          <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a4 4 0 00-4 4v1m4-5a4 4 0 014 4v1m-9 4h10l1 4H6l1-4z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11h8" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800">Location Recce</h3>
+                <p className="text-xs text-gray-500">Plan de recce con tiempos y asistentes</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Genera un documento de recce con planning, asistentes, tabla de tiempos y bloques de localización del proyecto.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                // Prefijar configuración con datos del proyecto
+                setRecceConfig((prev) => ({
+                  ...prev,
+                  documentTitle: prev.documentTitle || 'LOCATION RECCE',
+                  locationManagerName: prev.locationManagerName || proyecto.locationManager || '',
+                  attendants:
+                    prev.attendants && prev.attendants.length > 0
+                      ? prev.attendants
+                      : (proyecto.Crews || []).map((c) => ({
+                          name: c.nombre || '',
+                          position: c.rol || '',
+                          phone: c.telefono || '',
+                          email: c.email || ''
+                        })),
+                  legs:
+                    prev.legs && prev.legs.length > 0
+                      ? prev.legs
+                      : (proyecto.Locations || []).map((loc, index) => ({
+                          include: true,
+                          locationId: loc.id?.toString(),
+                          departTime: index === 0 ? '08:00' : '',
+                          travelTimeMinutes: '15',
+                          timeOnLocationMinutes: '60'
+                        }))
+                }))
+                setShowRecceModal(true)
+              }}
+              disabled={generating || !proyecto.Locations || proyecto.Locations.length === 0}
+              className="w-full bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            >
+              {generating ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Configurar y generar
+                </>
+              )}
+            </button>
+            {(!proyecto.Locations || proyecto.Locations.length === 0) && (
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Este proyecto no tiene locations asignadas
+              </p>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Modal Location Recce */}
+      {showRecceModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">Configurar Location Recce</h2>
+                <p className="text-sm text-gray-500">
+                  Rellena la información del recce antes de generar el PDF.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRecceModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Datos generales */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-gray-200 rounded-lg p-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Título del documento
+                  </label>
+                  <input
+                    type="text"
+                    value={recceConfig.documentTitle}
+                    onChange={(e) =>
+                      setRecceConfig({ ...recceConfig, documentTitle: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Recce schedule
+                  </label>
+                  <input
+                    type="text"
+                    value={recceConfig.recceSchedule}
+                    onChange={(e) =>
+                      setRecceConfig({ ...recceConfig, recceSchedule: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="Ej: Día completo / Mañana / Tarde"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Meeting point
+                  </label>
+                  <input
+                    type="text"
+                    value={recceConfig.meetingPoint}
+                    onChange={(e) =>
+                      setRecceConfig({ ...recceConfig, meetingPoint: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="Dirección o punto de encuentro"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Location Manager - Nombre
+                  </label>
+                  <input
+                    type="text"
+                    value={recceConfig.locationManagerName}
+                    onChange={(e) =>
+                      setRecceConfig({
+                        ...recceConfig,
+                        locationManagerName: e.target.value
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder={proyecto.locationManager || ''}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Location Manager - Teléfono
+                  </label>
+                  <input
+                    type="text"
+                    value={recceConfig.locationManagerPhone}
+                    onChange={(e) =>
+                      setRecceConfig({
+                        ...recceConfig,
+                        locationManagerPhone: e.target.value
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Location Manager - Email
+                  </label>
+                  <input
+                    type="email"
+                    value={recceConfig.locationManagerEmail}
+                    onChange={(e) =>
+                      setRecceConfig({
+                        ...recceConfig,
+                        locationManagerEmail: e.target.value
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Hora de salida del sol
+                  </label>
+                  <input
+                    type="text"
+                    value={recceConfig.sunriseTime}
+                    onChange={(e) =>
+                      setRecceConfig({ ...recceConfig, sunriseTime: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="Ej: 07:25"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Hora de puesta de sol
+                  </label>
+                  <input
+                    type="text"
+                    value={recceConfig.sunsetTime}
+                    onChange={(e) =>
+                      setRecceConfig({ ...recceConfig, sunsetTime: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="Ej: 18:50"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Previsión del tiempo
+                  </label>
+                  <input
+                    type="text"
+                    value={recceConfig.weatherForecast}
+                    onChange={(e) =>
+                      setRecceConfig({
+                        ...recceConfig,
+                        weatherForecast: e.target.value
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="Ej: Soleado, 22ºC, viento suave"
+                  />
+                </div>
+              </div>
+
+              {/* Attendants */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
+                    Attendants
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRecceConfig({
+                        ...recceConfig,
+                        attendants: [
+                          ...(recceConfig.attendants || []),
+                          { name: '', position: '', phone: '', email: '' }
+                        ]
+                      })
+                    }
+                    className="text-xs text-dark-blue hover:text-dark-blue-light"
+                  >
+                    + Añadir asistente
+                  </button>
+                </div>
+                {(!recceConfig.attendants || recceConfig.attendants.length === 0) ? (
+                  <p className="text-xs text-gray-500">
+                    No hay asistentes. Pulsa &quot;Añadir asistente&quot; para crear el primero.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {recceConfig.attendants.map((att, index) => (
+                      <div
+                        key={index}
+                        className="grid grid-cols-1 md:grid-cols-4 gap-2 items-center"
+                      >
+                        <input
+                          type="text"
+                          value={att.name}
+                          onChange={(e) => {
+                            const updated = [...recceConfig.attendants]
+                            updated[index] = { ...updated[index], name: e.target.value }
+                            setRecceConfig({ ...recceConfig, attendants: updated })
+                          }}
+                          className="px-2 py-1.5 border rounded-lg text-xs"
+                          placeholder="Nombre"
+                        />
+                        <input
+                          type="text"
+                          value={att.position}
+                          onChange={(e) => {
+                            const updated = [...recceConfig.attendants]
+                            updated[index] = { ...updated[index], position: e.target.value }
+                            setRecceConfig({ ...recceConfig, attendants: updated })
+                          }}
+                          className="px-2 py-1.5 border rounded-lg text-xs"
+                          placeholder="Posición"
+                        />
+                        <input
+                          type="text"
+                          value={att.phone}
+                          onChange={(e) => {
+                            const updated = [...recceConfig.attendants]
+                            updated[index] = { ...updated[index], phone: e.target.value }
+                            setRecceConfig({ ...recceConfig, attendants: updated })
+                          }}
+                          className="px-2 py-1.5 border rounded-lg text-xs"
+                          placeholder="Teléfono"
+                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="email"
+                            value={att.email}
+                            onChange={(e) => {
+                              const updated = [...recceConfig.attendants]
+                              updated[index] = { ...updated[index], email: e.target.value }
+                              setRecceConfig({ ...recceConfig, attendants: updated })
+                            }}
+                            className="flex-1 px-2 py-1.5 border rounded-lg text-xs"
+                            placeholder="Email"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = recceConfig.attendants.filter((_, i) => i !== index)
+                              setRecceConfig({ ...recceConfig, attendants: updated })
+                            }}
+                            className="text-xs text-red-500 hover:text-red-600"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Legs / Recce times */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
+                    Recce times (por localización)
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Indica la hora de salida inicial, el tiempo de viaje y el tiempo en cada localización.
+                  </p>
+                </div>
+                {(!recceConfig.legs || recceConfig.legs.length === 0) ? (
+                  <p className="text-xs text-gray-500">
+                    No hay legs configurados. Asegúrate de que el proyecto tenga locations asignadas.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {recceConfig.legs.map((leg, index) => {
+                      const loc =
+                        (proyecto.Locations || []).find(
+                          (l) => l.id?.toString() === leg.locationId?.toString()
+                        ) || {}
+                      return (
+                        <div
+                          key={leg.locationId || index}
+                          className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center text-xs"
+                        >
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={!!leg.include}
+                              onChange={(e) => {
+                                const updated = [...recceConfig.legs]
+                                updated[index] = { ...updated[index], include: e.target.checked }
+                                setRecceConfig({ ...recceConfig, legs: updated })
+                              }}
+                            />
+                            <span className="font-medium text-gray-800">
+                              {loc.nombre || `Location ${leg.locationId}`}
+                            </span>
+                          </label>
+                          <input
+                            type="text"
+                            value={leg.departTime || ''}
+                            onChange={(e) => {
+                              const updated = [...recceConfig.legs]
+                              updated[index] = { ...updated[index], departTime: e.target.value }
+                              setRecceConfig({ ...recceConfig, legs: updated })
+                            }}
+                            className="px-2 py-1.5 border rounded-lg"
+                            placeholder={index === 0 ? 'Hora salida (ej: 08:00)' : 'Auto'}
+                          />
+                          <input
+                            type="number"
+                            value={leg.travelTimeMinutes || ''}
+                            onChange={(e) => {
+                              const updated = [...recceConfig.legs]
+                              updated[index] = {
+                                ...updated[index],
+                                travelTimeMinutes: e.target.value
+                              }
+                              setRecceConfig({ ...recceConfig, legs: updated })
+                            }}
+                            className="px-2 py-1.5 border rounded-lg"
+                            placeholder="Travel (min)"
+                          />
+                          <input
+                            type="number"
+                            value={leg.timeOnLocationMinutes || ''}
+                            onChange={(e) => {
+                              const updated = [...recceConfig.legs]
+                              updated[index] = {
+                                ...updated[index],
+                                timeOnLocationMinutes: e.target.value
+                              }
+                              setRecceConfig({ ...recceConfig, legs: updated })
+                            }}
+                            className="px-2 py-1.5 border rounded-lg"
+                            placeholder="Time on loc (min)"
+                          />
+                          <div className="text-[11px] text-gray-500">
+                            {index === 0
+                              ? 'From: Meeting point'
+                              : `From: ${recceConfig.legs[index - 1]?.locationId
+                                  ? (proyecto.Locations || []).find(
+                                      (l) =>
+                                        l.id?.toString() ===
+                                        recceConfig.legs[index - 1].locationId?.toString()
+                                    )?.nombre || 'Anterior'
+                                  : 'Anterior'
+                                }`}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Entradas libres */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
+                    Entradas libres
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRecceConfig({
+                        ...recceConfig,
+                        freeEntries: [
+                          ...(recceConfig.freeEntries || []),
+                          { time: '', text: '' }
+                        ]
+                      })
+                    }
+                    className="text-xs text-dark-blue hover:text-dark-blue-light"
+                  >
+                    + Añadir entrada
+                  </button>
+                </div>
+                {(!recceConfig.freeEntries || recceConfig.freeEntries.length === 0) ? (
+                  <p className="text-xs text-gray-500">
+                    No hay entradas libres. Úsalas para notas adicionales del día.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {recceConfig.freeEntries.map((entry, index) => (
+                      <div
+                        key={index}
+                        className="grid grid-cols-1 md:grid-cols-[100px_1fr_auto] gap-2 items-center text-xs"
+                      >
+                        <input
+                          type="text"
+                          value={entry.time}
+                          onChange={(e) => {
+                            const updated = [...recceConfig.freeEntries]
+                            updated[index] = { ...updated[index], time: e.target.value }
+                            setRecceConfig({ ...recceConfig, freeEntries: updated })
+                          }}
+                          className="px-2 py-1.5 border rounded-lg"
+                          placeholder="Hora"
+                        />
+                        <input
+                          type="text"
+                          value={entry.text}
+                          onChange={(e) => {
+                            const updated = [...recceConfig.freeEntries]
+                            updated[index] = { ...updated[index], text: e.target.value }
+                            setRecceConfig({ ...recceConfig, freeEntries: updated })
+                          }}
+                          className="px-2 py-1.5 border rounded-lg"
+                          placeholder="Texto de la entrada"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = recceConfig.freeEntries.filter((_, i) => i !== index)
+                            setRecceConfig({ ...recceConfig, freeEntries: updated })
+                          }}
+                          className="text-xs text-red-500 hover:text-red-600"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRecceModal(false)}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-50"
+                  disabled={generating}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={generateLocationReccePDF}
+                  disabled={generating}
+                  className="px-5 py-2 rounded-lg bg-dark-blue text-white text-sm hover:bg-dark-blue-light disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {generating ? 'Generando...' : 'Generar PDF'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
