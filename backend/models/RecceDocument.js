@@ -91,3 +91,4 @@ const RecceDocument = sequelize.define('RecceDocument', {
 
 export default RecceDocument
 
+

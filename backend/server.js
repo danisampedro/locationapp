@@ -12,6 +12,7 @@ import crewRoutes from './routes/crew.js'
 import vendorRoutes from './routes/vendors.js'
 import permitRoutes from './routes/permits.js'
 import recceDocumentRoutes from './routes/recceDocuments.js'
+import contractDocumentRoutes from './routes/contractDocuments.js'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/users.js'
 import { authMiddleware } from './middleware/auth.js'
@@ -47,6 +48,7 @@ app.use('/api/crew', authMiddleware, crewRoutes)
 app.use('/api/vendors', authMiddleware, vendorRoutes)
 app.use('/api/permits', authMiddleware, permitRoutes)
 app.use('/api/recce-documents', authMiddleware, recceDocumentRoutes)
+app.use('/api/contract-documents', authMiddleware, contractDocumentRoutes)
 app.use('/api/users', userRoutes)
 
 // Health check
@@ -546,6 +548,7 @@ const connectDB = async () => {
     await migrateVendorTable()
     await migratePermitsTable()
     await migrateRecceDocumentsTable()
+    await migrateContractDocumentsTable()
     
     await seedAdminUser()
     console.log('✅ Database models synchronized')

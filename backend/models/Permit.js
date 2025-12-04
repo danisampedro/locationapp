@@ -49,3 +49,5 @@ const Permit = sequelize.define('Permit', {
 export default Permit
 
 
+
+

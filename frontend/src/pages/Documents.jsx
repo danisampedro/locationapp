@@ -13,6 +13,14 @@ export default function Documents() {
   const [savedRecceDocuments, setSavedRecceDocuments] = useState([])
   const [editingRecceDocument, setEditingRecceDocument] = useState(null)
   const [recceDocumentName, setRecceDocumentName] = useState('')
+  const [showContractModal, setShowContractModal] = useState(false)
+  const [savedContractDocuments, setSavedContractDocuments] = useState([])
+  const [editingContractDocument, setEditingContractDocument] = useState(null)
+  const [contractDocumentName, setContractDocumentName] = useState('')
+  const [contractConfig, setContractConfig] = useState({
+    textoEspanol: '',
+    textoIngles: ''
+  })
   const [recceConfig, setRecceConfig] = useState({
     documentTitle: 'LOCATION RECCE',
     recceSchedule: '',
@@ -32,6 +40,7 @@ export default function Documents() {
   useEffect(() => {
     loadProyecto()
     loadSavedRecceDocuments()
+    loadSavedContractDocuments()
   }, [id])
 
   const loadSavedRecceDocuments = async () => {
@@ -40,6 +49,15 @@ export default function Documents() {
       setSavedRecceDocuments(response.data)
     } catch (error) {
       console.error('Error cargando documentos Recce:', error)
+    }
+  }
+
+  const loadSavedContractDocuments = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/contract-documents/project/${id}`, { withCredentials: true })
+      setSavedContractDocuments(response.data)
+    } catch (error) {
+      console.error('Error cargando documentos de contrato:', error)
     }
   }
 
@@ -1414,6 +1432,203 @@ export default function Documents() {
     }
   }
 
+  const handleSaveContractDocument = async () => {
+    if (!contractDocumentName.trim()) {
+      alert('Por favor, introduce un nombre para el contrato')
+      return
+    }
+
+    try {
+      if (editingContractDocument) {
+        await axios.put(`${API_URL}/contract-documents/${editingContractDocument.id}`, {
+          nombre: contractDocumentName.trim(),
+          textoEspanol: contractConfig.textoEspanol,
+          textoIngles: contractConfig.textoIngles
+        }, { withCredentials: true })
+      } else {
+        await axios.post(`${API_URL}/contract-documents`, {
+          proyectoId: id,
+          nombre: contractDocumentName.trim(),
+          textoEspanol: contractConfig.textoEspanol,
+          textoIngles: contractConfig.textoIngles
+        }, { withCredentials: true })
+      }
+      await loadSavedContractDocuments()
+      setShowContractModal(false)
+      setEditingContractDocument(null)
+      setContractDocumentName('')
+      setContractConfig({ textoEspanol: '', textoIngles: '' })
+    } catch (error) {
+      console.error('Error guardando contrato:', error)
+      alert('Error al guardar el contrato')
+    }
+  }
+
+  const handleDeleteContractDocument = async (contractId) => {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este contrato?')) {
+      return
+    }
+
+    try {
+      await axios.delete(`${API_URL}/contract-documents/${contractId}`, { withCredentials: true })
+      await loadSavedContractDocuments()
+    } catch (error) {
+      console.error('Error eliminando contrato:', error)
+      alert('Error al eliminar el contrato')
+    }
+  }
+
+  const generateContractPDF = async (contractDoc) => {
+    if (!proyecto) {
+      alert('Error: No se pudo cargar la información del proyecto')
+      return
+    }
+
+    setGenerating(true)
+
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4')
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      const marginTop = 25
+      const marginBottom = 20
+      const marginSides = 20
+      const usableWidth = pageWidth - marginSides * 2
+      const columnWidth = (usableWidth - 10) / 2 // Ancho de cada columna (10mm de espacio entre columnas)
+
+      // ===== CABECERA =====
+      const headerHeight = 24
+      const headerY = 0
+      const logoMaxWidth = 26
+      const logoMaxHeight = 14
+      const secondaryLogoMaxWidth = 22
+      const secondaryLogoMaxHeight = 12
+
+      // Banda superior
+      doc.setFillColor(10, 25, 47)
+      doc.rect(0, headerY, pageWidth, headerHeight, 'F')
+
+      // Logo izquierdo
+      if (proyecto.logoUrl) {
+        try {
+          const logoImg = await loadImage(proyecto.logoUrl)
+          const aspect = logoImg.width / logoImg.height
+          let w = logoMaxWidth
+          let h = logoMaxHeight
+          if (aspect > logoMaxWidth / logoMaxHeight) {
+            h = w / aspect
+          } else {
+            w = h * aspect
+          }
+          const logoX = marginSides
+          const logoY = headerY + (headerHeight - h) / 2
+          doc.addImage(logoImg, 'PNG', logoX, logoY, w, h)
+        } catch (e) {
+          console.error('Error cargando logo principal:', e)
+        }
+      }
+
+      // Logo derecho
+      const rightLogoUrl = proyecto.secondaryLogoUrl || proyecto.logoUrl
+      if (rightLogoUrl) {
+        try {
+          const secondaryLogoImg = await loadImage(rightLogoUrl)
+          const aspect = secondaryLogoImg.width / secondaryLogoImg.height
+          let w = secondaryLogoMaxWidth
+          let h = secondaryLogoMaxHeight
+          if (aspect > secondaryLogoMaxWidth / secondaryLogoMaxHeight) {
+            h = w / aspect
+          } else {
+            w = h * aspect
+          }
+          const logoX = pageWidth - marginSides - w
+          const logoY = headerY + (headerHeight - h) / 2
+          doc.addImage(secondaryLogoImg, 'PNG', logoX, logoY, w, h)
+        } catch (e) {
+          console.error('Error cargando logo secundario:', e)
+        }
+      }
+
+      // Título del proyecto (centrado)
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(255, 255, 255)
+      const projectTitle = (proyecto.nombre || 'PROYECTO').toUpperCase()
+      const titleWidth = doc.getTextWidth(projectTitle)
+      doc.text(projectTitle, (pageWidth - titleWidth) / 2, headerY + headerHeight / 2 + 5)
+
+      // Título del documento (debajo del título del proyecto, más pequeño)
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      const documentTitle = contractDoc.nombre || 'CONTRATO'
+      const docTitleWidth = doc.getTextWidth(documentTitle)
+      doc.text(documentTitle, (pageWidth - docTitleWidth) / 2, headerY + headerHeight / 2 + 10)
+
+      doc.setTextColor(0, 0, 0)
+
+      // ===== CONTENIDO DEL CONTRATO =====
+      let yPosition = marginTop + headerHeight + 8
+
+      // Títulos de columnas
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.text('ESPAÑOL', marginSides, yPosition)
+      doc.text('ENGLISH', marginSides + columnWidth + 10, yPosition)
+      yPosition += 8
+
+      // Línea divisoria
+      doc.setDrawColor(200, 200, 200)
+      doc.setLineWidth(0.5)
+      doc.line(marginSides, yPosition - 2, pageWidth - marginSides, yPosition - 2)
+
+      // Texto del contrato en dos columnas
+      const textoEspanol = contractDoc.textoEspanol || ''
+      const textoIngles = contractDoc.textoIngles || ''
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+
+      // Dividir texto en líneas para cada columna
+      const espanolLines = doc.splitTextToSize(textoEspanol, columnWidth)
+      const inglesLines = doc.splitTextToSize(textoIngles, columnWidth)
+
+      const maxLines = Math.max(espanolLines.length, inglesLines.length)
+      const lineHeight = 5
+
+      for (let i = 0; i < maxLines; i++) {
+        // Verificar si necesitamos una nueva página
+        if (yPosition > pageHeight - marginBottom - lineHeight) {
+          doc.addPage()
+          yPosition = marginTop
+        }
+
+        // Columna izquierda (Español)
+        if (i < espanolLines.length) {
+          doc.text(espanolLines[i], marginSides, yPosition)
+        }
+
+        // Columna derecha (Inglés)
+        if (i < inglesLines.length) {
+          doc.text(inglesLines[i], marginSides + columnWidth + 10, yPosition)
+        }
+
+        yPosition += lineHeight
+      }
+
+      // Guardar PDF
+      const fileName = `Contrato_${contractDoc.nombre.replace(/[^a-z0-9]/gi, '_')}_${proyecto.nombre.replace(/[^a-z0-9]/gi, '_')}.pdf`
+      doc.save(fileName)
+
+      setGenerating(false)
+      alert('PDF de contrato generado exitosamente')
+    } catch (error) {
+      console.error('Error generando PDF de contrato:', error)
+      setGenerating(false)
+      alert('Error al generar el PDF de contrato. Por favor, intenta de nuevo.')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -1714,8 +1929,214 @@ export default function Documents() {
               </div>
             )}
           </div>
+
+          {/* Plantilla Contratos */}
+          <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-800">Contratos</h3>
+                <p className="text-xs text-gray-500">Contratos bilingües (Español/Inglés)</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Crea y gestiona contratos en español e inglés. Puedes guardar múltiples versiones y exportarlos a PDF con formato de dos columnas.
+            </p>
+            <div className="flex items-center justify-between mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingContractDocument(null)
+                  setContractDocumentName('')
+                  setContractConfig({ textoEspanol: '', textoIngles: '' })
+                  setShowContractModal(true)
+                }}
+                className="bg-accent-green text-white px-4 py-2 rounded-lg hover:bg-accent-green/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Nuevo contrato
+              </button>
+            </div>
+            {savedContractDocuments.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4">
+                No hay contratos guardados. Crea el primero pulsando &quot;Nuevo contrato&quot;.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {savedContractDocuments.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-accent-green/50 transition"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-800">{doc.nombre}</h4>
+                      <p className="text-xs text-gray-500">
+                        {new Date(doc.createdAt).toLocaleDateString('es-ES')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await axios.get(`${API_URL}/contract-documents/${doc.id}`, { withCredentials: true })
+                            const savedDoc = response.data
+                            setEditingContractDocument(savedDoc)
+                            setContractDocumentName(savedDoc.nombre)
+                            setContractConfig({
+                              textoEspanol: savedDoc.textoEspanol || '',
+                              textoIngles: savedDoc.textoIngles || ''
+                            })
+                            setShowContractModal(true)
+                          } catch (error) {
+                            console.error('Error cargando contrato:', error)
+                            alert('Error al cargar el contrato')
+                          }
+                        }}
+                        className="p-1.5 text-gray-600 hover:text-dark-blue hover:bg-gray-100 rounded transition-colors"
+                        title="Editar"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteContractDocument(doc.id)}
+                        className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-gray-100 rounded transition-colors"
+                        title="Eliminar"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await axios.get(`${API_URL}/contract-documents/${doc.id}`, { withCredentials: true })
+                            const savedDoc = response.data
+                            await generateContractPDF(savedDoc)
+                          } catch (error) {
+                            console.error('Error cargando contrato:', error)
+                            alert('Error al cargar el contrato')
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-dark-blue text-white text-xs rounded-lg hover:bg-dark-blue-light transition-colors"
+                      >
+                        Generar PDF
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Modal Contratos */}
+      {showContractModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">Configurar Contrato</h2>
+                <p className="text-sm text-gray-500">
+                  Introduce el texto del contrato en español e inglés.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowContractModal(false)
+                  setEditingContractDocument(null)
+                  setContractDocumentName('')
+                  setContractConfig({ textoEspanol: '', textoIngles: '' })
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Nombre del contrato */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre del contrato <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={contractDocumentName}
+                  onChange={(e) => setContractDocumentName(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  placeholder="Ej: Contrato de Servicios - 2024"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Este nombre te ayudará a identificar el contrato guardado
+                </p>
+              </div>
+
+              {/* Dos columnas de texto */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Texto en Español
+                  </label>
+                  <textarea
+                    value={contractConfig.textoEspanol}
+                    onChange={(e) =>
+                      setContractConfig({ ...contractConfig, textoEspanol: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg text-sm h-96 resize-y"
+                    placeholder="Introduce aquí el texto completo del contrato en español..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Texto en Inglés
+                  </label>
+                  <textarea
+                    value={contractConfig.textoIngles}
+                    onChange={(e) =>
+                      setContractConfig({ ...contractConfig, textoIngles: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg text-sm h-96 resize-y"
+                    placeholder="Introduce aquí el texto completo del contrato en inglés..."
+                  />
+                </div>
+              </div>
+
+              {/* Botones */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowContractModal(false)
+                    setEditingContractDocument(null)
+                    setContractDocumentName('')
+                    setContractConfig({ textoEspanol: '', textoIngles: '' })
+                  }}
+                  className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveContractDocument}
+                  className="px-5 py-2 rounded-lg bg-dark-blue text-white text-sm hover:bg-dark-blue-light"
+                >
+                  {editingContractDocument ? 'Actualizar' : 'Guardar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Location Recce */}
       {showRecceModal && (
