@@ -1439,28 +1439,43 @@ export default function Documents() {
     }
 
     try {
-      if (editingContractDocument) {
-        await axios.put(`${API_URL}/contract-documents/${editingContractDocument.id}`, {
+      if (editingContractDocument && editingContractDocument.id) {
+        // Actualizar contrato existente
+        const response = await axios.put(`${API_URL}/contract-documents/${editingContractDocument.id}`, {
           nombre: contractDocumentName.trim(),
-          textoEspanol: contractConfig.textoEspanol,
-          textoIngles: contractConfig.textoIngles
+          textoEspanol: contractConfig.textoEspanol || '',
+          textoIngles: contractConfig.textoIngles || ''
         }, { withCredentials: true })
+        console.log('Contrato actualizado:', response.data)
       } else {
-        await axios.post(`${API_URL}/contract-documents`, {
-          proyectoId: id,
+        // Crear nuevo contrato
+        if (!id) {
+          alert('Error: No se pudo identificar el proyecto')
+          return
+        }
+        const response = await axios.post(`${API_URL}/contract-documents`, {
+          proyectoId: parseInt(id),
           nombre: contractDocumentName.trim(),
-          textoEspanol: contractConfig.textoEspanol,
-          textoIngles: contractConfig.textoIngles
+          textoEspanol: contractConfig.textoEspanol || '',
+          textoIngles: contractConfig.textoIngles || ''
         }, { withCredentials: true })
+        console.log('Contrato creado:', response.data)
       }
+      
+      // Recargar la lista de contratos
       await loadSavedContractDocuments()
+      
+      // Cerrar modal y limpiar estado
       setShowContractModal(false)
       setEditingContractDocument(null)
       setContractDocumentName('')
       setContractConfig({ textoEspanol: '', textoIngles: '' })
+      
+      alert(editingContractDocument ? 'Contrato actualizado correctamente' : 'Contrato guardado correctamente')
     } catch (error) {
       console.error('Error guardando contrato:', error)
-      alert('Error al guardar el contrato')
+      const errorMessage = error.response?.data?.error || error.message || 'Error desconocido'
+      alert(`Error al guardar el contrato: ${errorMessage}`)
     }
   }
 
