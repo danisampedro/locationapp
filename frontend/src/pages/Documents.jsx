@@ -10,6 +10,9 @@ export default function Documents() {
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [showRecceModal, setShowRecceModal] = useState(false)
+  const [savedRecceDocuments, setSavedRecceDocuments] = useState([])
+  const [editingRecceDocument, setEditingRecceDocument] = useState(null)
+  const [recceDocumentName, setRecceDocumentName] = useState('')
   const [recceConfig, setRecceConfig] = useState({
     documentTitle: 'LOCATION RECCE',
     recceSchedule: '',
@@ -28,7 +31,17 @@ export default function Documents() {
 
   useEffect(() => {
     loadProyecto()
+    loadSavedRecceDocuments()
   }, [id])
+
+  const loadSavedRecceDocuments = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/recce-documents/project/${id}`, { withCredentials: true })
+      setSavedRecceDocuments(response.data)
+    } catch (error) {
+      console.error('Error cargando documentos Recce:', error)
+    }
+  }
 
   const loadProyecto = async () => {
     try {
@@ -1480,7 +1493,7 @@ export default function Documents() {
           </div>
 
           {/* Plantilla Location Recce */}
-          <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+          <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow md:col-span-2 lg:col-span-3">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1488,68 +1501,161 @@ export default function Documents() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11h8" />
                 </svg>
               </div>
-              <div>
+              <div className="flex-1">
                 <h3 className="font-semibold text-gray-800">Location Recce</h3>
                 <p className="text-xs text-gray-500">Plan de recce con tiempos y asistentes</p>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingRecceDocument(null)
+                  setRecceDocumentName('')
+                  setRecceConfig({
+                    documentTitle: 'LOCATION RECCE',
+                    recceSchedule: '',
+                    meetingPoint: '',
+                    meetingPointLink: '',
+                    locationManagerName: proyecto.locationManager || '',
+                    locationManagerPhone: '',
+                    locationManagerEmail: '',
+                    sunriseTime: '',
+                    sunsetTime: '',
+                    weatherForecast: '',
+                    attendants: (proyecto.Crews || []).map((c) => ({
+                      name: c.nombre || '',
+                      position: c.rol || '',
+                      phone: c.telefono || '',
+                      email: c.email || ''
+                    })),
+                    legs: (proyecto.Locations || []).map((loc, index) => ({
+                      include: true,
+                      locationId: loc.id?.toString(),
+                      departTime: index === 0 ? '08:00' : '',
+                      travelTimeMinutes: '15',
+                      timeOnLocationMinutes: '60'
+                    })),
+                    freeEntries: []
+                  })
+                  setShowRecceModal(true)
+                }}
+                disabled={generating || !proyecto.Locations || proyecto.Locations.length === 0}
+                className="bg-accent-green text-white px-4 py-2 rounded-lg hover:bg-accent-green/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Nuevo documento
+              </button>
             </div>
-            <p className="text-sm text-gray-600 mb-4">
-              Genera un documento de recce con planning, asistentes, tabla de tiempos y bloques de localización del proyecto.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                // Prefijar configuración con datos del proyecto
-                setRecceConfig((prev) => ({
-                  ...prev,
-                  documentTitle: prev.documentTitle || 'LOCATION RECCE',
-                  locationManagerName: prev.locationManagerName || proyecto.locationManager || '',
-                  attendants:
-                    prev.attendants && prev.attendants.length > 0
-                      ? prev.attendants
-                      : (proyecto.Crews || []).map((c) => ({
-                          name: c.nombre || '',
-                          position: c.rol || '',
-                          phone: c.telefono || '',
-                          email: c.email || ''
-                        })),
-                  legs:
-                    prev.legs && prev.legs.length > 0
-                      ? prev.legs
-                      : (proyecto.Locations || []).map((loc, index) => ({
-                          include: true,
-                          locationId: loc.id?.toString(),
-                          departTime: index === 0 ? '08:00' : '',
-                          travelTimeMinutes: '15',
-                          timeOnLocationMinutes: '60'
-                        }))
-                }))
-                setShowRecceModal(true)
-              }}
-              disabled={generating || !proyecto.Locations || proyecto.Locations.length === 0}
-              className="w-full bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-            >
-              {generating ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Generando...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Configurar y generar
-                </>
-              )}
-            </button>
-            {(!proyecto.Locations || proyecto.Locations.length === 0) && (
-              <p className="text-xs text-gray-500 mt-2 text-center">
+            {(!proyecto.Locations || proyecto.Locations.length === 0) ? (
+              <p className="text-xs text-gray-500 text-center py-4">
                 Este proyecto no tiene locations asignadas
               </p>
+            ) : savedRecceDocuments.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4">
+                No hay documentos Recce guardados. Crea el primero pulsando &quot;Nuevo documento&quot;.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {savedRecceDocuments.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-accent-green/50 transition"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-800">{doc.nombre}</h4>
+                      <p className="text-xs text-gray-500">
+                        {new Date(doc.createdAt).toLocaleDateString('es-ES')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await axios.get(`${API_URL}/recce-documents/${doc.id}`, { withCredentials: true })
+                            const savedDoc = response.data
+                            setEditingRecceDocument(savedDoc)
+                            setRecceDocumentName(savedDoc.nombre)
+                            setRecceConfig({
+                              documentTitle: savedDoc.documentTitle || 'LOCATION RECCE',
+                              recceSchedule: savedDoc.recceSchedule || '',
+                              meetingPoint: savedDoc.meetingPoint || '',
+                              meetingPointLink: savedDoc.meetingPointLink || '',
+                              locationManagerName: savedDoc.locationManagerName || '',
+                              locationManagerPhone: savedDoc.locationManagerPhone || '',
+                              locationManagerEmail: savedDoc.locationManagerEmail || '',
+                              sunriseTime: savedDoc.sunriseTime || '',
+                              sunsetTime: savedDoc.sunsetTime || '',
+                              weatherForecast: savedDoc.weatherForecast || '',
+                              attendants: savedDoc.attendants || [],
+                              legs: savedDoc.legs || [],
+                              freeEntries: savedDoc.freeEntries || []
+                            })
+                            setShowRecceModal(true)
+                          } catch (error) {
+                            console.error('Error cargando documento:', error)
+                            alert('Error al cargar el documento')
+                          }
+                        }}
+                        className="p-1.5 text-gray-600 hover:text-dark-blue hover:bg-gray-100 rounded transition-colors"
+                        title="Editar"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!window.confirm(`¿Eliminar "${doc.nombre}"?`)) return
+                          try {
+                            await axios.delete(`${API_URL}/recce-documents/${doc.id}`, { withCredentials: true })
+                            await loadSavedRecceDocuments()
+                          } catch (error) {
+                            console.error('Error eliminando documento:', error)
+                            alert('Error al eliminar el documento')
+                          }
+                        }}
+                        className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Eliminar"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await axios.get(`${API_URL}/recce-documents/${doc.id}`, { withCredentials: true })
+                            const savedDoc = response.data
+                            setRecceConfig({
+                              documentTitle: savedDoc.documentTitle || 'LOCATION RECCE',
+                              recceSchedule: savedDoc.recceSchedule || '',
+                              meetingPoint: savedDoc.meetingPoint || '',
+                              meetingPointLink: savedDoc.meetingPointLink || '',
+                              locationManagerName: savedDoc.locationManagerName || '',
+                              locationManagerPhone: savedDoc.locationManagerPhone || '',
+                              locationManagerEmail: savedDoc.locationManagerEmail || '',
+                              sunriseTime: savedDoc.sunriseTime || '',
+                              sunsetTime: savedDoc.sunsetTime || '',
+                              weatherForecast: savedDoc.weatherForecast || '',
+                              attendants: savedDoc.attendants || [],
+                              legs: savedDoc.legs || [],
+                              freeEntries: savedDoc.freeEntries || []
+                            })
+                            await generateLocationReccePDF()
+                          } catch (error) {
+                            console.error('Error cargando documento:', error)
+                            alert('Error al cargar el documento')
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-dark-blue text-white text-xs rounded-lg hover:bg-dark-blue-light transition-colors"
+                      >
+                        Generar PDF
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -1576,6 +1682,23 @@ export default function Documents() {
             </div>
 
             <div className="space-y-6">
+              {/* Nombre del documento (solo si está guardando) */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre del documento <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={recceDocumentName}
+                  onChange={(e) => setRecceDocumentName(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  placeholder="Ej: Recce Día 1 - Mañana"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Este nombre te ayudará a identificar el documento guardado
+                </p>
+              </div>
+
               {/* Datos generales */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-gray-200 rounded-lg p-4">
                 <div>
@@ -1996,7 +2119,11 @@ export default function Documents() {
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowRecceModal(false)}
+                  onClick={() => {
+                    setShowRecceModal(false)
+                    setEditingRecceDocument(null)
+                    setRecceDocumentName('')
+                  }}
                   className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-50"
                   disabled={generating}
                 >
@@ -2004,11 +2131,71 @@ export default function Documents() {
                 </button>
                 <button
                   type="button"
-                  onClick={generateLocationReccePDF}
+                  onClick={async () => {
+                    if (!recceDocumentName.trim()) {
+                      alert('Por favor, introduce un nombre para el documento')
+                      return
+                    }
+                    try {
+                      if (editingRecceDocument) {
+                        await axios.put(`${API_URL}/recce-documents/${editingRecceDocument.id}`, {
+                          nombre: recceDocumentName.trim(),
+                          ...recceConfig
+                        }, { withCredentials: true })
+                        alert('Documento actualizado correctamente')
+                      } else {
+                        await axios.post(`${API_URL}/recce-documents`, {
+                          proyectoId: id,
+                          nombre: recceDocumentName.trim(),
+                          ...recceConfig
+                        }, { withCredentials: true })
+                        alert('Documento guardado correctamente')
+                      }
+                      await loadSavedRecceDocuments()
+                      setShowRecceModal(false)
+                      setEditingRecceDocument(null)
+                      setRecceDocumentName('')
+                    } catch (error) {
+                      console.error('Error guardando documento:', error)
+                      alert('Error al guardar el documento')
+                    }
+                  }}
+                  disabled={generating}
+                  className="px-5 py-2 rounded-lg bg-accent-green text-white text-sm hover:bg-accent-green/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {editingRecceDocument ? 'Actualizar' : 'Guardar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!recceDocumentName.trim()) {
+                      alert('Por favor, introduce un nombre para el documento')
+                      return
+                    }
+                    try {
+                      if (editingRecceDocument) {
+                        await axios.put(`${API_URL}/recce-documents/${editingRecceDocument.id}`, {
+                          nombre: recceDocumentName.trim(),
+                          ...recceConfig
+                        }, { withCredentials: true })
+                      } else {
+                        await axios.post(`${API_URL}/recce-documents`, {
+                          proyectoId: id,
+                          nombre: recceDocumentName.trim(),
+                          ...recceConfig
+                        }, { withCredentials: true })
+                      }
+                      await loadSavedRecceDocuments()
+                      await generateLocationReccePDF()
+                    } catch (error) {
+                      console.error('Error guardando documento:', error)
+                      alert('Error al guardar el documento')
+                    }
+                  }}
                   disabled={generating}
                   className="px-5 py-2 rounded-lg bg-dark-blue text-white text-sm hover:bg-dark-blue-light disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {generating ? 'Generando...' : 'Generar PDF'}
+                  {generating ? 'Generando...' : editingRecceDocument ? 'Actualizar y generar PDF' : 'Guardar y generar PDF'}
                 </button>
               </div>
             </div>

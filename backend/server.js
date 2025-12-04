@@ -11,6 +11,7 @@ import locationRoutes from './routes/locations.js'
 import crewRoutes from './routes/crew.js'
 import vendorRoutes from './routes/vendors.js'
 import permitRoutes from './routes/permits.js'
+import recceDocumentRoutes from './routes/recceDocuments.js'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/users.js'
 import { authMiddleware } from './middleware/auth.js'
@@ -45,6 +46,7 @@ app.use('/api/locations', authMiddleware, locationRoutes)
 app.use('/api/crew', authMiddleware, crewRoutes)
 app.use('/api/vendors', authMiddleware, vendorRoutes)
 app.use('/api/permits', authMiddleware, permitRoutes)
+app.use('/api/recce-documents', authMiddleware, recceDocumentRoutes)
 app.use('/api/users', userRoutes)
 
 // Health check
@@ -301,6 +303,110 @@ const migratePermitsTable = async () => {
   }
 }
 
+// Migración: Crear tabla recce_documents si no existe
+const migrateRecceDocumentsTable = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface()
+    const tableExists = await queryInterface.tableExists('recce_documents')
+
+    if (!tableExists) {
+      console.log('ℹ️  Tabla recce_documents no existe, creando...')
+      await queryInterface.createTable('recce_documents', {
+        id: {
+          type: sequelize.Sequelize.INTEGER,
+          primaryKey: true,
+          autoIncrement: true
+        },
+        proyectoId: {
+          type: sequelize.Sequelize.INTEGER,
+          allowNull: false
+        },
+        nombre: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: false
+        },
+        documentTitle: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: 'LOCATION RECCE'
+        },
+        recceSchedule: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        meetingPoint: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        meetingPointLink: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        locationManagerName: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        locationManagerPhone: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        locationManagerEmail: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        sunriseTime: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        sunsetTime: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        weatherForecast: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        attendants: {
+          type: sequelize.Sequelize.JSON,
+          allowNull: true
+        },
+        legs: {
+          type: sequelize.Sequelize.JSON,
+          allowNull: true
+        },
+        freeEntries: {
+          type: sequelize.Sequelize.JSON,
+          allowNull: true
+        },
+        createdAt: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        },
+        updatedAt: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        }
+      })
+      console.log('✅ Tabla recce_documents creada')
+    } else {
+      console.log('ℹ️  Tabla recce_documents ya existe')
+    }
+  } catch (error) {
+    console.error('⚠️  Error en migración de recce_documents:', error.message)
+  }
+}
+
 // Migración: Añadir columnas nuevas a la tabla crew
 const migrateCrewTable = async () => {
   try {
@@ -439,6 +545,7 @@ const connectDB = async () => {
     await migrateProyectoCrewTable()
     await migrateVendorTable()
     await migratePermitsTable()
+    await migrateRecceDocumentsTable()
     
     await seedAdminUser()
     console.log('✅ Database models synchronized')
