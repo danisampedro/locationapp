@@ -1450,7 +1450,7 @@ export default function Documents() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="space-y-6">
           {/* Plantilla Location List */}
           <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3 mb-4">
@@ -1543,7 +1543,7 @@ export default function Documents() {
           </div>
 
           {/* Plantilla Location Recce */}
-          <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow md:col-span-2 lg:col-span-3">
+          <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1555,6 +1555,11 @@ export default function Documents() {
                 <h3 className="font-semibold text-gray-800">Location Recce</h3>
                 <p className="text-xs text-gray-500">Plan de recce con tiempos y asistentes</p>
               </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Genera un documento de recce con planning, asistentes, tabla de tiempos y bloques de localización del proyecto. Puedes guardar múltiples versiones de este documento.
+            </p>
+            <div className="flex items-center justify-between mb-4">
               <button
                 type="button"
                 onClick={() => {
