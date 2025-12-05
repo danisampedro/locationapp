@@ -7,6 +7,7 @@ import Location from '../models/Location.js'
 import Crew from '../models/Crew.js'
 import Vendor from '../models/Vendor.js'
 import ProyectoLocation from '../models/ProyectoLocation.js'
+import ProyectoCrew from '../models/ProyectoCrew.js'
 import sequelize from '../config/database.js'
 
 const router = express.Router()
