@@ -41,18 +41,31 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
   }
 
   // Convertir dimensiones reales a píxeles
-  const widthPx = (shapeProps.width || 0) / scale
-  const heightPx = (shapeProps.height || 0) / scale
+  // scale es metros por píxel, así que dividimos metros entre scale para obtener píxeles
+  const widthPx = scale > 0 ? (shapeProps.width || 0) / scale : 0
+  const heightPx = scale > 0 ? (shapeProps.height || 0) / scale : 0
 
   const renderShape = () => {
+    // No renderizar si scale no está calibrado (scale === 0 significa sin calibrar)
+    // o si las dimensiones son inválidas
+    if (scale <= 0 || widthPx <= 0 || heightPx <= 0) {
+      return null
+    }
+
     switch (shapeProps.type) {
       case 'rectangle':
         return (
           <Rect
             ref={shapeRef}
-            {...shapeProps}
+            x={shapeProps.x}
+            y={shapeProps.y}
             width={widthPx}
             height={heightPx}
+            fill={shapeProps.fill}
+            stroke={shapeProps.stroke}
+            strokeWidth={shapeProps.strokeWidth}
+            opacity={shapeProps.opacity}
+            rotation={shapeProps.rotation || 0}
             draggable
             onClick={onSelect}
             onTap={onSelect}
@@ -64,8 +77,14 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
         return (
           <Circle
             ref={shapeRef}
-            {...shapeProps}
+            x={shapeProps.x}
+            y={shapeProps.y}
             radius={widthPx / 2}
+            fill={shapeProps.fill}
+            stroke={shapeProps.stroke}
+            strokeWidth={shapeProps.strokeWidth}
+            opacity={shapeProps.opacity}
+            rotation={shapeProps.rotation || 0}
             draggable
             onClick={onSelect}
             onTap={onSelect}
@@ -113,7 +132,7 @@ export default function Mapas() {
   const [backgroundImage, setBackgroundImage] = useState(null)
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 }) // Tamaño original de la imagen
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 }) // Tamaño del contenedor
-  const [scale, setScale] = useState(1) // metros por píxel
+  const [scale, setScale] = useState(0) // metros por píxel (0 = sin calibrar)
   const [calibrationMode, setCalibrationMode] = useState(false)
   const [calibrationPoints, setCalibrationPoints] = useState([])
   const [calibrationDistance, setCalibrationDistance] = useState('')
@@ -159,9 +178,12 @@ export default function Mapas() {
         img.onload = () => {
           setBackgroundImage(img)
           setImageSize({ width: img.width, height: img.height })
-          // Resetear zoom y posición cuando se carga una nueva imagen
+          // Resetear zoom, posición y escala cuando se carga una nueva imagen
           setStageScale(1)
           setStagePosition({ x: 0, y: 0 })
+          setScale(0) // Resetear escala a sin calibrar
+          setObjects([]) // Limpiar objetos al cargar nueva imagen
+          setSelectedId(null)
         }
       }
       reader.readAsDataURL(file)
@@ -343,7 +365,7 @@ export default function Mapas() {
               </button>
             </div>
           )}
-          {backgroundImage && !calibrationMode && scale === 1 && (
+          {backgroundImage && !calibrationMode && scale === 0 && (
             <button
               onClick={() => {
                 setCalibrationMode(true)
@@ -362,10 +384,10 @@ export default function Mapas() {
               Cancelar Calibración
             </button>
           )}
-          {backgroundImage && !calibrationMode && scale !== 1 && (
+          {backgroundImage && !calibrationMode && scale > 0 && (
             <button
               onClick={() => {
-                setScale(1)
+                setScale(0)
                 setCalibrationPoints([])
               }}
               className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
@@ -546,8 +568,8 @@ export default function Mapas() {
                       />
                     )}
 
-                    {/* Objetos */}
-                    {objects.map((obj) => (
+                    {/* Objetos - Solo mostrar si la escala está calibrada */}
+                    {scale > 0 && objects.length > 0 && objects.map((obj) => (
                       <MapObject
                         key={obj.id}
                         shapeProps={obj}
@@ -624,7 +646,7 @@ export default function Mapas() {
           </div>
 
           <div className="p-4 space-y-4">
-            {scale === 1 ? (
+            {scale === 0 ? (
               <div className="text-sm text-gray-500 text-center py-4">
                 Calibra la escala para ver las métricas
               </div>
