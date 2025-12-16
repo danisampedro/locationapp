@@ -179,10 +179,9 @@ export default function Mapas() {
   })
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 })
   const [stageScale, setStageScale] = useState(1)
-  const [workArea, setWorkArea] = useState(null) // {x, y, width, height} en píxeles
+  const [workArea, setWorkArea] = useState(null) // Array de puntos [{x, y}, ...] que forman un polígono
   const [workAreaMode, setWorkAreaMode] = useState(false)
-  const [workAreaStart, setWorkAreaStart] = useState(null)
-  const [workAreaCurrent, setWorkAreaCurrent] = useState(null)
+  const [workAreaPoints, setWorkAreaPoints] = useState([]) // Puntos mientras se está dibujando
   const [savedMaps, setSavedMaps] = useState([])
   const [currentMapId, setCurrentMapId] = useState(null)
   const [showSaveModal, setShowSaveModal] = useState(false)
@@ -225,6 +224,8 @@ export default function Mapas() {
           setStagePosition({ x: 0, y: 0 })
           setScale(0) // Resetear escala a sin calibrar
           setObjects([]) // Limpiar objetos al cargar nueva imagen
+          setWorkArea(null) // Limpiar área de trabajo
+          setWorkAreaPoints([]) // Limpiar puntos
           setSelectedId(null)
         }
         img.onerror = (error) => {
@@ -253,20 +254,23 @@ export default function Mapas() {
         y: (pointerPos.y - stagePosition.y) / stageScale,
       }
       
-      if (!workAreaStart) {
-        setWorkAreaStart(point)
-        setWorkAreaCurrent(point)
-      } else {
-        // Finalizar área de trabajo
-        const x = Math.min(workAreaStart.x, point.x)
-        const y = Math.min(workAreaStart.y, point.y)
-        const width = Math.abs(point.x - workAreaStart.x)
-        const height = Math.abs(point.y - workAreaStart.y)
-        setWorkArea({ x, y, width, height })
-        setWorkAreaMode(false)
-        setWorkAreaStart(null)
-        setWorkAreaCurrent(null)
+      // Si se hace doble clic o se cierra el polígono (click cerca del primer punto), finalizar
+      if (workAreaPoints.length > 0) {
+        const firstPoint = workAreaPoints[0]
+        const distanceToFirst = Math.sqrt(
+          Math.pow(point.x - firstPoint.x, 2) + Math.pow(point.y - firstPoint.y, 2)
+        )
+        // Si está cerca del primer punto (menos de 20 píxeles), cerrar el polígono
+        if (distanceToFirst < 20 && workAreaPoints.length >= 3) {
+          setWorkArea([...workAreaPoints])
+          setWorkAreaMode(false)
+          setWorkAreaPoints([])
+          return
+        }
       }
+      
+      // Agregar nuevo punto
+      setWorkAreaPoints([...workAreaPoints, point])
       return
     }
     
@@ -290,16 +294,35 @@ export default function Mapas() {
     }
   }
   
-  const handleStageMouseMove = (e) => {
-    if (workAreaMode && workAreaStart) {
-      const stage = e.target.getStage()
-      const pointerPos = stage.getPointerPosition()
-      const point = {
-        x: (pointerPos.x - stagePosition.x) / stageScale,
-        y: (pointerPos.y - stagePosition.y) / stageScale,
-      }
-      setWorkAreaCurrent(point)
+  // Función para calcular el área de un polígono usando la fórmula del shoelace
+  const calculatePolygonArea = (points) => {
+    if (points.length < 3) return 0
+    
+    let area = 0
+    for (let i = 0; i < points.length; i++) {
+      const j = (i + 1) % points.length
+      area += points[i].x * points[j].y
+      area -= points[j].x * points[i].y
     }
+    return Math.abs(area / 2)
+  }
+  
+  // Función para verificar si un punto está dentro de un polígono (ray casting algorithm)
+  const isPointInPolygon = (point, polygon) => {
+    if (polygon.length < 3) return false
+    
+    let inside = false
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x
+      const yi = polygon[i].y
+      const xj = polygon[j].x
+      const yj = polygon[j].y
+      
+      const intersect = ((yi > point.y) !== (yj > point.y)) &&
+        (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi)
+      if (intersect) inside = !inside
+    }
+    return inside
   }
 
   const handleCalibrate = () => {
@@ -402,8 +425,14 @@ export default function Mapas() {
   // Cálculos de superficie
   const calculateMetrics = () => {
     // Usar área de trabajo si está definida, sino usar toda la imagen
-    const areaToUse = workArea || { x: 0, y: 0, width: imageSize.width, height: imageSize.height }
-    const totalAreaPx = areaToUse.width * areaToUse.height
+    let totalAreaPx
+    if (workArea && workArea.length >= 3) {
+      // Calcular área del polígono
+      totalAreaPx = calculatePolygonArea(workArea)
+    } else {
+      // Usar toda la imagen
+      totalAreaPx = imageSize.width * imageSize.height
+    }
     const totalAreaM2 = totalAreaPx * scale * scale
 
     let occupiedAreaM2 = 0
@@ -418,12 +447,15 @@ export default function Mapas() {
       const objHeightPx = obj.height / scale
       
       // Verificar si el objeto está dentro del área de trabajo
-      const isInside = objX >= areaToUse.x && 
-                       objY >= areaToUse.y && 
-                       objX + objWidthPx <= areaToUse.x + areaToUse.width &&
-                       objY + objHeightPx <= areaToUse.y + areaToUse.height
+      let isInside = true
+      if (workArea && workArea.length >= 3) {
+        // Verificar si el centro del objeto está dentro del polígono
+        const centerX = objX + objWidthPx / 2
+        const centerY = objY + objHeightPx / 2
+        isInside = isPointInPolygon({ x: centerX, y: centerY }, workArea)
+      }
       
-      if (isInside || !workArea) {
+      if (isInside) {
         const areaM2 = obj.width * obj.height
         occupiedAreaM2 += areaM2
 
@@ -534,6 +566,7 @@ export default function Mapas() {
         setImageSize({ width: map.imageWidth, height: map.imageHeight })
         setScale(parseFloat(map.scale) || 0)
         setWorkArea(map.workArea || null)
+        setWorkAreaPoints([])
         setObjects(map.objects || [])
         setObjectLibrary(map.objectLibrary || [])
         setCurrentMapId(map.id)
@@ -602,10 +635,14 @@ export default function Mapas() {
               </button>
               <button
                 onClick={() => {
-                  setWorkAreaMode(!workAreaMode)
-                  setWorkAreaStart(null)
-                  setWorkAreaCurrent(null)
                   if (workAreaMode) {
+                    // Cancelar modo
+                    setWorkAreaMode(false)
+                    setWorkAreaPoints([])
+                  } else {
+                    // Iniciar modo
+                    setWorkAreaMode(true)
+                    setWorkAreaPoints([])
                     setWorkArea(null)
                   }
                 }}
@@ -615,8 +652,24 @@ export default function Mapas() {
                     : 'bg-blue-500 text-white hover:bg-blue-600'
                 }`}
               >
-                {workAreaMode ? 'Cancelar Área' : workArea ? 'Cambiar Área' : 'Marcar Área'}
+                {workAreaMode ? 'Finalizar Área' : workArea ? 'Cambiar Área' : 'Marcar Área'}
               </button>
+              {workAreaMode && (
+                <button
+                  onClick={() => {
+                    if (workAreaPoints.length >= 3) {
+                      setWorkArea([...workAreaPoints])
+                      setWorkAreaMode(false)
+                      setWorkAreaPoints([])
+                    } else {
+                      alert('Necesitas al menos 3 puntos para crear un área')
+                    }
+                  }}
+                  className="bg-accent-green text-white px-4 py-2 rounded-lg hover:bg-accent-green-dark transition-colors"
+                >
+                  Cerrar Polígono
+                </button>
+              )}
               <button
                 onClick={() => setShowSaveModal(true)}
                 className="bg-accent-green text-white px-4 py-2 rounded-lg hover:bg-accent-green-dark transition-colors"
@@ -767,7 +820,6 @@ export default function Mapas() {
                   }}
                   onClick={handleStageClick}
                   onTap={handleStageClick}
-                  onMouseMove={handleStageMouseMove}
                 >
                   <Layer
                     scaleX={stageScale}
@@ -848,32 +900,72 @@ export default function Mapas() {
                       />
                     )}
 
-                    {/* Área de trabajo */}
-                    {workArea && (
-                      <Rect
-                        x={workArea.x}
-                        y={workArea.y}
-                        width={workArea.width}
-                        height={workArea.height}
-                        stroke="#10b981"
-                        strokeWidth={3 / stageScale}
-                        fill="rgba(16, 185, 129, 0.1)"
-                        dash={[10 / stageScale, 5 / stageScale]}
-                      />
+                    {/* Área de trabajo - Polígono */}
+                    {workArea && workArea.length >= 3 && (
+                      <>
+                        <Line
+                          points={workArea.flatMap(p => [p.x, p.y]).concat([workArea[0].x, workArea[0].y])}
+                          stroke="#10b981"
+                          strokeWidth={3 / stageScale}
+                          fill="rgba(16, 185, 129, 0.1)"
+                          closed={true}
+                          dash={[10 / stageScale, 5 / stageScale]}
+                        />
+                        {/* Mostrar puntos del polígono */}
+                        {workArea.map((point, index) => (
+                          <Circle
+                            key={index}
+                            x={point.x}
+                            y={point.y}
+                            radius={5 / stageScale}
+                            fill="#10b981"
+                            stroke="#fff"
+                            strokeWidth={2 / stageScale}
+                          />
+                        ))}
+                      </>
                     )}
 
                     {/* Área de trabajo en proceso de dibujo */}
-                    {workAreaMode && workAreaStart && workAreaCurrent && (
-                      <Rect
-                        x={Math.min(workAreaStart.x, workAreaCurrent.x)}
-                        y={Math.min(workAreaStart.y, workAreaCurrent.y)}
-                        width={Math.abs(workAreaCurrent.x - workAreaStart.x)}
-                        height={Math.abs(workAreaCurrent.y - workAreaStart.y)}
-                        stroke="#10b981"
-                        strokeWidth={3 / stageScale}
-                        fill="rgba(16, 185, 129, 0.1)"
-                        dash={[10 / stageScale, 5 / stageScale]}
-                      />
+                    {workAreaMode && workAreaPoints.length > 0 && (
+                      <>
+                        {/* Líneas entre puntos */}
+                        {workAreaPoints.length > 1 && (
+                          <Line
+                            points={workAreaPoints.flatMap(p => [p.x, p.y])}
+                            stroke="#10b981"
+                            strokeWidth={2 / stageScale}
+                            dash={[5 / stageScale, 5 / stageScale]}
+                          />
+                        )}
+                        {/* Línea temporal al cursor si hay puntos */}
+                        {workAreaPoints.length > 0 && (
+                          <Line
+                            points={[
+                              workAreaPoints[workAreaPoints.length - 1].x,
+                              workAreaPoints[workAreaPoints.length - 1].y,
+                              workAreaPoints[0].x,
+                              workAreaPoints[0].y
+                            ]}
+                            stroke="#10b981"
+                            strokeWidth={2 / stageScale}
+                            dash={[5 / stageScale, 5 / stageScale]}
+                            opacity={0.5}
+                          />
+                        )}
+                        {/* Puntos dibujados */}
+                        {workAreaPoints.map((point, index) => (
+                          <Circle
+                            key={index}
+                            x={point.x}
+                            y={point.y}
+                            radius={5 / stageScale}
+                            fill="#10b981"
+                            stroke="#fff"
+                            strokeWidth={2 / stageScale}
+                          />
+                        ))}
+                      </>
                     )}
 
                     {/* Objetos - Solo mostrar si la escala está calibrada */}
