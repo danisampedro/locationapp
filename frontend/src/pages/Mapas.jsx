@@ -111,7 +111,8 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
 
 export default function Mapas() {
   const [backgroundImage, setBackgroundImage] = useState(null)
-  const [stageSize, setStageSize] = useState({ width: 800, height: 600 })
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 }) // Tamaño original de la imagen
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 }) // Tamaño del contenedor
   const [scale, setScale] = useState(1) // metros por píxel
   const [calibrationMode, setCalibrationMode] = useState(false)
   const [calibrationPoints, setCalibrationPoints] = useState([])
@@ -131,6 +132,21 @@ export default function Mapas() {
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 })
   const [stageScale, setStageScale] = useState(1)
   const stageRef = useRef()
+  const containerRef = useRef()
+
+  // Actualizar tamaño del contenedor cuando cambia el tamaño de la ventana
+  useEffect(() => {
+    const updateContainerSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect()
+        setContainerSize({ width: rect.width, height: rect.height })
+      }
+    }
+    
+    updateContainerSize()
+    window.addEventListener('resize', updateContainerSize)
+    return () => window.removeEventListener('resize', updateContainerSize)
+  }, [])
 
   // Cargar imagen de fondo
   const onDrop = (acceptedFiles) => {
@@ -142,7 +158,10 @@ export default function Mapas() {
         img.src = e.target.result
         img.onload = () => {
           setBackgroundImage(img)
-          setStageSize({ width: img.width, height: img.height })
+          setImageSize({ width: img.width, height: img.height })
+          // Resetear zoom y posición cuando se carga una nueva imagen
+          setStageScale(1)
+          setStagePosition({ x: 0, y: 0 })
         }
       }
       reader.readAsDataURL(file)
@@ -161,8 +180,21 @@ export default function Mapas() {
   const handleStageClick = (e) => {
     if (calibrationMode && calibrationPoints.length < 2) {
       const stage = e.target.getStage()
-      const point = stage.getPointerPosition()
+      const pointerPos = stage.getPointerPosition()
+      
+      // Convertir coordenadas del pointer (que incluyen zoom y pan) a coordenadas de la imagen original
+      const point = {
+        x: (pointerPos.x - stagePosition.x) / stageScale,
+        y: (pointerPos.y - stagePosition.y) / stageScale,
+      }
+      
       setCalibrationPoints([...calibrationPoints, point])
+    } else if (!calibrationMode) {
+      // Si no estamos en modo calibración, permitir seleccionar objetos
+      const clickedOnEmpty = e.target === e.target.getStage()
+      if (clickedOnEmpty) {
+        setSelectedId(null)
+      }
     }
   }
 
@@ -181,6 +213,12 @@ export default function Mapas() {
         alert(`Escala calibrada: ${newScale.toFixed(4)} metros por píxel`)
       }
     }
+  }
+
+  const handleCancelCalibration = () => {
+    setCalibrationMode(false)
+    setCalibrationPoints([])
+    setCalibrationDistance('')
   }
 
   // Crear objeto personalizado
@@ -218,8 +256,8 @@ export default function Mapas() {
     const newObject = {
       ...libraryObject,
       id: Date.now().toString(),
-      x: stageSize.width / 2,
-      y: stageSize.height / 2,
+      x: imageSize.width / 2,
+      y: imageSize.height / 2,
     }
     setObjects([...objects, newObject])
   }
@@ -259,7 +297,7 @@ export default function Mapas() {
 
   // Cálculos de superficie
   const calculateMetrics = () => {
-    const totalAreaPx = stageSize.width * stageSize.height
+    const totalAreaPx = imageSize.width * imageSize.height
     const totalAreaM2 = totalAreaPx * scale * scale
 
     let occupiedAreaM2 = 0
@@ -307,13 +345,24 @@ export default function Mapas() {
           )}
           {backgroundImage && !calibrationMode && scale === 1 && (
             <button
-              onClick={() => setCalibrationMode(true)}
+              onClick={() => {
+                setCalibrationMode(true)
+                setCalibrationPoints([])
+              }}
               className="bg-accent-green text-white px-4 py-2 rounded-lg hover:bg-accent-green-dark transition-colors"
             >
               Calibrar Escala
             </button>
           )}
-          {backgroundImage && scale !== 1 && (
+          {backgroundImage && calibrationMode && (
+            <button
+              onClick={handleCancelCalibration}
+              className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              Cancelar Calibración
+            </button>
+          )}
+          {backgroundImage && !calibrationMode && scale !== 1 && (
             <button
               onClick={() => {
                 setScale(1)
@@ -403,29 +452,70 @@ export default function Mapas() {
             )}
 
             {backgroundImage && (
-              <div className="w-full h-full overflow-auto">
+              <div ref={containerRef} className="w-full h-full overflow-hidden bg-gray-200 relative">
                 <Stage
                   ref={stageRef}
-                  width={stageSize.width}
-                  height={stageSize.height}
+                  width={containerSize.width}
+                  height={containerSize.height}
                   onWheel={(e) => {
                     e.evt.preventDefault()
-                    handleZoom(e.evt.deltaY)
+                    const stage = e.target.getStage()
+                    const oldScale = stageScale
+                    const pointer = stage.getPointerPosition()
+                    const mousePointTo = {
+                      x: (pointer.x - stagePosition.x) / oldScale,
+                      y: (pointer.y - stagePosition.y) / oldScale,
+                    }
+                    const scaleBy = 1.1
+                    const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy
+                    const clampedScale = Math.max(0.1, Math.min(5, newScale))
+                    setStageScale(clampedScale)
+                    setStagePosition({
+                      x: pointer.x - mousePointTo.x * clampedScale,
+                      y: pointer.y - mousePointTo.y * clampedScale,
+                    })
+                  }}
+                  onMouseDown={(e) => {
+                    const stage = e.target.getStage()
+                    if (e.evt.button === 0 && !calibrationMode) {
+                      stage.container().style.cursor = 'grabbing'
+                    }
+                  }}
+                  onMouseUp={(e) => {
+                    const stage = e.target.getStage()
+                    stage.container().style.cursor = 'default'
+                  }}
+                  onMouseLeave={(e) => {
+                    const stage = e.target.getStage()
+                    stage.container().style.cursor = 'default'
                   }}
                   onClick={handleStageClick}
                   onTap={handleStageClick}
-                  scaleX={stageScale}
-                  scaleY={stageScale}
-                  x={stagePosition.x}
-                  y={stagePosition.y}
-                  draggable
-                  onDragEnd={(e) => {
-                    setStagePosition({ x: e.target.x(), y: e.target.y() })
-                  }}
                 >
-                  <Layer>
+                  <Layer
+                    scaleX={stageScale}
+                    scaleY={stageScale}
+                    x={stagePosition.x}
+                    y={stagePosition.y}
+                    draggable={!calibrationMode}
+                    onDragStart={(e) => {
+                      if (calibrationMode) {
+                        e.cancelBubble = true
+                        return false
+                      }
+                    }}
+                    onDragMove={(e) => {
+                      if (!calibrationMode) {
+                        setStagePosition({ x: e.target.x(), y: e.target.y() })
+                      }
+                    }}
+                  >
                     {/* Imagen de fondo */}
-                    <Image image={backgroundImage} />
+                    <Image 
+                      image={backgroundImage} 
+                      width={imageSize.width}
+                      height={imageSize.height}
+                    />
 
                     {/* Puntos de calibración */}
                     {calibrationMode &&
@@ -434,10 +524,10 @@ export default function Mapas() {
                           key={index}
                           x={point.x}
                           y={point.y}
-                          radius={5}
+                          radius={5 / stageScale}
                           fill="red"
                           stroke="white"
-                          strokeWidth={2}
+                          strokeWidth={2 / stageScale}
                         />
                       ))}
 
@@ -451,8 +541,8 @@ export default function Mapas() {
                           calibrationPoints[1].y,
                         ]}
                         stroke="red"
-                        strokeWidth={2}
-                        dash={[5, 5]}
+                        strokeWidth={2 / stageScale}
+                        dash={[5 / stageScale, 5 / stageScale]}
                       />
                     )}
 
@@ -619,11 +709,7 @@ export default function Mapas() {
                 Calibrar
               </button>
               <button
-                onClick={() => {
-                  setCalibrationMode(false)
-                  setCalibrationPoints([])
-                  setCalibrationDistance('')
-                }}
+                onClick={handleCancelCalibration}
                 className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
               >
                 Cancelar
