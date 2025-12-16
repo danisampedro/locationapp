@@ -20,6 +20,7 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
 
   const handleDragStart = (e) => {
     // Prevenir que el Layer se mueva cuando arrastramos un objeto
+    e.cancelBubble = true
     const stage = e.target.getStage()
     if (stage) {
       stage.container().style.cursor = 'grabbing'
@@ -27,10 +28,13 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
   }
 
   const handleDragMove = (e) => {
-    // No hacer nada durante el drag, solo actualizar en el end
+    // Prevenir que el Layer se mueva cuando arrastramos un objeto
+    e.cancelBubble = true
   }
 
   const handleDragEnd = (e) => {
+    // Prevenir que el Layer se mueva cuando arrastramos un objeto
+    e.cancelBubble = true
     const stage = e.target.getStage()
     if (stage) {
       stage.container().style.cursor = 'default'
@@ -44,19 +48,35 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
 
   const handleTransformEnd = () => {
     const node = shapeRef.current
+    if (!node) return
+
     const scaleX = node.scaleX()
     const scaleY = node.scaleY()
+    const rotation = node.rotation()
 
+    // Resetear la escala del nodo a 1
     node.scaleX(1)
     node.scaleY(1)
 
-    onChange({
-      ...shapeProps,
+    // Solo actualizar dimensiones si realmente cambió la escala (no solo la rotación)
+    const widthChanged = Math.abs(scaleX - 1) > 0.01
+    const heightChanged = Math.abs(scaleY - 1) > 0.01
+
+    const updates = {
       x: node.x(),
       y: node.y(),
-      width: Math.max(5, node.width() * scaleX),
-      height: Math.max(5, node.height() * scaleY),
-      rotation: node.rotation(),
+      rotation: rotation,
+    }
+
+    // Solo actualizar width/height si realmente se escaló (no solo rotó)
+    if (widthChanged || heightChanged) {
+      updates.width = Math.max(5, (shapeProps.width || 0) * scaleX)
+      updates.height = Math.max(5, (shapeProps.height || 0) * scaleY)
+    }
+
+    onChange({
+      ...shapeProps,
+      ...updates,
     })
   }
 
@@ -128,13 +148,23 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
         <Transformer
           ref={trRef}
           boundBoxFunc={(oldBox, newBox) => {
-            if (Math.abs(newBox.width) < 5 || Math.abs(newBox.height) < 5) {
+            // Convertir a píxeles para validar
+            const minWidthPx = 5
+            const minHeightPx = 5
+            if (Math.abs(newBox.width) < minWidthPx || Math.abs(newBox.height) < minHeightPx) {
               return oldBox
             }
             return newBox
           }}
           ignoreStroke={true}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']}
+          rotateEnabled={true}
+          borderEnabled={true}
+          borderStroke="#4A90E2"
+          borderStrokeWidth={2}
+          anchorFill="#4A90E2"
+          anchorStroke="#fff"
+          anchorSize={8}
         />
       )}
       {/* Mostrar medidas reales */}
@@ -554,23 +584,23 @@ export default function Mapas() {
                     y={stagePosition.y}
                     draggable={!calibrationMode}
                     onDragStart={(e) => {
-                      // Solo permitir drag del Layer si estamos en el Layer mismo (no en un objeto)
                       if (calibrationMode) {
                         return false
                       }
-                      // Verificar si el target es el Layer o la Image
+                      // Permitir drag solo si el target es el Layer o la Image (no un objeto)
                       const target = e.target
-                      const isLayerOrImage = target === e.target.getLayer() || target.getClassName() === 'Image'
-                      if (!isLayerOrImage) {
+                      const targetName = target.getClassName()
+                      // Si es un objeto (Rect, Circle), cancelar el drag del Layer
+                      if (targetName === 'Rect' || targetName === 'Circle' || targetName === 'Transformer') {
                         return false
                       }
                     }}
                     onDragMove={(e) => {
-                      // Solo actualizar posición si estamos arrastrando el Layer (no un objeto)
                       if (!calibrationMode) {
                         const target = e.target
-                        const isLayerOrImage = target === e.target.getLayer() || target.getClassName() === 'Image'
-                        if (isLayerOrImage) {
+                        const targetName = target.getClassName()
+                        // Solo actualizar si estamos arrastrando el Layer o la Image
+                        if (targetName === 'Layer' || targetName === 'Image') {
                           setStagePosition({ x: e.target.x(), y: e.target.y() })
                         }
                       }
@@ -578,8 +608,9 @@ export default function Mapas() {
                     onDragEnd={(e) => {
                       if (!calibrationMode) {
                         const target = e.target
-                        const isLayerOrImage = target === e.target.getLayer() || target.getClassName() === 'Image'
-                        if (isLayerOrImage) {
+                        const targetName = target.getClassName()
+                        // Solo actualizar si estamos arrastrando el Layer o la Image
+                        if (targetName === 'Layer' || targetName === 'Image') {
                           setStagePosition({ x: e.target.x(), y: e.target.y() })
                         }
                       }
@@ -591,8 +622,8 @@ export default function Mapas() {
                         image={memoizedImage} 
                         width={imageSize.width}
                         height={imageSize.height}
-                        listening={false}
-                        preventDefault={false}
+                        listening={true}
+                        draggable={false}
                       />
                     )}
 
