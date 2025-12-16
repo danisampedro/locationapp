@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Stage, Layer, Image, Rect, Circle, Line, Text, Transformer } from 'react-konva'
 import { useDropzone } from 'react-dropzone'
 
@@ -8,13 +8,33 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
   const trRef = useRef()
 
   useEffect(() => {
-    if (isSelected && trRef.current && shapeRef.current) {
+    if (isSelected && trRef.current && shapeRef.current && scale > 0) {
       trRef.current.nodes([shapeRef.current])
       trRef.current.getLayer().batchDraw()
+    } else if (trRef.current) {
+      // Limpiar transformer cuando no está seleccionado
+      trRef.current.nodes([])
+      trRef.current.getLayer().batchDraw()
     }
-  }, [isSelected])
+  }, [isSelected, scale])
+
+  const handleDragStart = (e) => {
+    // Prevenir que el Layer se mueva cuando arrastramos un objeto
+    const stage = e.target.getStage()
+    if (stage) {
+      stage.container().style.cursor = 'grabbing'
+    }
+  }
+
+  const handleDragMove = (e) => {
+    // No hacer nada durante el drag, solo actualizar en el end
+  }
 
   const handleDragEnd = (e) => {
+    const stage = e.target.getStage()
+    if (stage) {
+      stage.container().style.cursor = 'default'
+    }
     onChange({
       ...shapeProps,
       x: e.target.x(),
@@ -69,6 +89,8 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
             draggable
             onClick={onSelect}
             onTap={onSelect}
+            onDragStart={handleDragStart}
+            onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
             onTransformEnd={handleTransformEnd}
           />
@@ -88,6 +110,8 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
             draggable
             onClick={onSelect}
             onTap={onSelect}
+            onDragStart={handleDragStart}
+            onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
             onTransformEnd={handleTransformEnd}
           />
@@ -100,7 +124,7 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
   return (
     <>
       {renderShape()}
-      {isSelected && (
+      {isSelected && scale > 0 && (
         <Transformer
           ref={trRef}
           boundBoxFunc={(oldBox, newBox) => {
@@ -109,6 +133,8 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
             }
             return newBox
           }}
+          ignoreStroke={true}
+          enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']}
         />
       )}
       {/* Mostrar medidas reales */}
@@ -167,6 +193,9 @@ export default function Mapas() {
     return () => window.removeEventListener('resize', updateContainerSize)
   }, [])
 
+  // Memoizar la imagen para evitar re-renderizados innecesarios
+  const memoizedImage = useMemo(() => backgroundImage, [backgroundImage])
+
   // Cargar imagen de fondo
   const onDrop = (acceptedFiles) => {
     if (acceptedFiles.length > 0) {
@@ -174,6 +203,7 @@ export default function Mapas() {
       const reader = new FileReader()
       reader.onload = (e) => {
         const img = new window.Image()
+        img.crossOrigin = 'anonymous' // Evitar problemas CORS
         img.src = e.target.result
         img.onload = () => {
           setBackgroundImage(img)
@@ -184,6 +214,9 @@ export default function Mapas() {
           setScale(0) // Resetear escala a sin calibrar
           setObjects([]) // Limpiar objetos al cargar nueva imagen
           setSelectedId(null)
+        }
+        img.onerror = (error) => {
+          console.error('Error cargando imagen:', error)
         }
       }
       reader.readAsDataURL(file)
@@ -521,23 +554,47 @@ export default function Mapas() {
                     y={stagePosition.y}
                     draggable={!calibrationMode}
                     onDragStart={(e) => {
+                      // Solo permitir drag del Layer si estamos en el Layer mismo (no en un objeto)
                       if (calibrationMode) {
-                        e.cancelBubble = true
+                        return false
+                      }
+                      // Verificar si el target es el Layer o la Image
+                      const target = e.target
+                      const isLayerOrImage = target === e.target.getLayer() || target.getClassName() === 'Image'
+                      if (!isLayerOrImage) {
                         return false
                       }
                     }}
                     onDragMove={(e) => {
+                      // Solo actualizar posición si estamos arrastrando el Layer (no un objeto)
                       if (!calibrationMode) {
-                        setStagePosition({ x: e.target.x(), y: e.target.y() })
+                        const target = e.target
+                        const isLayerOrImage = target === e.target.getLayer() || target.getClassName() === 'Image'
+                        if (isLayerOrImage) {
+                          setStagePosition({ x: e.target.x(), y: e.target.y() })
+                        }
+                      }
+                    }}
+                    onDragEnd={(e) => {
+                      if (!calibrationMode) {
+                        const target = e.target
+                        const isLayerOrImage = target === e.target.getLayer() || target.getClassName() === 'Image'
+                        if (isLayerOrImage) {
+                          setStagePosition({ x: e.target.x(), y: e.target.y() })
+                        }
                       }
                     }}
                   >
                     {/* Imagen de fondo */}
-                    <Image 
-                      image={backgroundImage} 
-                      width={imageSize.width}
-                      height={imageSize.height}
-                    />
+                    {memoizedImage && imageSize.width > 0 && imageSize.height > 0 && (
+                      <Image 
+                        image={memoizedImage} 
+                        width={imageSize.width}
+                        height={imageSize.height}
+                        listening={false}
+                        preventDefault={false}
+                      />
+                    )}
 
                     {/* Puntos de calibración */}
                     {calibrationMode &&
