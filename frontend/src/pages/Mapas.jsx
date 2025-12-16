@@ -99,9 +99,8 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
           y={shapeProps.y - 20}
           text={`${shapeProps.width.toFixed(2)}m × ${shapeProps.height.toFixed(2)}m`}
           fontSize={12}
-          fill="#333"
-          padding={4}
           fill="#fff"
+          padding={4}
           stroke="#333"
           strokeWidth={1}
         />
