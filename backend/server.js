@@ -49,6 +49,7 @@ app.use('/api/vendors', authMiddleware, vendorRoutes)
 app.use('/api/permits', authMiddleware, permitRoutes)
 app.use('/api/recce-documents', authMiddleware, recceDocumentRoutes)
 app.use('/api/contract-documents', authMiddleware, contractDocumentRoutes)
+app.use('/api/maps', authMiddleware, mapRoutes)
 app.use('/api/users', userRoutes)
 
 // Health check

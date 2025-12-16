@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { Stage, Layer, Image, Rect, Circle, Line, Text, Transformer } from 'react-konva'
 import { useDropzone } from 'react-dropzone'
+import axios, { API_URL } from '../config/axios.js'
 
 // Componente para objetos en el canvas
 const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
@@ -50,33 +51,14 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
     const node = shapeRef.current
     if (!node) return
 
-    const scaleX = node.scaleX()
-    const scaleY = node.scaleY()
+    // Solo actualizar rotación, no permitir redimensionar
     const rotation = node.rotation()
-
-    // Resetear la escala del nodo a 1
-    node.scaleX(1)
-    node.scaleY(1)
-
-    // Solo actualizar dimensiones si realmente cambió la escala (no solo la rotación)
-    const widthChanged = Math.abs(scaleX - 1) > 0.01
-    const heightChanged = Math.abs(scaleY - 1) > 0.01
-
-    const updates = {
-      x: node.x(),
-      y: node.y(),
-      rotation: rotation,
-    }
-
-    // Solo actualizar width/height si realmente se escaló (no solo rotó)
-    if (widthChanged || heightChanged) {
-      updates.width = Math.max(5, (shapeProps.width || 0) * scaleX)
-      updates.height = Math.max(5, (shapeProps.height || 0) * scaleY)
-    }
 
     onChange({
       ...shapeProps,
-      ...updates,
+      x: node.x(),
+      y: node.y(),
+      rotation: rotation,
     })
   }
 
@@ -147,24 +129,15 @@ const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
       {isSelected && scale > 0 && (
         <Transformer
           ref={trRef}
-          boundBoxFunc={(oldBox, newBox) => {
-            // Convertir a píxeles para validar
-            const minWidthPx = 5
-            const minHeightPx = 5
-            if (Math.abs(newBox.width) < minWidthPx || Math.abs(newBox.height) < minHeightPx) {
-              return oldBox
-            }
-            return newBox
-          }}
-          ignoreStroke={true}
-          enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']}
           rotateEnabled={true}
+          enabledAnchors={[]}
           borderEnabled={true}
           borderStroke="#4A90E2"
           borderStrokeWidth={2}
           anchorFill="#4A90E2"
           anchorStroke="#fff"
           anchorSize={8}
+          resizeEnabled={false}
         />
       )}
       {/* Mostrar medidas reales */}
@@ -206,6 +179,15 @@ export default function Mapas() {
   })
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 })
   const [stageScale, setStageScale] = useState(1)
+  const [workArea, setWorkArea] = useState(null) // {x, y, width, height} en píxeles
+  const [workAreaMode, setWorkAreaMode] = useState(false)
+  const [workAreaStart, setWorkAreaStart] = useState(null)
+  const [workAreaCurrent, setWorkAreaCurrent] = useState(null)
+  const [savedMaps, setSavedMaps] = useState([])
+  const [currentMapId, setCurrentMapId] = useState(null)
+  const [showSaveModal, setShowSaveModal] = useState(false)
+  const [mapName, setMapName] = useState('')
+  const [mapDescription, setMapDescription] = useState('')
   const stageRef = useRef()
   const containerRef = useRef()
 
@@ -263,6 +245,31 @@ export default function Mapas() {
 
   // Calibración de escala
   const handleStageClick = (e) => {
+    if (workAreaMode) {
+      const stage = e.target.getStage()
+      const pointerPos = stage.getPointerPosition()
+      const point = {
+        x: (pointerPos.x - stagePosition.x) / stageScale,
+        y: (pointerPos.y - stagePosition.y) / stageScale,
+      }
+      
+      if (!workAreaStart) {
+        setWorkAreaStart(point)
+        setWorkAreaCurrent(point)
+      } else {
+        // Finalizar área de trabajo
+        const x = Math.min(workAreaStart.x, point.x)
+        const y = Math.min(workAreaStart.y, point.y)
+        const width = Math.abs(point.x - workAreaStart.x)
+        const height = Math.abs(point.y - workAreaStart.y)
+        setWorkArea({ x, y, width, height })
+        setWorkAreaMode(false)
+        setWorkAreaStart(null)
+        setWorkAreaCurrent(null)
+      }
+      return
+    }
+    
     if (calibrationMode && calibrationPoints.length < 2) {
       const stage = e.target.getStage()
       const pointerPos = stage.getPointerPosition()
@@ -276,10 +283,22 @@ export default function Mapas() {
       setCalibrationPoints([...calibrationPoints, point])
     } else if (!calibrationMode) {
       // Si no estamos en modo calibración, permitir seleccionar objetos
-      const clickedOnEmpty = e.target === e.target.getStage()
+      const clickedOnEmpty = e.target === e.target.getStage() || e.target.getClassName() === 'Image' || e.target.getClassName() === 'Layer'
       if (clickedOnEmpty) {
         setSelectedId(null)
       }
+    }
+  }
+  
+  const handleStageMouseMove = (e) => {
+    if (workAreaMode && workAreaStart) {
+      const stage = e.target.getStage()
+      const pointerPos = stage.getPointerPosition()
+      const point = {
+        x: (pointerPos.x - stagePosition.x) / stageScale,
+        y: (pointerPos.y - stagePosition.y) / stageScale,
+      }
+      setWorkAreaCurrent(point)
     }
   }
 
@@ -382,20 +401,37 @@ export default function Mapas() {
 
   // Cálculos de superficie
   const calculateMetrics = () => {
-    const totalAreaPx = imageSize.width * imageSize.height
+    // Usar área de trabajo si está definida, sino usar toda la imagen
+    const areaToUse = workArea || { x: 0, y: 0, width: imageSize.width, height: imageSize.height }
+    const totalAreaPx = areaToUse.width * areaToUse.height
     const totalAreaM2 = totalAreaPx * scale * scale
 
     let occupiedAreaM2 = 0
     const objectsByCategory = {}
 
+    // Calcular objetos que están dentro del área de trabajo
     objects.forEach((obj) => {
-      const areaM2 = obj.width * obj.height
-      occupiedAreaM2 += areaM2
+      // Convertir posición del objeto a píxeles
+      const objX = obj.x
+      const objY = obj.y
+      const objWidthPx = obj.width / scale
+      const objHeightPx = obj.height / scale
+      
+      // Verificar si el objeto está dentro del área de trabajo
+      const isInside = objX >= areaToUse.x && 
+                       objY >= areaToUse.y && 
+                       objX + objWidthPx <= areaToUse.x + areaToUse.width &&
+                       objY + objHeightPx <= areaToUse.y + areaToUse.height
+      
+      if (isInside || !workArea) {
+        const areaM2 = obj.width * obj.height
+        occupiedAreaM2 += areaM2
 
-      if (!objectsByCategory[obj.categoria || 'Sin categoría']) {
-        objectsByCategory[obj.categoria || 'Sin categoría'] = 0
+        if (!objectsByCategory[obj.categoria || 'Sin categoría']) {
+          objectsByCategory[obj.categoria || 'Sin categoría'] = 0
+        }
+        objectsByCategory[obj.categoria || 'Sin categoría']++
       }
-      objectsByCategory[obj.categoria || 'Sin categoría']++
     })
 
     const freeAreaM2 = totalAreaM2 - occupiedAreaM2
@@ -408,6 +444,112 @@ export default function Mapas() {
       totalObjects: objects.length,
     }
   }
+  
+  // Guardar mapa
+  const handleSaveMap = async () => {
+    if (!mapName.trim()) {
+      alert('Por favor ingresa un nombre para el mapa')
+      return
+    }
+    
+    if (!backgroundImage) {
+      alert('No hay mapa para guardar')
+      return
+    }
+    
+    try {
+      // Convertir imagen a blob para subirla
+      const canvas = document.createElement('canvas')
+      canvas.width = imageSize.width
+      canvas.height = imageSize.height
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(backgroundImage, 0, 0)
+      
+      canvas.toBlob(async (blob) => {
+        const formData = new FormData()
+        formData.append('imagen', blob, 'mapa.png')
+        formData.append('nombre', mapName)
+        formData.append('descripcion', mapDescription)
+        formData.append('imageWidth', imageSize.width.toString())
+        formData.append('imageHeight', imageSize.height.toString())
+        formData.append('scale', scale.toString())
+        formData.append('workArea', JSON.stringify(workArea))
+        formData.append('objects', JSON.stringify(objects))
+        formData.append('objectLibrary', JSON.stringify(objectLibrary))
+        
+        let response
+        if (currentMapId) {
+          // Actualizar mapa existente
+          response = await axios.put(
+            `${API_URL}/maps/${currentMapId}`,
+            formData,
+            {
+              headers: { 'Content-Type': 'multipart/form-data' },
+              withCredentials: true
+            }
+          )
+        } else {
+          // Crear nuevo mapa
+          response = await axios.post(
+            `${API_URL}/maps`,
+            formData,
+            {
+              headers: { 'Content-Type': 'multipart/form-data' },
+              withCredentials: true
+            }
+          )
+        }
+        
+        setCurrentMapId(response.data.id)
+        setShowSaveModal(false)
+        setMapName('')
+        setMapDescription('')
+        await loadMaps()
+        alert('Mapa guardado correctamente')
+      }, 'image/png')
+    } catch (error) {
+      console.error('Error guardando mapa:', error)
+      alert('Error al guardar el mapa: ' + (error.response?.data?.error || error.message))
+    }
+  }
+  
+  // Cargar mapas guardados
+  const loadMaps = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/maps`, { withCredentials: true })
+      setSavedMaps(response.data)
+    } catch (error) {
+      console.error('Error cargando mapas:', error)
+    }
+  }
+  
+  // Cargar un mapa
+  const handleLoadMap = async (map) => {
+    try {
+      const img = new window.Image()
+      img.crossOrigin = 'anonymous'
+      img.src = map.imagenUrl
+      img.onload = () => {
+        setBackgroundImage(img)
+        setImageSize({ width: map.imageWidth, height: map.imageHeight })
+        setScale(parseFloat(map.scale) || 0)
+        setWorkArea(map.workArea || null)
+        setObjects(map.objects || [])
+        setObjectLibrary(map.objectLibrary || [])
+        setCurrentMapId(map.id)
+        setStageScale(1)
+        setStagePosition({ x: 0, y: 0 })
+        setSelectedId(null)
+      }
+    } catch (error) {
+      console.error('Error cargando mapa:', error)
+      alert('Error al cargar el mapa')
+    }
+  }
+  
+  useEffect(() => {
+    loadMaps()
+  }, [])
 
   const metrics = calculateMetrics()
 
@@ -448,22 +590,71 @@ export default function Mapas() {
             </button>
           )}
           {backgroundImage && !calibrationMode && scale > 0 && (
-            <button
-              onClick={() => {
-                setScale(0)
-                setCalibrationPoints([])
-              }}
-              className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
-            >
-              Recalibrar
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  setScale(0)
+                  setCalibrationPoints([])
+                }}
+                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Recalibrar
+              </button>
+              <button
+                onClick={() => {
+                  setWorkAreaMode(!workAreaMode)
+                  setWorkAreaStart(null)
+                  setWorkAreaCurrent(null)
+                  if (workAreaMode) {
+                    setWorkArea(null)
+                  }
+                }}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  workAreaMode 
+                    ? 'bg-red-500 text-white hover:bg-red-600' 
+                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                }`}
+              >
+                {workAreaMode ? 'Cancelar Área' : workArea ? 'Cambiar Área' : 'Marcar Área'}
+              </button>
+              <button
+                onClick={() => setShowSaveModal(true)}
+                className="bg-accent-green text-white px-4 py-2 rounded-lg hover:bg-accent-green-dark transition-colors"
+              >
+                Guardar Mapa
+              </button>
+            </>
           )}
         </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Panel lateral izquierdo - Biblioteca de objetos */}
-        <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto">
+        {/* Panel lateral izquierdo - Biblioteca de objetos y Mapas guardados */}
+        <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto flex flex-col">
+          {/* Sección de Mapas Guardados */}
+          <div className="p-4 border-b border-gray-200">
+            <h2 className="font-semibold text-gray-800 mb-2">Mapas Guardados</h2>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {savedMaps.length === 0 ? (
+                <p className="text-xs text-gray-500">No hay mapas guardados</p>
+              ) : (
+                savedMaps.map((map) => (
+                  <div
+                    key={map.id}
+                    onClick={() => handleLoadMap(map)}
+                    className="p-2 border border-gray-200 rounded cursor-pointer hover:border-accent-green transition-colors"
+                  >
+                    <div className="font-medium text-sm text-gray-800 truncate">{map.nombre}</div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(map.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Sección de Biblioteca de Objetos */}
           <div className="p-4 border-b border-gray-200">
             <h2 className="font-semibold text-gray-800 mb-2">Biblioteca de Objetos</h2>
             <button
@@ -576,15 +767,16 @@ export default function Mapas() {
                   }}
                   onClick={handleStageClick}
                   onTap={handleStageClick}
+                  onMouseMove={handleStageMouseMove}
                 >
                   <Layer
                     scaleX={stageScale}
                     scaleY={stageScale}
                     x={stagePosition.x}
                     y={stagePosition.y}
-                    draggable={!calibrationMode}
+                    draggable={!calibrationMode && !workAreaMode}
                     onDragStart={(e) => {
-                      if (calibrationMode) {
+                      if (calibrationMode || workAreaMode) {
                         return false
                       }
                       // Permitir drag solo si el target es el Layer o la Image (no un objeto)
@@ -596,7 +788,7 @@ export default function Mapas() {
                       }
                     }}
                     onDragMove={(e) => {
-                      if (!calibrationMode) {
+                      if (!calibrationMode && !workAreaMode) {
                         const target = e.target
                         const targetName = target.getClassName()
                         // Solo actualizar si estamos arrastrando el Layer o la Image
@@ -606,7 +798,7 @@ export default function Mapas() {
                       }
                     }}
                     onDragEnd={(e) => {
-                      if (!calibrationMode) {
+                      if (!calibrationMode && !workAreaMode) {
                         const target = e.target
                         const targetName = target.getClassName()
                         // Solo actualizar si estamos arrastrando el Layer o la Image
@@ -653,6 +845,34 @@ export default function Mapas() {
                         stroke="red"
                         strokeWidth={2 / stageScale}
                         dash={[5 / stageScale, 5 / stageScale]}
+                      />
+                    )}
+
+                    {/* Área de trabajo */}
+                    {workArea && (
+                      <Rect
+                        x={workArea.x}
+                        y={workArea.y}
+                        width={workArea.width}
+                        height={workArea.height}
+                        stroke="#10b981"
+                        strokeWidth={3 / stageScale}
+                        fill="rgba(16, 185, 129, 0.1)"
+                        dash={[10 / stageScale, 5 / stageScale]}
+                      />
+                    )}
+
+                    {/* Área de trabajo en proceso de dibujo */}
+                    {workAreaMode && workAreaStart && workAreaCurrent && (
+                      <Rect
+                        x={Math.min(workAreaStart.x, workAreaCurrent.x)}
+                        y={Math.min(workAreaStart.y, workAreaCurrent.y)}
+                        width={Math.abs(workAreaCurrent.x - workAreaStart.x)}
+                        height={Math.abs(workAreaCurrent.y - workAreaStart.y)}
+                        stroke="#10b981"
+                        strokeWidth={3 / stageScale}
+                        fill="rgba(16, 185, 129, 0.1)"
+                        dash={[10 / stageScale, 5 / stageScale]}
                       />
                     )}
 
@@ -932,6 +1152,60 @@ export default function Mapas() {
                     forma: 'rectangle',
                     color: '#3b82f6',
                   })
+                }}
+                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de guardar mapa */}
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold mb-4">Guardar Mapa</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre del Mapa <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={mapName}
+                  onChange={(e) => setMapName(e.target.value)}
+                  placeholder="Ej: Plano Planta Baja"
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descripción (opcional)
+                </label>
+                <textarea
+                  value={mapDescription}
+                  onChange={(e) => setMapDescription(e.target.value)}
+                  placeholder="Descripción del mapa..."
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
+                  rows="3"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={handleSaveMap}
+                className="flex-1 bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light transition-colors"
+              >
+                {currentMapId ? 'Actualizar' : 'Guardar'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowSaveModal(false)
+                  setMapName('')
+                  setMapDescription('')
                 }}
                 className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
               >

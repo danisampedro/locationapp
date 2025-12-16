@@ -36,3 +36,6 @@ const ContractDocument = sequelize.define('ContractDocument', {
 
 export default ContractDocument
 
+
+
+
