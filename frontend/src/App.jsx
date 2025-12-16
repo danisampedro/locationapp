@@ -10,6 +10,7 @@ import Users from './pages/Users'
 import Documents from './pages/Documents'
 import Permits from './pages/Permits'
 import PermitDetail from './pages/PermitDetail'
+import Mapas from './pages/Mapas'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 
@@ -122,6 +123,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Users />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/mapas"
+            element={
+              <PrivateRoute>
+                <Mapas />
               </PrivateRoute>
             }
           />
