@@ -61,6 +61,35 @@ router.post('/', upload.single('imagen'), async (req, res) => {
 
     const imagenUrl = req.file.path
 
+    // Parsear JSON de forma segura
+    let parsedWorkArea = null
+    let parsedObjects = []
+    let parsedObjectLibrary = []
+    
+    try {
+      if (workArea && workArea.trim() !== '') {
+        parsedWorkArea = JSON.parse(workArea)
+      }
+    } catch (e) {
+      console.error('Error parseando workArea:', e)
+    }
+    
+    try {
+      if (objects && objects.trim() !== '') {
+        parsedObjects = JSON.parse(objects)
+      }
+    } catch (e) {
+      console.error('Error parseando objects:', e)
+    }
+    
+    try {
+      if (objectLibrary && objectLibrary.trim() !== '') {
+        parsedObjectLibrary = JSON.parse(objectLibrary)
+      }
+    } catch (e) {
+      console.error('Error parseando objectLibrary:', e)
+    }
+
     const map = await Map.create({
       nombre,
       descripcion: descripcion || '',
@@ -68,9 +97,9 @@ router.post('/', upload.single('imagen'), async (req, res) => {
       imageWidth: parseInt(imageWidth) || 0,
       imageHeight: parseInt(imageHeight) || 0,
       scale: parseFloat(scale) || 0,
-      workArea: workArea ? JSON.parse(workArea) : null,
-      objects: objects ? JSON.parse(objects) : [],
-      objectLibrary: objectLibrary ? JSON.parse(objectLibrary) : []
+      workArea: parsedWorkArea,
+      objects: Array.isArray(parsedObjects) ? parsedObjects : [],
+      objectLibrary: Array.isArray(parsedObjectLibrary) ? parsedObjectLibrary : []
     })
 
     res.status(201).json(map)
@@ -90,15 +119,56 @@ router.put('/:id', upload.single('imagen'), async (req, res) => {
 
     const { nombre, descripcion, imageWidth, imageHeight, scale, workArea, objects, objectLibrary } = req.body
 
+    // Parsear JSON de forma segura
+    let parsedWorkArea = map.workArea
+    let parsedObjects = map.objects
+    let parsedObjectLibrary = map.objectLibrary
+    
+    if (workArea !== undefined) {
+      try {
+        if (workArea && workArea.trim() !== '') {
+          parsedWorkArea = JSON.parse(workArea)
+        } else {
+          parsedWorkArea = null
+        }
+      } catch (e) {
+        console.error('Error parseando workArea:', e)
+      }
+    }
+    
+    if (objects !== undefined) {
+      try {
+        if (objects && objects.trim() !== '') {
+          parsedObjects = JSON.parse(objects)
+        } else {
+          parsedObjects = []
+        }
+      } catch (e) {
+        console.error('Error parseando objects:', e)
+      }
+    }
+    
+    if (objectLibrary !== undefined) {
+      try {
+        if (objectLibrary && objectLibrary.trim() !== '') {
+          parsedObjectLibrary = JSON.parse(objectLibrary)
+        } else {
+          parsedObjectLibrary = []
+        }
+      } catch (e) {
+        console.error('Error parseando objectLibrary:', e)
+      }
+    }
+
     const updateData = {
       nombre: nombre || map.nombre,
       descripcion: descripcion !== undefined ? descripcion : map.descripcion,
       imageWidth: imageWidth ? parseInt(imageWidth) : map.imageWidth,
       imageHeight: imageHeight ? parseInt(imageHeight) : map.imageHeight,
       scale: scale !== undefined ? parseFloat(scale) : map.scale,
-      workArea: workArea ? JSON.parse(workArea) : map.workArea,
-      objects: objects ? JSON.parse(objects) : map.objects,
-      objectLibrary: objectLibrary ? JSON.parse(objectLibrary) : map.objectLibrary
+      workArea: parsedWorkArea,
+      objects: Array.isArray(parsedObjects) ? parsedObjects : [],
+      objectLibrary: Array.isArray(parsedObjectLibrary) ? parsedObjectLibrary : []
     }
 
     if (req.file) {

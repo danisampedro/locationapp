@@ -505,9 +505,9 @@ export default function Mapas() {
         formData.append('imageWidth', imageSize.width.toString())
         formData.append('imageHeight', imageSize.height.toString())
         formData.append('scale', scale.toString())
-        formData.append('workArea', JSON.stringify(workArea))
-        formData.append('objects', JSON.stringify(objects))
-        formData.append('objectLibrary', JSON.stringify(objectLibrary))
+        formData.append('workArea', workArea ? JSON.stringify(workArea) : '')
+        formData.append('objects', objects && objects.length > 0 ? JSON.stringify(objects) : '[]')
+        formData.append('objectLibrary', objectLibrary && objectLibrary.length > 0 ? JSON.stringify(objectLibrary) : '[]')
         
         let response
         if (currentMapId) {
