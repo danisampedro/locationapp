@@ -426,7 +426,7 @@ export default function Mapas() {
   const calculateMetrics = () => {
     // Usar área de trabajo si está definida, sino usar toda la imagen
     let totalAreaPx
-    if (workArea && workArea.length >= 3) {
+    if (workArea && Array.isArray(workArea) && workArea.length >= 3) {
       // Calcular área del polígono
       totalAreaPx = calculatePolygonArea(workArea)
     } else {
@@ -448,7 +448,7 @@ export default function Mapas() {
       
       // Verificar si el objeto está dentro del área de trabajo
       let isInside = true
-      if (workArea && workArea.length >= 3) {
+      if (workArea && Array.isArray(workArea) && workArea.length >= 3) {
         // Verificar si el centro del objeto está dentro del polígono
         const centerX = objX + objWidthPx / 2
         const centerY = objY + objHeightPx / 2
@@ -565,7 +565,19 @@ export default function Mapas() {
         setBackgroundImage(img)
         setImageSize({ width: map.imageWidth, height: map.imageHeight })
         setScale(parseFloat(map.scale) || 0)
-        setWorkArea(map.workArea || null)
+        
+        // Convertir workArea del formato antiguo (objeto) al nuevo (array) si es necesario
+        let workAreaData = map.workArea || null
+        if (workAreaData && !Array.isArray(workAreaData)) {
+          // Formato antiguo: {x, y, width, height} -> convertir a polígono rectangular
+          workAreaData = [
+            { x: workAreaData.x, y: workAreaData.y },
+            { x: workAreaData.x + workAreaData.width, y: workAreaData.y },
+            { x: workAreaData.x + workAreaData.width, y: workAreaData.y + workAreaData.height },
+            { x: workAreaData.x, y: workAreaData.y + workAreaData.height }
+          ]
+        }
+        setWorkArea(workAreaData)
         setWorkAreaPoints([])
         setObjects(map.objects || [])
         setObjectLibrary(map.objectLibrary || [])
@@ -901,7 +913,7 @@ export default function Mapas() {
                     )}
 
                     {/* Área de trabajo - Polígono */}
-                    {workArea && workArea.length >= 3 && (
+                    {workArea && Array.isArray(workArea) && workArea.length >= 3 && (
                       <>
                         <Line
                           points={workArea.flatMap(p => [p.x, p.y]).concat([workArea[0].x, workArea[0].y])}
