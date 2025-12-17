@@ -566,21 +566,60 @@ export default function Mapas() {
         setImageSize({ width: map.imageWidth, height: map.imageHeight })
         setScale(parseFloat(map.scale) || 0)
         
-        // Convertir workArea del formato antiguo (objeto) al nuevo (array) si es necesario
+        // Parsear workArea si viene como string JSON
         let workAreaData = map.workArea || null
-        if (workAreaData && !Array.isArray(workAreaData)) {
-          // Formato antiguo: {x, y, width, height} -> convertir a polígono rectangular
-          workAreaData = [
-            { x: workAreaData.x, y: workAreaData.y },
-            { x: workAreaData.x + workAreaData.width, y: workAreaData.y },
-            { x: workAreaData.x + workAreaData.width, y: workAreaData.y + workAreaData.height },
-            { x: workAreaData.x, y: workAreaData.y + workAreaData.height }
-          ]
+        if (workAreaData) {
+          // Si es string, parsearlo
+          if (typeof workAreaData === 'string') {
+            try {
+              workAreaData = JSON.parse(workAreaData)
+            } catch (e) {
+              console.error('Error parseando workArea:', e)
+              workAreaData = null
+            }
+          }
+          
+          // Convertir del formato antiguo (objeto) al nuevo (array) si es necesario
+          if (workAreaData && !Array.isArray(workAreaData)) {
+            // Formato antiguo: {x, y, width, height} -> convertir a polígono rectangular
+            if (workAreaData.x !== undefined && workAreaData.y !== undefined && workAreaData.width !== undefined && workAreaData.height !== undefined) {
+              workAreaData = [
+                { x: workAreaData.x, y: workAreaData.y },
+                { x: workAreaData.x + workAreaData.width, y: workAreaData.y },
+                { x: workAreaData.x + workAreaData.width, y: workAreaData.y + workAreaData.height },
+                { x: workAreaData.x, y: workAreaData.y + workAreaData.height }
+              ]
+            } else {
+              workAreaData = null
+            }
+          }
         }
         setWorkArea(workAreaData)
         setWorkAreaPoints([])
-        setObjects(map.objects || [])
-        setObjectLibrary(map.objectLibrary || [])
+        
+        // Parsear objects y objectLibrary si vienen como strings
+        let objectsData = map.objects || []
+        if (typeof objectsData === 'string') {
+          try {
+            objectsData = JSON.parse(objectsData)
+          } catch (e) {
+            console.error('Error parseando objects:', e)
+            objectsData = []
+          }
+        }
+        setObjects(Array.isArray(objectsData) ? objectsData : [])
+        
+        let objectLibraryData = map.objectLibrary || []
+        if (typeof objectLibraryData === 'string') {
+          try {
+            objectLibraryData = JSON.parse(objectLibraryData)
+          } catch (e) {
+            console.error('Error parseando objectLibrary:', e)
+            objectLibraryData = []
+          }
+        }
+        setObjectLibrary(Array.isArray(objectLibraryData) ? objectLibraryData : [])
+        
         setCurrentMapId(map.id)
         setStageScale(1)
         setStagePosition({ x: 0, y: 0 })
@@ -913,10 +952,15 @@ export default function Mapas() {
                     )}
 
                     {/* Área de trabajo - Polígono */}
-                    {workArea && Array.isArray(workArea) && workArea.length >= 3 && (
+                    {workArea && Array.isArray(workArea) && workArea.length >= 3 && workArea.every(p => p && typeof p.x === 'number' && typeof p.y === 'number') && (
                       <>
                         <Line
-                          points={workArea.flatMap(p => [p.x, p.y]).concat([workArea[0].x, workArea[0].y])}
+                          points={workArea.flatMap(p => {
+                            if (p && typeof p.x === 'number' && typeof p.y === 'number') {
+                              return [p.x, p.y]
+                            }
+                            return []
+                          }).concat(workArea[0] ? [workArea[0].x, workArea[0].y] : [])}
                           stroke="#10b981"
                           strokeWidth={3 / stageScale}
                           fill="rgba(16, 185, 129, 0.1)"
@@ -924,7 +968,7 @@ export default function Mapas() {
                           dash={[10 / stageScale, 5 / stageScale]}
                         />
                         {/* Mostrar puntos del polígono */}
-                        {workArea.map((point, index) => (
+                        {workArea.filter(p => p && typeof p.x === 'number' && typeof p.y === 'number').map((point, index) => (
                           <Circle
                             key={index}
                             x={point.x}
