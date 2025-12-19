@@ -32,7 +32,7 @@ export default function MapSelector({ onMapCapture, onClose }) {
   const mapRef = useRef(null)
   const mapContainerRef = useRef(null)
   const [mapReady, setMapReady] = useState(false)
-  const [mapType, setMapType] = useState('street') // 'street' o 'satellite'
+  const [mapType, setMapType] = useState('satellite') // 'street' o 'satellite'
 
   // Buscar ubicación usando Nominatim (OpenStreetMap geocoding, gratuito)
   const handleSearch = async () => {
@@ -229,10 +229,13 @@ export default function MapSelector({ onMapCapture, onClose }) {
               style={{ width: '100%', height: '100%' }}
               whenCreated={(mapInstance) => {
                 mapRef.current = mapInstance
-                setMapReady(true)
                 // Forzar actualización del tamaño después de crear el mapa
                 setTimeout(() => {
                   mapInstance.invalidateSize()
+                  // Esperar un poco más para que los tiles se carguen
+                  setTimeout(() => {
+                    setMapReady(true)
+                  }, 500)
                 }, 200)
               }}
               scrollWheelZoom={true}
