@@ -27,6 +27,7 @@ export default function MapSelector({ onMapCapture, onClose }) {
   const [mapSize, setMapSize] = useState({ width: 1200, height: 800 })
   const mapRef = useRef(null)
   const mapContainerRef = useRef(null)
+  const [mapReady, setMapReady] = useState(false)
 
   // Buscar ubicación usando Nominatim (OpenStreetMap geocoding, gratuito)
   const handleSearch = async () => {
@@ -58,6 +59,11 @@ export default function MapSelector({ onMapCapture, onClose }) {
 
   // Capturar el mapa como imagen
   const handleCaptureMap = async () => {
+    if (!mapReady || !mapRef.current) {
+      alert('Espera a que el mapa termine de cargar')
+      return
+    }
+
     const mapElement = mapContainerRef.current
     if (!mapElement) return
 
@@ -79,7 +85,7 @@ export default function MapSelector({ onMapCapture, onClose }) {
       
       if (mapRef.current) {
         mapRef.current.invalidateSize()
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await new Promise(resolve => setTimeout(resolve, 1000))
       }
 
       const canvas = await html2canvas(leafletContainer, {
@@ -187,6 +193,7 @@ export default function MapSelector({ onMapCapture, onClose }) {
               style={{ width: '100%', height: '100%', zIndex: 0 }}
               whenCreated={(mapInstance) => {
                 mapRef.current = mapInstance
+                setMapReady(true)
               }}
               scrollWheelZoom={true}
             >
@@ -203,9 +210,14 @@ export default function MapSelector({ onMapCapture, onClose }) {
         <div className="flex gap-2 mt-4">
           <button
             onClick={handleCaptureMap}
-            className="flex-1 bg-accent-green text-white px-6 py-2 rounded-lg hover:bg-accent-green-dark transition-colors"
+            disabled={!mapReady}
+            className={`flex-1 px-6 py-2 rounded-lg transition-colors ${
+              mapReady
+                ? 'bg-accent-green text-white hover:bg-accent-green-dark'
+                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+            }`}
           >
-            Usar este Mapa
+            {mapReady ? 'Usar este Mapa' : 'Cargando mapa...'}
           </button>
           <button
             onClick={onClose}

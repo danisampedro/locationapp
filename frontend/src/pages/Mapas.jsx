@@ -237,7 +237,7 @@ export default function Mapas() {
     }
   }
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     accept: {
       'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'],
@@ -648,12 +648,23 @@ export default function Mapas() {
         </div>
         <div className="flex gap-2">
           {!backgroundImage && (
-            <div {...getRootProps()} className="cursor-pointer">
-              <input {...getInputProps()} />
-              <button className="bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light transition-colors">
-                Cargar Mapa/Plano
+            <>
+              <button
+                onClick={() => setShowMapSelector(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Cargar desde Mapa
               </button>
-            </div>
+              <button
+                onClick={open}
+                className="bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light transition-colors"
+              >
+                Cargar Imagen/Plano
+              </button>
+              <div {...getRootProps()} className="hidden">
+                <input {...getInputProps()} />
+              </div>
+            </>
           )}
           {backgroundImage && !calibrationMode && scale === 0 && (
             <button
