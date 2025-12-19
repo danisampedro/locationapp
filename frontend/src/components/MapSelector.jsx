@@ -50,8 +50,17 @@ export default function MapSelector({ onMapCapture, onClose }) {
       
       if (data && data.length > 0) {
         const result = data[0]
-        setCenter([parseFloat(result.lat), parseFloat(result.lon)])
+        const newCenter = [parseFloat(result.lat), parseFloat(result.lon)]
+        setCenter(newCenter)
         setZoom(16)
+        
+        // Forzar actualización del mapa después de buscar
+        if (mapRef.current) {
+          setTimeout(() => {
+            mapRef.current.setView(newCenter, 16)
+            mapRef.current.invalidateSize()
+          }, 100)
+        }
       } else {
         alert('Ubicación no encontrada')
       }
