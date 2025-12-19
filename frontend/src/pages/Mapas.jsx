@@ -187,6 +187,7 @@ export default function Mapas() {
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [mapName, setMapName] = useState('')
   const [mapDescription, setMapDescription] = useState('')
+  const [showMapSelector, setShowMapSelector] = useState(false)
   const stageRef = useRef()
   const containerRef = useRef()
 
@@ -1363,6 +1364,25 @@ export default function Mapas() {
           </div>
         </div>
       )}
+
+      {/* Modal de selector de mapa */}
+      {showMapSelector && (
+        <MapSelector
+          onMapCapture={(img, mapData) => {
+            setBackgroundImage(img)
+            setImageSize({ width: mapData.width, height: mapData.height })
+            setStageScale(1)
+            setStagePosition({ x: 0, y: 0 })
+            setScale(0)
+            setObjects([])
+            setWorkArea(null)
+            setWorkAreaPoints([])
+            setSelectedId(null)
+          }}
+          onClose={() => setShowMapSelector(false)}
+        />
+      )}
     </div>
   )
 }
+
