@@ -16,6 +16,10 @@ function MapUpdater({ center, zoom }) {
   const map = useMap()
   useEffect(() => {
     map.setView(center, zoom)
+    // Forzar actualización del tamaño después de cambiar la vista
+    setTimeout(() => {
+      map.invalidateSize()
+    }, 100)
   }, [center, zoom, map])
   return null
 }
@@ -125,7 +129,7 @@ export default function MapSelector({ onMapCapture, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-lg p-6 max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col" style={{ height: '90vh' }}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold">Cargar Mapa desde OpenStreetMap</h3>
           <button
@@ -185,15 +189,19 @@ export default function MapSelector({ onMapCapture, onClose }) {
         </div>
 
         {/* Mapa */}
-        <div className="flex-1 border rounded-lg overflow-hidden" style={{ minHeight: '500px' }}>
-          <div ref={mapContainerRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <div className="border rounded-lg overflow-hidden" style={{ height: '500px', width: '100%' }}>
+          <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }}>
             <MapContainer
               center={center}
               zoom={zoom}
-              style={{ width: '100%', height: '100%', zIndex: 0 }}
+              style={{ width: '100%', height: '100%' }}
               whenCreated={(mapInstance) => {
                 mapRef.current = mapInstance
                 setMapReady(true)
+                // Forzar actualización del tamaño después de crear el mapa
+                setTimeout(() => {
+                  mapInstance.invalidateSize()
+                }, 200)
               }}
               scrollWheelZoom={true}
             >
