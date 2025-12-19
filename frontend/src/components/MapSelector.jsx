@@ -32,6 +32,7 @@ export default function MapSelector({ onMapCapture, onClose }) {
   const mapRef = useRef(null)
   const mapContainerRef = useRef(null)
   const [mapReady, setMapReady] = useState(false)
+  const [mapType, setMapType] = useState('street') // 'street' o 'satellite'
 
   // Buscar ubicación usando Nominatim (OpenStreetMap geocoding, gratuito)
   const handleSearch = async () => {
@@ -149,7 +150,7 @@ export default function MapSelector({ onMapCapture, onClose }) {
           </button>
         </div>
 
-        {/* Búsqueda */}
+        {/* Búsqueda y tipo de mapa */}
         <div className="mb-4 flex gap-2">
           <input
             type="text"
@@ -165,6 +166,28 @@ export default function MapSelector({ onMapCapture, onClose }) {
           >
             Buscar
           </button>
+          <div className="flex gap-1 border rounded-lg overflow-hidden">
+            <button
+              onClick={() => setMapType('street')}
+              className={`px-4 py-2 transition-colors ${
+                mapType === 'street'
+                  ? 'bg-dark-blue text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Mapa
+            </button>
+            <button
+              onClick={() => setMapType('satellite')}
+              className={`px-4 py-2 transition-colors ${
+                mapType === 'satellite'
+                  ? 'bg-dark-blue text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Satélite
+            </button>
+          </div>
         </div>
 
         {/* Controles de tamaño */}
@@ -215,10 +238,23 @@ export default function MapSelector({ onMapCapture, onClose }) {
               scrollWheelZoom={true}
             >
               <MapUpdater center={center} zoom={zoom} />
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+              {mapType === 'street' ? (
+                <TileLayer
+                  key="street"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  errorTileUrl=""
+                  maxZoom={19}
+                />
+              ) : (
+                <TileLayer
+                  key="satellite"
+                  attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                  errorTileUrl=""
+                  maxZoom={19}
+                />
+              )}
             </MapContainer>
           </div>
         </div>
