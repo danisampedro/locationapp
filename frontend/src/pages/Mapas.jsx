@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { Stage, Layer, Image, Rect, Circle, Line, Text, Transformer } from 'react-konva'
 import { useDropzone } from 'react-dropzone'
 import axios, { API_URL } from '../config/axios.js'
+import MapSelector from '../components/MapSelector.jsx'
 
 // Componente para objetos en el canvas
 const MapObject = ({ shapeProps, isSelected, onSelect, onChange, scale }) => {
