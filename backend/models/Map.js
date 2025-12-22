@@ -66,3 +66,4 @@ const Map = sequelize.define('Map', {
 
 export default Map
 
+

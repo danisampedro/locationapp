@@ -14,6 +14,7 @@ import permitRoutes from './routes/permits.js'
 import recceDocumentRoutes from './routes/recceDocuments.js'
 import contractDocumentRoutes from './routes/contractDocuments.js'
 import mapRoutes from './routes/maps.js'
+import sheetRoutes from './routes/sheets.js'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/users.js'
 import { authMiddleware } from './middleware/auth.js'
@@ -51,6 +52,7 @@ app.use('/api/permits', authMiddleware, permitRoutes)
 app.use('/api/recce-documents', authMiddleware, recceDocumentRoutes)
 app.use('/api/contract-documents', authMiddleware, contractDocumentRoutes)
 app.use('/api/maps', authMiddleware, mapRoutes)
+app.use('/api/sheets', authMiddleware, sheetRoutes)
 app.use('/api/users', userRoutes)
 
 // Health check

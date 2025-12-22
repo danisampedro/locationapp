@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import jsPDF from 'jspdf'
 import axios, { API_URL } from '../config/axios.js'
+import SheetEditor from '../components/SheetEditor.jsx'
 
 export default function Documents() {
   const { id } = useParams()
@@ -20,6 +21,14 @@ export default function Documents() {
   const [contractConfig, setContractConfig] = useState({
     textoEspanol: '',
     textoIngles: ''
+  })
+  const [showSheetModal, setShowSheetModal] = useState(false)
+  const [savedSheets, setSavedSheets] = useState([])
+  const [editingSheet, setEditingSheet] = useState(null)
+  const [sheetName, setSheetName] = useState('')
+  const [sheetData, setSheetData] = useState({
+    columnas: [],
+    filas: []
   })
   const [recceConfig, setRecceConfig] = useState({
     documentTitle: 'LOCATION RECCE',
@@ -41,6 +50,7 @@ export default function Documents() {
     loadProyecto()
     loadSavedRecceDocuments()
     loadSavedContractDocuments()
+    loadSavedSheets()
   }, [id])
 
   const loadSavedRecceDocuments = async () => {
@@ -58,6 +68,15 @@ export default function Documents() {
       setSavedContractDocuments(response.data)
     } catch (error) {
       console.error('Error cargando documentos de contrato:', error)
+    }
+  }
+
+  const loadSavedSheets = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/sheets/project/${id}`, { withCredentials: true })
+      setSavedSheets(response.data)
+    } catch (error) {
+      console.error('Error cargando sheets:', error)
     }
   }
 
@@ -1493,6 +1512,246 @@ export default function Documents() {
     }
   }
 
+  const handleSaveSheet = async () => {
+    if (!sheetName.trim()) {
+      alert('Por favor, introduce un nombre para el sheet')
+      return
+    }
+
+    if (!sheetData.columnas || sheetData.columnas.length === 0) {
+      alert('Por favor, añade al menos una columna al sheet')
+      return
+    }
+
+    try {
+      if (editingSheet && editingSheet.id) {
+        // Actualizar sheet existente
+        const response = await axios.put(`${API_URL}/sheets/${editingSheet.id}`, {
+          nombre: sheetName.trim(),
+          columnas: sheetData.columnas,
+          filas: sheetData.filas || []
+        }, { withCredentials: true })
+        console.log('Sheet actualizado:', response.data)
+      } else {
+        // Crear nuevo sheet
+        if (!id) {
+          alert('Error: No se pudo identificar el proyecto')
+          return
+        }
+        const response = await axios.post(`${API_URL}/sheets`, {
+          proyectoId: parseInt(id),
+          nombre: sheetName.trim(),
+          columnas: sheetData.columnas,
+          filas: sheetData.filas || []
+        }, { withCredentials: true })
+        console.log('Sheet creado:', response.data)
+      }
+      
+      // Recargar la lista de sheets
+      await loadSavedSheets()
+      
+      // Cerrar modal y limpiar estado
+      setShowSheetModal(false)
+      setEditingSheet(null)
+      setSheetName('')
+      setSheetData({ columnas: [], filas: [] })
+      
+      alert(editingSheet ? 'Sheet actualizado correctamente' : 'Sheet guardado correctamente')
+    } catch (error) {
+      console.error('Error guardando sheet:', error)
+      const errorMessage = error.response?.data?.error || error.message || 'Error desconocido'
+      alert(`Error al guardar el sheet: ${errorMessage}`)
+    }
+  }
+
+  const handleDeleteSheet = async (sheetId) => {
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este sheet?')) {
+      return
+    }
+
+    try {
+      await axios.delete(`${API_URL}/sheets/${sheetId}`, { withCredentials: true })
+      await loadSavedSheets()
+    } catch (error) {
+      console.error('Error eliminando sheet:', error)
+      alert('Error al eliminar el sheet')
+    }
+  }
+
+  const generateSheetPDF = async (sheetDoc) => {
+    if (!proyecto) {
+      alert('Error: No se pudo cargar la información del proyecto')
+      return
+    }
+
+    setGenerating(true)
+
+    try {
+      const doc = new jsPDF('l', 'mm', 'a4') // Landscape para más espacio horizontal
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      const marginTop = 30
+      const marginBottom = 20
+      const marginSides = 15
+      const usableWidth = pageWidth - marginSides * 2
+      const usableHeight = pageHeight - marginTop - marginBottom
+
+      // ===== CABECERA =====
+      const headerHeight = 20
+      const headerY = 0
+
+      // Banda superior
+      doc.setFillColor(10, 25, 47)
+      doc.rect(0, headerY, pageWidth, headerHeight, 'F')
+
+      // Logo izquierdo
+      if (proyecto.logoUrl) {
+        try {
+          const logoImg = await loadImage(proyecto.logoUrl)
+          const aspect = logoImg.width / logoImg.height
+          const logoMaxWidth = 20
+          const logoMaxHeight = 12
+          let w = logoMaxWidth
+          let h = logoMaxHeight
+          if (aspect > logoMaxWidth / logoMaxHeight) {
+            h = w / aspect
+          } else {
+            w = h * aspect
+          }
+          const logoX = marginSides
+          const logoY = headerY + (headerHeight - h) / 2
+          doc.addImage(logoImg, 'PNG', logoX, logoY, w, h)
+        } catch (e) {
+          console.error('Error cargando logo:', e)
+        }
+      }
+
+      // Título del proyecto
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(255, 255, 255)
+      const projectTitle = (proyecto.nombre || 'PROYECTO').toUpperCase()
+      const titleWidth = doc.getTextWidth(projectTitle)
+      doc.text(projectTitle, (pageWidth - titleWidth) / 2, headerY + headerHeight / 2 + 5)
+
+      // Título del documento
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      const documentTitle = sheetDoc.nombre || 'SHEET'
+      const docTitleWidth = doc.getTextWidth(documentTitle)
+      doc.text(documentTitle, (pageWidth - docTitleWidth) / 2, headerY + headerHeight / 2 + 10)
+
+      doc.setTextColor(0, 0, 0)
+
+      // ===== TABLA =====
+      let yPosition = marginTop + headerHeight + 5
+
+      // Parsear columnas y filas
+      const columnas = Array.isArray(sheetDoc.columnas) ? sheetDoc.columnas : 
+        (typeof sheetDoc.columnas === 'string' ? JSON.parse(sheetDoc.columnas) : [])
+      const filas = Array.isArray(sheetDoc.filas) ? sheetDoc.filas : 
+        (typeof sheetDoc.filas === 'string' ? JSON.parse(sheetDoc.filas) : [])
+
+      if (columnas.length === 0) {
+        doc.setFontSize(12)
+        doc.text('No hay columnas definidas', marginSides, yPosition)
+        doc.save(`${sheetDoc.nombre.replace(/[^a-z0-9]/gi, '_')}.pdf`)
+        setGenerating(false)
+        return
+      }
+
+      // Calcular ancho de columnas
+      const colWidth = usableWidth / columnas.length
+      const rowHeight = 8
+
+      // Encabezados de columnas
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.setFillColor(240, 240, 240)
+      doc.rect(marginSides, yPosition - rowHeight, usableWidth, rowHeight, 'F')
+      
+      columnas.forEach((col, index) => {
+        const x = marginSides + index * colWidth
+        doc.text(col.titulo || `Col ${index + 1}`, x + 2, yPosition - 2, {
+          maxWidth: colWidth - 4,
+          align: 'left'
+        })
+        // Línea vertical
+        if (index > 0) {
+          doc.setDrawColor(200, 200, 200)
+          doc.line(x, yPosition - rowHeight, x, yPosition)
+        }
+      })
+
+      // Línea horizontal debajo del encabezado
+      doc.setDrawColor(200, 200, 200)
+      doc.line(marginSides, yPosition, marginSides + usableWidth, yPosition)
+
+      // Filas de datos
+      doc.setFont('helvetica', 'normal')
+      filas.forEach((fila, rowIndex) => {
+        const rowY = yPosition + rowIndex * rowHeight
+
+        // Verificar si necesitamos nueva página
+        if (rowY + rowHeight > pageHeight - marginBottom) {
+          doc.addPage()
+          yPosition = marginTop
+          const newRowY = yPosition + (rowIndex % Math.floor((pageHeight - marginTop - marginBottom) / rowHeight)) * rowHeight
+          
+          // Redibujar encabezados en nueva página
+          doc.setFont('helvetica', 'bold')
+          doc.setFillColor(240, 240, 240)
+          doc.rect(marginSides, yPosition - rowHeight, usableWidth, rowHeight, 'F')
+          columnas.forEach((col, colIndex) => {
+            const x = marginSides + colIndex * colWidth
+            doc.text(col.titulo || `Col ${colIndex + 1}`, x + 2, yPosition - 2, {
+              maxWidth: colWidth - 4,
+              align: 'left'
+            })
+            if (colIndex > 0) {
+              doc.setDrawColor(200, 200, 200)
+              doc.line(x, yPosition - rowHeight, x, yPosition)
+            }
+          })
+          doc.setDrawColor(200, 200, 200)
+          doc.line(marginSides, yPosition, marginSides + usableWidth, yPosition)
+          doc.setFont('helvetica', 'normal')
+        }
+
+        const currentY = rowY > marginTop ? rowY : yPosition + (rowIndex % Math.floor((pageHeight - marginTop - marginBottom) / rowHeight)) * rowHeight
+
+        columnas.forEach((col, colIndex) => {
+          const x = marginSides + colIndex * colWidth
+          const valor = fila.datos && fila.datos[col.id] ? String(fila.datos[col.id]) : ''
+          doc.setFontSize(8)
+          doc.text(valor, x + 2, currentY - 2, {
+            maxWidth: colWidth - 4,
+            align: 'left'
+          })
+          // Línea vertical
+          if (colIndex > 0) {
+            doc.setDrawColor(200, 200, 200)
+            doc.line(x, currentY - rowHeight, x, currentY)
+          }
+        })
+
+        // Línea horizontal
+        doc.setDrawColor(200, 200, 200)
+        doc.line(marginSides, currentY, marginSides + usableWidth, currentY)
+      })
+
+      const fileName = `${sheetDoc.nombre.replace(/[^a-z0-9]/gi, '_')}.pdf`
+      doc.save(fileName)
+      setGenerating(false)
+      alert('PDF de Sheet generado exitosamente')
+    } catch (error) {
+      console.error('Error generando Sheet PDF:', error)
+      setGenerating(false)
+      alert('Error al generar el PDF del Sheet. Por favor, intenta de nuevo.')
+    }
+  }
+
   const generateContractPDF = async (contractDoc) => {
     if (!proyecto) {
       alert('Error: No se pudo cargar la información del proyecto')
@@ -2050,8 +2309,214 @@ export default function Documents() {
               </div>
             )}
           </div>
+
+          {/* Plantilla Sheets */}
+          <div className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-800">Sheets</h3>
+                <p className="text-xs text-gray-500">Hojas de cálculo personalizadas</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Crea hojas de cálculo personalizadas con columnas y filas editables. Define tus propias columnas y añade datos en cada celda. Exporta a PDF cuando termines.
+            </p>
+            <div className="flex items-center justify-between mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingSheet(null)
+                  setSheetName('')
+                  setSheetData({ columnas: [], filas: [] })
+                  setShowSheetModal(true)
+                }}
+                className="bg-accent-green text-white px-4 py-2 rounded-lg hover:bg-accent-green/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Nuevo Sheet
+              </button>
+            </div>
+            {savedSheets.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4">
+                No hay sheets guardados. Crea el primero pulsando &quot;Nuevo Sheet&quot;.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {savedSheets.map((sheet) => (
+                  <div
+                    key={sheet.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-accent-green/50 transition"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-800">{sheet.nombre}</h4>
+                      <p className="text-xs text-gray-500">
+                        {new Date(sheet.createdAt).toLocaleDateString('es-ES')} • {Array.isArray(sheet.columnas) ? sheet.columnas.length : 0} columnas, {Array.isArray(sheet.filas) ? sheet.filas.length : 0} filas
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await axios.get(`${API_URL}/sheets/${sheet.id}`, { withCredentials: true })
+                            const savedSheet = response.data
+                            setEditingSheet(savedSheet)
+                            setSheetName(savedSheet.nombre)
+                            // Parsear columnas y filas si vienen como strings
+                            let parsedColumnas = savedSheet.columnas
+                            let parsedFilas = savedSheet.filas
+                            if (typeof savedSheet.columnas === 'string') {
+                              try {
+                                parsedColumnas = JSON.parse(savedSheet.columnas)
+                              } catch (e) {
+                                parsedColumnas = []
+                              }
+                            }
+                            if (typeof savedSheet.filas === 'string') {
+                              try {
+                                parsedFilas = JSON.parse(savedSheet.filas)
+                              } catch (e) {
+                                parsedFilas = []
+                              }
+                            }
+                            setSheetData({
+                              columnas: Array.isArray(parsedColumnas) ? parsedColumnas : [],
+                              filas: Array.isArray(parsedFilas) ? parsedFilas : []
+                            })
+                            setShowSheetModal(true)
+                          } catch (error) {
+                            console.error('Error cargando sheet:', error)
+                            alert('Error al cargar el sheet')
+                          }
+                        }}
+                        className="p-1.5 text-gray-600 hover:text-dark-blue hover:bg-gray-100 rounded transition-colors"
+                        title="Editar"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSheet(sheet.id)}
+                        className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-gray-100 rounded transition-colors"
+                        title="Eliminar"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await axios.get(`${API_URL}/sheets/${sheet.id}`, { withCredentials: true })
+                            const savedSheet = response.data
+                            await generateSheetPDF(savedSheet)
+                          } catch (error) {
+                            console.error('Error cargando sheet:', error)
+                            alert('Error al cargar el sheet')
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-dark-blue text-white text-xs rounded-lg hover:bg-dark-blue-light transition-colors"
+                      >
+                        Generar PDF
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Modal Sheets */}
+      {showSheetModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-7xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">Editor de Sheet</h2>
+                <p className="text-sm text-gray-500">
+                  Crea y edita tu hoja de cálculo personalizada. Añade columnas, edita títulos y completa los datos.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSheetModal(false)
+                  setEditingSheet(null)
+                  setSheetName('')
+                  setSheetData({ columnas: [], filas: [] })
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Nombre del sheet */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre del Sheet <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={sheetName}
+                  onChange={(e) => setSheetName(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  placeholder="Ej: Lista de Materiales - 2024"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Este nombre te ayudará a identificar el sheet guardado
+                </p>
+              </div>
+
+              {/* Editor de Sheet */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contenido del Sheet
+                </label>
+                <SheetEditor
+                  columnas={sheetData.columnas}
+                  filas={sheetData.filas}
+                  onColumnasChange={(newColumnas) => setSheetData({ ...sheetData, columnas: newColumnas })}
+                  onFilasChange={(newFilas) => setSheetData({ ...sheetData, filas: newFilas })}
+                />
+              </div>
+
+              {/* Botones */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSheetModal(false)
+                    setEditingSheet(null)
+                    setSheetName('')
+                    setSheetData({ columnas: [], filas: [] })
+                  }}
+                  className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSheet}
+                  className="px-5 py-2 rounded-lg bg-accent-green text-white text-sm hover:bg-accent-green-dark"
+                >
+                  {editingSheet ? 'Actualizar Sheet' : 'Guardar Sheet'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Contratos */}
       {showContractModal && (

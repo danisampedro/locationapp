@@ -9,7 +9,8 @@ import Permit from './Permit.js'
 import RecceDocument from './RecceDocument.js'
 import ContractDocument from './ContractDocument.js'
 import Map from './Map.js'
+import Sheet from './Sheet.js'
 
 // Exportar todos los modelos
-export { Proyecto, Location, Crew, Vendor, User, ProyectoCrew, Permit, RecceDocument, ContractDocument, Map }
+export { Proyecto, Location, Crew, Vendor, User, ProyectoCrew, Permit, RecceDocument, ContractDocument, Map, Sheet }
 
