@@ -2486,8 +2486,12 @@ export default function Documents() {
                 <SheetEditor
                   columnas={sheetData.columnas}
                   filas={sheetData.filas}
-                  onColumnasChange={(newColumnas) => setSheetData({ ...sheetData, columnas: newColumnas })}
-                  onFilasChange={(newFilas) => setSheetData({ ...sheetData, filas: newFilas })}
+                  onColumnasChange={(newColumnas) => {
+                    setSheetData(prev => ({ ...prev, columnas: newColumnas }))
+                  }}
+                  onFilasChange={(newFilas) => {
+                    setSheetData(prev => ({ ...prev, filas: newFilas }))
+                  }}
                 />
               </div>
 

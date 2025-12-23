@@ -6,7 +6,7 @@ export default function SheetEditor({ columnas, filas, onColumnasChange, onFilas
   const [showAddColumn, setShowAddColumn] = useState(false)
   const inputRef = useRef(null)
 
-  // Generar IDs únicos para columnas si no los tienen
+  // Generar IDs únicos para columnas si no los tienen (solo una vez al montar)
   useEffect(() => {
     if (columnas && columnas.length > 0) {
       const hasIds = columnas.every(col => col.id)
@@ -18,6 +18,7 @@ export default function SheetEditor({ columnas, filas, onColumnasChange, onFilas
         onColumnasChange(updatedColumnas)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleAddColumn = () => {
@@ -27,15 +28,19 @@ export default function SheetEditor({ columnas, filas, onColumnasChange, onFilas
     }
 
     const newCol = {
-      id: `col_${Date.now()}`,
+      id: `col_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       titulo: newColumnTitle.trim()
     }
 
-    const updatedColumnas = [...(columnas || []), newCol]
+    // Asegurarse de que columnas sea un array
+    const currentColumnas = Array.isArray(columnas) ? columnas : []
+    const updatedColumnas = [...currentColumnas, newCol]
+    
     onColumnasChange(updatedColumnas)
 
     // Inicializar valores vacíos para esta columna en todas las filas existentes
-    const updatedFilas = (filas || []).map(fila => ({
+    const currentFilas = Array.isArray(filas) ? filas : []
+    const updatedFilas = currentFilas.map(fila => ({
       ...fila,
       datos: {
         ...(fila.datos || {}),
