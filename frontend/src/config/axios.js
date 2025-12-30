@@ -1,14 +1,18 @@
 import axios from 'axios'
 
-// URL del backend - debe configurarse en .env como VITE_API_URL
-// Si no está configurada, intentará usar localhost (solo para desarrollo local)
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+// URL del backend
+// En desarrollo: usar variable de entorno o localhost
+// En producción: usar URL hardcodeada para evitar problemas
+const API_URL = import.meta.env.DEV 
+  ? (import.meta.env.VITE_API_URL || 'http://localhost:3001/api')
+  : 'https://locationapp-backend.onrender.com/api'
 
 // Log para debugging
-if (import.meta.env.DEV) {
-  console.log('🔧 API_URL configurada:', API_URL)
-  console.log('🔧 VITE_API_URL desde env:', import.meta.env.VITE_API_URL)
-}
+console.log('🔧 API_URL configurada:', API_URL)
+console.log('🔧 VITE_API_URL desde env:', import.meta.env.VITE_API_URL)
+console.log('🔧 Modo:', import.meta.env.MODE)
+console.log('🔧 Dev:', import.meta.env.DEV)
+console.log('🔧 Production URL hardcoded:', !import.meta.env.DEV)
 
 // Configurar axios por defecto - FORZAR withCredentials en TODAS las peticiones
 axios.defaults.withCredentials = true
