@@ -168,6 +168,22 @@ export default function Visor() {
       return
     }
 
+    // Validar tamaño del archivo (50MB máximo)
+    const maxSize = 50 * 1024 * 1024 // 50MB
+    if (archivoGeoJSON.size > maxSize) {
+      alert(`El archivo es demasiado grande. Tamaño máximo: 50MB. Tu archivo: ${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB`)
+      return
+    }
+
+    // Advertir si el archivo es grande (más de 10MB)
+    if (archivoGeoJSON.size > 10 * 1024 * 1024) {
+      const confirmar = window.confirm(
+        `El archivo es grande (${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB). ` +
+        `La subida puede tardar varios minutos. ¿Continuar?`
+      )
+      if (!confirmar) return
+    }
+
     try {
       setLoading(true)
       const formData = new FormData()
@@ -192,7 +208,7 @@ export default function Visor() {
       const response = await axios.post(`${API_URL}/visor/admin/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         withCredentials: true,
-        timeout: 120000 // 2 minutos para archivos grandes
+        timeout: 300000 // 5 minutos para archivos grandes y servidor "sleeping"
       })
 
       console.log('Capa subida correctamente:', response.data)
@@ -215,7 +231,22 @@ export default function Visor() {
       console.error('Error subiendo capa:', error)
       console.error('Error response:', error.response?.data)
       console.error('Error status:', error.response?.status)
-      const errorMessage = error.response?.data?.error || error.message || 'Error desconocido al subir la capa'
+      
+      let errorMessage = 'Error desconocido al subir la capa'
+      
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = `La subida tardó demasiado (más de 5 minutos). Esto puede pasar si:
+- El archivo es muy grande
+- El servidor está "durmiendo" (plan gratuito de Render)
+- La conexión es lenta
+
+Por favor, intenta con un archivo más pequeño o espera unos segundos y vuelve a intentar.`
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
       alert(`Error al subir la capa: ${errorMessage}`)
     } finally {
       setLoading(false)
@@ -675,7 +706,9 @@ export default function Visor() {
                 disabled={loading}
                 className="flex-1 bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light transition-colors disabled:opacity-50"
               >
-                {loading ? 'Subiendo...' : 'Subir Capa'}
+                {loading ? (archivoGeoJSON && archivoGeoJSON.size > 10 * 1024 * 1024 
+                  ? 'Subiendo archivo grande, por favor espera...' 
+                  : 'Subiendo...') : 'Subir Capa'}
               </button>
               <button
                 onClick={() => {

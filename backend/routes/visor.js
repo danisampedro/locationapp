@@ -140,14 +140,20 @@ router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
       
       try {
         console.log('📤 Leyendo archivo:', req.file.path)
+        console.log('📤 Tamaño del archivo en disco:', req.file.size, 'bytes')
+        
         const fileContent = fs.readFileSync(req.file.path, 'utf8')
-        console.log('📤 Tamaño del archivo:', fileContent.length, 'bytes')
+        console.log('📤 Contenido leído, tamaño:', fileContent.length, 'caracteres')
+        
         const ext = path.extname(req.file.originalname).toLowerCase()
         console.log('📤 Extensión del archivo:', ext)
 
         if (ext === '.geojson' || ext === '.json') {
+          console.log('📤 Parseando GeoJSON (puede tardar con archivos grandes)...')
+          const startParse = Date.now()
           geometriaData = JSON.parse(fileContent)
-          console.log('✅ GeoJSON parseado correctamente, tipo:', geometriaData.type)
+          const parseTime = Date.now() - startParse
+          console.log(`✅ GeoJSON parseado correctamente en ${parseTime}ms, tipo:`, geometriaData.type)
         } else if (ext === '.kml') {
           // Para KML necesitaríamos una librería como @mapbox/togeojson
           // Por ahora, requerimos que se pase la geometría directamente
@@ -194,6 +200,7 @@ router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
     console.log('📤 Geometría preparada, tipo:', geometriaData?.type)
     
     try {
+      const startCreate = Date.now()
       const capa = await Capa.create({
         nombre,
         tipo: tipo || 'personalizada',
@@ -207,8 +214,9 @@ router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
         opacidad: opacidad ? parseFloat(opacidad) : 0.5,
         activa: true
       })
+      const createTime = Date.now() - startCreate
 
-      console.log('✅ Capa creada exitosamente con ID:', capa.id)
+      console.log(`✅ Capa creada exitosamente con ID: ${capa.id} en ${createTime}ms`)
       res.status(201).json(capa)
     } catch (dbError) {
       console.error('❌ Error al crear capa en BD:', dbError)
