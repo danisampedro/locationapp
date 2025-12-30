@@ -109,9 +109,42 @@ export default function Visor() {
   const loadCapas = async () => {
     try {
       const response = await axios.get(`${API_URL}/visor/capas`, { withCredentials: true })
-      setCapas(response.data)
+      
+      // Parsear geometría si viene como string y agregar logging
+      const capasParsed = response.data.map(capa => {
+        let geometria = capa.geometria
+        
+        // Si la geometría es un string, parsearla
+        if (typeof geometria === 'string') {
+          try {
+            geometria = JSON.parse(geometria)
+          } catch (e) {
+            console.error('Error parseando geometría de capa', capa.id, ':', e)
+            geometria = null
+          }
+        }
+        
+        // Logging para diagnóstico
+        if (geometria) {
+          console.log(`✅ Capa ${capa.id} (${capa.nombre}):`, {
+            tipo: geometria.type,
+            tieneFeatures: geometria.type === 'FeatureCollection' ? geometria.features?.length : 'N/A',
+            esFeature: geometria.type === 'Feature',
+            esGeometry: geometria.type && !geometria.type.includes('Feature')
+          })
+        } else {
+          console.warn(`⚠️ Capa ${capa.id} (${capa.nombre}): geometría vacía o inválida`)
+        }
+        
+        return {
+          ...capa,
+          geometria
+        }
+      })
+      
+      setCapas(capasParsed)
       // Activar todas las capas por defecto
-      setCapasActivas(new Set(response.data.map(c => c.id)))
+      setCapasActivas(new Set(capasParsed.map(c => c.id)))
     } catch (error) {
       console.error('Error cargando capas:', error)
       setError('Error al cargar las capas')
@@ -297,7 +330,32 @@ Por favor, intenta con un archivo más pequeño o espera unos segundos y vuelve 
 
   // Renderizar capa GeoJSON
   const renderCapa = (capa) => {
-    if (!capasActivas.has(capa.id) || !capa.geometria) return null
+    if (!capasActivas.has(capa.id)) {
+      console.log(`⏸️ Capa ${capa.id} no está activa`)
+      return null
+    }
+    
+    if (!capa.geometria) {
+      console.warn(`⚠️ Capa ${capa.id} no tiene geometría`)
+      return null
+    }
+    
+    // Verificar que la geometría sea válida
+    let geometria = capa.geometria
+    if (typeof geometria === 'string') {
+      console.warn(`⚠️ Capa ${capa.id}: geometría es string, debería ser objeto`)
+      try {
+        geometria = JSON.parse(geometria)
+      } catch (e) {
+        console.error(`❌ Error parseando geometría de capa ${capa.id}:`, e)
+        return null
+      }
+    }
+    
+    console.log(`🎨 Renderizando capa ${capa.id} (${capa.nombre}):`, {
+      tipo: geometria.type,
+      tieneFeatures: geometria.type === 'FeatureCollection' ? geometria.features?.length : 'N/A'
+    })
 
     const style = {
       fillColor: capa.color || '#3b82f6',
@@ -324,7 +382,7 @@ Por favor, intenta con un archivo más pequeño o espera unos segundos y vuelve 
     return (
       <GeoJSON
         key={capa.id}
-        data={capa.geometria}
+        data={geometria}
         style={style}
         onEachFeature={onEachFeature}
       />
