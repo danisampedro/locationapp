@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e  # Si algo falla, salir y no mostrar mensaje de éxito
+
 # Script para generar el build del frontend
 # Asegúrate de configurar VITE_API_URL antes de ejecutar este script
 
@@ -24,8 +26,11 @@ fi
 
 # Generar build
 echo "🔨 Generando build de producción..."
-npm run build
-
-echo "✅ Build completado! La carpeta dist está lista en la raíz del proyecto."
-echo "📤 Puedes subir el contenido de la carpeta dist a Hostinger"
+if npm run build; then
+    echo "✅ Build completado! La carpeta dist está lista en la raíz del proyecto."
+    echo "📤 Puedes subir el contenido de la carpeta dist a Hostinger"
+else
+    echo "❌ Error al generar el build. Revisa los mensajes anteriores."
+    exit 1
+fi
 

@@ -17,6 +17,7 @@ import mapRoutes from './routes/maps.js'
 import sheetRoutes from './routes/sheets.js'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/users.js'
+import visorRoutes from './routes/visor.js'
 import { authMiddleware } from './middleware/auth.js'
 
 dotenv.config()
@@ -54,6 +55,7 @@ app.use('/api/contract-documents', authMiddleware, contractDocumentRoutes)
 app.use('/api/maps', authMiddleware, mapRoutes)
 app.use('/api/sheets', authMiddleware, sheetRoutes)
 app.use('/api/users', userRoutes)
+app.use('/api/visor', visorRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -553,6 +555,92 @@ const migrateVendorTable = async () => {
   }
 }
 
+// Migración: Crear tabla capas si no existe
+const migrateCapasTable = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface()
+    const tableExists = await queryInterface.tableExists('capas')
+
+    if (!tableExists) {
+      console.log('ℹ️  Tabla capas no existe, creando...')
+      await queryInterface.createTable('capas', {
+        id: {
+          type: sequelize.Sequelize.INTEGER,
+          primaryKey: true,
+          autoIncrement: true
+        },
+        nombre: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: false
+        },
+        tipo: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: false,
+          defaultValue: 'municipio'
+        },
+        fuente: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        fechaDatos: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: true
+        },
+        normativa: {
+          type: sequelize.Sequelize.TEXT,
+          allowNull: true,
+          defaultValue: ''
+        },
+        tipoPermiso: {
+          type: sequelize.Sequelize.ENUM('permitido', 'autorizacion_necesaria', 'prohibido'),
+          allowNull: false,
+          defaultValue: 'permitido'
+        },
+        observaciones: {
+          type: sequelize.Sequelize.TEXT,
+          allowNull: true,
+          defaultValue: ''
+        },
+        geometria: {
+          type: sequelize.Sequelize.JSON,
+          allowNull: false
+        },
+        activa: {
+          type: sequelize.Sequelize.BOOLEAN,
+          allowNull: false,
+          defaultValue: true
+        },
+        color: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: '#3b82f6'
+        },
+        opacidad: {
+          type: sequelize.Sequelize.FLOAT,
+          allowNull: true,
+          defaultValue: 0.5
+        },
+        createdAt: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        },
+        updatedAt: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        }
+      })
+      console.log('✅ Tabla capas creada')
+    } else {
+      console.log('ℹ️  Tabla capas ya existe')
+    }
+  } catch (error) {
+    console.error('⚠️  Error en migración de capas:', error.message)
+  }
+}
+
 // Crear o actualizar usuario admin inicial
 const seedAdminUser = async () => {
   const adminUsername = process.env.INIT_ADMIN_USERNAME || 'danisampedro'
@@ -605,6 +693,7 @@ const connectDB = async () => {
     await migratePermitsTable()
     await migrateRecceDocumentsTable()
     await migrateContractDocumentsTable()
+    await migrateCapasTable()
     
     await seedAdminUser()
     console.log('✅ Database models synchronized')
