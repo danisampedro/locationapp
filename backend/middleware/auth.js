@@ -13,6 +13,11 @@ export const generateToken = (user) => {
 
 export const authMiddleware = async (req, res, next) => {
   try {
+    // Permitir peticiones OPTIONS (preflight de CORS) sin autenticación
+    if (req.method === 'OPTIONS') {
+      return next()
+    }
+
     // Logging detallado para diagnóstico
     console.log('🔐 authMiddleware - Método:', req.method)
     console.log('🔐 authMiddleware - Ruta:', req.path)
