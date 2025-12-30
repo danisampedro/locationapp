@@ -657,34 +657,58 @@ const migrateCapasTable = async () => {
 
 // Crear o actualizar usuario admin inicial
 const seedAdminUser = async () => {
-  const adminUsername = process.env.INIT_ADMIN_USERNAME || 'danisampedro'
-  const adminPassword = process.env.INIT_ADMIN_PASSWORD || '76499486'
+  try {
+    const adminUsername = process.env.INIT_ADMIN_USERNAME || 'danisampedro'
+    const adminPassword = process.env.INIT_ADMIN_PASSWORD || '76499486'
 
-  console.log(`🔧 Verificando/creando usuario admin:`)
-  console.log(`   Username: ${adminUsername}`)
-  console.log(`   Password: ${adminPassword} (${process.env.INIT_ADMIN_PASSWORD ? 'desde ENV' : 'por defecto'})`)
-  
-  const existing = await User.findOne({ where: { username: adminUsername } })
-  
-  const bcrypt = await import('bcrypt')
-  const passwordHash = await bcrypt.default.hash(adminPassword, 10)
+    console.log(`🔧 Verificando/creando usuario admin:`)
+    console.log(`   Username: ${adminUsername}`)
+    console.log(`   Password: ${adminPassword} (${process.env.INIT_ADMIN_PASSWORD ? 'desde ENV' : 'por defecto'})`)
+    
+    const existing = await User.findOne({ where: { username: adminUsername } })
+    
+    const bcrypt = await import('bcrypt')
+    const passwordHash = await bcrypt.default.hash(adminPassword, 10)
 
-  if (existing) {
-    // Si existe, actualizar la contraseña para asegurar que es la correcta
-    console.log(`🔄 Usuario ${adminUsername} ya existe, actualizando contraseña...`)
-    await existing.update({
-      passwordHash,
-      role: 'admin' // Asegurar que es admin
-    })
-    console.log(`✅ Usuario admin actualizado: ${adminUsername} con contraseña: ${adminPassword}`)
-  } else {
-    // Si no existe, crearlo
-    await User.create({
-      username: adminUsername,
-      passwordHash,
-      role: 'admin'
-    })
-    console.log(`✅ Usuario admin inicial creado: ${adminUsername} con contraseña: ${adminPassword}`)
+    if (existing) {
+      // Si existe, actualizar la contraseña para asegurar que es la correcta
+      console.log(`🔄 Usuario ${adminUsername} ya existe, actualizando contraseña y rol...`)
+      await existing.update({
+        passwordHash,
+        role: 'admin' // Asegurar que es admin
+      })
+      console.log(`✅ Usuario admin actualizado: ${adminUsername}`)
+      
+      // Verificar que la contraseña funciona
+      const testUser = await User.findOne({ where: { username: adminUsername } })
+      const isValid = await bcrypt.default.compare(adminPassword, testUser.passwordHash)
+      if (isValid) {
+        console.log(`✅ Verificación: Contraseña funciona correctamente para ${adminUsername}`)
+      } else {
+        console.error(`❌ ERROR: La contraseña no funciona después de actualizar para ${adminUsername}`)
+      }
+    } else {
+      // Si no existe, crearlo
+      console.log(`🆕 Usuario ${adminUsername} no existe, creándolo...`)
+      const newUser = await User.create({
+        username: adminUsername,
+        passwordHash,
+        role: 'admin'
+      })
+      console.log(`✅ Usuario admin inicial creado: ${adminUsername} (ID: ${newUser.id})`)
+      
+      // Verificar que la contraseña funciona
+      const isValid = await bcrypt.default.compare(adminPassword, newUser.passwordHash)
+      if (isValid) {
+        console.log(`✅ Verificación: Contraseña funciona correctamente para ${adminUsername}`)
+      } else {
+        console.error(`❌ ERROR: La contraseña no funciona después de crear para ${adminUsername}`)
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error en seedAdminUser:', error.message)
+    console.error('❌ Stack:', error.stack)
+    // No lanzar el error para que el servidor pueda iniciar aunque falle esto
   }
 }
 
