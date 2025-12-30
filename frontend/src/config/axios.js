@@ -1,6 +1,14 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://locationapp-backend.onrender.com/api'
+// URL del backend - debe configurarse en .env como VITE_API_URL
+// Si no está configurada, intentará usar localhost (solo para desarrollo local)
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+
+// Log para debugging
+if (import.meta.env.DEV) {
+  console.log('🔧 API_URL configurada:', API_URL)
+  console.log('🔧 VITE_API_URL desde env:', import.meta.env.VITE_API_URL)
+}
 
 // Configurar axios por defecto - FORZAR withCredentials en TODAS las peticiones
 axios.defaults.withCredentials = true
@@ -33,11 +41,23 @@ axios.interceptors.response.use(
     return response
   },
   (error) => {
-    if (error.response?.status === 401) {
+    // Logging detallado de errores
+    if (error.code === 'ERR_NETWORK' || error.message.includes('ERR_CONNECTION_REFUSED')) {
+      console.error('❌ Error de conexión al backend')
+      console.error('URL intentada:', error.config?.url)
+      console.error('API_URL configurada:', API_URL)
+      console.error('VITE_API_URL desde env:', import.meta.env.VITE_API_URL)
+      console.error('💡 Solución: Verifica que la URL del backend en frontend/.env sea correcta')
+      console.error('💡 Ve a Render Dashboard y copia la URL real de tu servicio')
+    } else if (error.response?.status === 401) {
       console.error('❌ 401 Unauthorized - Cookie no enviada o token inválido')
       console.error('Request URL:', error.config?.url)
       console.error('withCredentials:', error.config?.withCredentials)
       console.error('Cookies disponibles:', document.cookie)
+    } else if (error.response) {
+      console.error('❌ Error del servidor:', error.response.status, error.response.data)
+    } else {
+      console.error('❌ Error de red:', error.message)
     }
     return Promise.reject(error)
   }
