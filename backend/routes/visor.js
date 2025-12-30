@@ -53,15 +53,21 @@ const geometryIntersectsMallorca = (geometry) => {
       return pointInMallorcaBBOX(lng, lat)
 
     case 'Polygon':
-    case 'MultiLineString':
       // Verificar si alguno de los puntos del polígono está en Mallorca
-      const coordinates = geometry.type === 'Polygon' 
-        ? geometry.coordinates[0] 
-        : geometry.coordinates.flat()
-      return coordinates.some(coord => {
-        const [lng, lat] = Array.isArray(coord[0]) ? coord[0] : coord
+      // coordinates[0] es el anillo exterior del polígono
+      return geometry.coordinates[0].some(coord => {
+        const [lng, lat] = coord
         return pointInMallorcaBBOX(lng, lat)
       })
+
+    case 'MultiLineString':
+      // Verificar si alguna de las líneas tiene puntos en Mallorca
+      return geometry.coordinates.some(lineString => 
+        lineString.some(coord => {
+          const [lng, lat] = coord
+          return pointInMallorcaBBOX(lng, lat)
+        })
+      )
 
     case 'MultiPolygon':
       return geometry.coordinates.some(polygon => 
