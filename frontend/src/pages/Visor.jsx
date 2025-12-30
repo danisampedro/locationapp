@@ -182,11 +182,20 @@ export default function Visor() {
       formData.append('color', nuevaCapa.color)
       formData.append('opacidad', nuevaCapa.opacidad.toString())
 
-      await axios.post(`${API_URL}/visor/admin/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        withCredentials: true
+      console.log('Subiendo capa:', {
+        nombre: nuevaCapa.nombre,
+        archivo: archivoGeoJSON.name,
+        tipo: archivoGeoJSON.type,
+        size: archivoGeoJSON.size
       })
 
+      const response = await axios.post(`${API_URL}/visor/admin/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        withCredentials: true,
+        timeout: 120000 // 2 minutos para archivos grandes
+      })
+
+      console.log('Capa subida correctamente:', response.data)
       alert('Capa subida correctamente')
       setShowUploadModal(false)
       setNuevaCapa({
@@ -201,10 +210,13 @@ export default function Visor() {
         opacidad: 0.5
       })
       setArchivoGeoJSON(null)
-      loadCapas()
+      await loadCapas()
     } catch (error) {
       console.error('Error subiendo capa:', error)
-      alert('Error al subir la capa: ' + (error.response?.data?.error || error.message))
+      console.error('Error response:', error.response?.data)
+      console.error('Error status:', error.response?.status)
+      const errorMessage = error.response?.data?.error || error.message || 'Error desconocido al subir la capa'
+      alert(`Error al subir la capa: ${errorMessage}`)
     } finally {
       setLoading(false)
     }
@@ -384,11 +396,11 @@ export default function Visor() {
         </div>
 
         {/* Mapa central */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative" style={{ zIndex: 1 }}>
           <MapContainer
             center={MALLORCA_CENTER}
             zoom={MALLORCA_ZOOM}
-            style={{ height: '100%', width: '100%' }}
+            style={{ height: '100%', width: '100%', zIndex: 1 }}
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -485,7 +497,7 @@ export default function Visor() {
 
       {/* Panel de administración */}
       {showAdminPanel && user?.role === 'admin' && (
-        <div className="absolute bottom-4 left-4 bg-white border border-gray-200 rounded-lg shadow-lg p-4 w-96 z-50">
+        <div className="absolute bottom-4 left-4 bg-white border border-gray-200 rounded-lg shadow-lg p-4 w-96" style={{ zIndex: 1000 }}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-800">Panel de Administración</h3>
             <button
@@ -506,8 +518,8 @@ export default function Visor() {
 
       {/* Modal de subir capa */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style={{ zIndex: 9999 }}>
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" style={{ zIndex: 10000 }}>
             <h3 className="text-xl font-bold mb-4">Subir Nueva Capa</h3>
             <div className="space-y-4">
               <div>
@@ -644,8 +656,14 @@ export default function Visor() {
                   type="file"
                   accept=".geojson,.json"
                   onChange={handleFileChange}
+                  key={archivoGeoJSON ? 'file-selected' : 'no-file'}
                   className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
                 />
+                {archivoGeoJSON && (
+                  <p className="text-xs text-green-600 mt-1">
+                    ✓ Archivo seleccionado: {archivoGeoJSON.name}
+                  </p>
+                )}
                 <p className="text-xs text-gray-500 mt-1">
                   Solo archivos GeoJSON (.geojson, .json)
                 </p>
@@ -675,7 +693,8 @@ export default function Visor() {
                   })
                   setArchivoGeoJSON(null)
                 }}
-                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
+                disabled={loading}
+                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors disabled:opacity-50"
               >
                 Cancelar
               </button>
