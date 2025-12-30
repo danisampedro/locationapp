@@ -17,6 +17,112 @@ L.Icon.Default.mergeOptions({
 const MALLORCA_CENTER = [39.5696, 2.6502]
 const MALLORCA_ZOOM = 10
 
+// Bounding box de Mallorca (para filtrar GeoJSON en el cliente)
+const MALLORCA_BBOX = {
+  minLat: 39.2,
+  maxLat: 40.0,
+  minLng: 2.3,
+  maxLng: 3.2
+}
+
+// Función para verificar si un punto está dentro del bounding box de Mallorca
+const pointInMallorcaBBOX = (lng, lat) => {
+  return lat >= MALLORCA_BBOX.minLat &&
+         lat <= MALLORCA_BBOX.maxLat &&
+         lng >= MALLORCA_BBOX.minLng &&
+         lng <= MALLORCA_BBOX.maxLng
+}
+
+// Función para verificar si una geometría intersecta con el bounding box de Mallorca
+const geometryIntersectsMallorca = (geometry) => {
+  if (!geometry || !geometry.type) return false
+
+  switch (geometry.type) {
+    case 'Point':
+      const [lng, lat] = geometry.coordinates
+      return pointInMallorcaBBOX(lng, lat)
+
+    case 'Polygon':
+    case 'MultiLineString':
+      // Verificar si alguno de los puntos del polígono está en Mallorca
+      const coordinates = geometry.type === 'Polygon'
+        ? geometry.coordinates[0]
+        : geometry.coordinates.flat()
+      return coordinates.some(coord => {
+        const [lng, lat] = Array.isArray(coord[0]) ? coord[0] : coord
+        return pointInMallorcaBBOX(lng, lat)
+      })
+
+    case 'MultiPolygon':
+      return geometry.coordinates.some(polygon =>
+        polygon[0].some(coord => {
+          const [lng, lat] = coord
+          return pointInMallorcaBBOX(lng, lat)
+        })
+      )
+
+    case 'LineString':
+      return geometry.coordinates.some(coord => {
+        const [lng, lat] = coord
+        return pointInMallorcaBBOX(lng, lat)
+      })
+
+    case 'GeometryCollection':
+      return geometry.geometries.some(geom => geometryIntersectsMallorca(geom))
+
+    default:
+      // Para otros tipos, intentar verificar coordenadas si existen
+      if (geometry.coordinates) {
+        const coords = Array.isArray(geometry.coordinates[0])
+          ? geometry.coordinates.flat(2)
+          : geometry.coordinates
+        if (coords.length >= 2) {
+          const [lng, lat] = coords
+          return pointInMallorcaBBOX(lng, lat)
+        }
+      }
+      return false
+  }
+}
+
+// Función para filtrar un GeoJSON y extraer solo las features dentro de Mallorca
+const filterGeoJSONForMallorca = (geojson) => {
+  if (!geojson || !geojson.type) {
+    throw new Error('GeoJSON inválido')
+  }
+
+  // Si es un FeatureCollection, filtrar las features
+  if (geojson.type === 'FeatureCollection') {
+    const originalCount = geojson.features?.length || 0
+    const filteredFeatures = geojson.features.filter(feature => {
+      if (!feature.geometry) return false
+      return geometryIntersectsMallorca(feature.geometry)
+    })
+
+    console.log(`📊 Filtrado GeoJSON en cliente: ${originalCount} features originales → ${filteredFeatures.length} features de Mallorca`)
+
+    return {
+      type: 'FeatureCollection',
+      features: filteredFeatures
+    }
+  }
+
+  // Si es un Feature, verificar si está en Mallorca
+  if (geojson.type === 'Feature') {
+    if (!geometryIntersectsMallorca(geojson.geometry)) {
+      throw new Error('La feature no está dentro del área de Mallorca')
+    }
+    return geojson
+  }
+
+  // Si es una Geometry directa, verificar
+  if (geometryIntersectsMallorca(geojson)) {
+    return geojson
+  }
+
+  throw new Error('La geometría no está dentro del área de Mallorca')
+}
+
 // Componente para detectar clicks en el mapa
 function MapClickHandler({ onMapClick }) {
   useMapEvents({
@@ -212,16 +318,45 @@ export default function Visor() {
     if (archivoGeoJSON.size > 50 * 1024 * 1024) {
       const confirmar = window.confirm(
         `El archivo es grande (${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB). ` +
-        `Se filtrará automáticamente para extraer solo los datos de Mallorca. ` +
-        `La subida puede tardar varios minutos (hasta 15 minutos para archivos muy grandes). ¿Continuar?`
+        `Se filtrará automáticamente en el navegador para extraer solo los datos de Mallorca antes de subirlo. ` +
+        `Esto puede tardar varios minutos. ¿Continuar?`
       )
       if (!confirmar) return
     }
 
     try {
       setLoading(true)
+      
+      // Filtrar GeoJSON en el cliente ANTES de subirlo para reducir el tamaño
+      console.log('📤 Leyendo y filtrando archivo GeoJSON en el cliente...')
+      const fileContent = await archivoGeoJSON.text()
+      const originalSize = fileContent.length
+      console.log(`📤 Tamaño original: ${(originalSize / 1024 / 1024).toFixed(2)}MB`)
+      
+      let geojsonData
+      try {
+        geojsonData = JSON.parse(fileContent)
+      } catch (parseError) {
+        setLoading(false)
+        alert(`Error al parsear el archivo GeoJSON: ${parseError.message}`)
+        return
+      }
+      
+      // Filtrar para extraer solo Mallorca
+      console.log('📤 Filtrando GeoJSON para extraer solo Mallorca...')
+      const filteredGeoJSON = filterGeoJSONForMallorca(geojsonData)
+      const filteredJSON = JSON.stringify(filteredGeoJSON)
+      const filteredSize = filteredJSON.length
+      const reduction = ((1 - filteredSize / originalSize) * 100).toFixed(1)
+      
+      console.log(`✅ GeoJSON filtrado: ${(filteredSize / 1024 / 1024).toFixed(2)}MB (reducción del ${reduction}%)`)
+      
+      // Crear un nuevo Blob con el GeoJSON filtrado
+      const filteredBlob = new Blob([filteredJSON], { type: 'application/json' })
+      const filteredFile = new File([filteredBlob], archivoGeoJSON.name, { type: 'application/json' })
+      
       const formData = new FormData()
-      formData.append('archivo', archivoGeoJSON)
+      formData.append('archivo', filteredFile)
       formData.append('nombre', nuevaCapa.nombre)
       formData.append('tipo', nuevaCapa.tipo)
       formData.append('fuente', nuevaCapa.fuente)
@@ -234,15 +369,17 @@ export default function Visor() {
 
       console.log('Subiendo capa:', {
         nombre: nuevaCapa.nombre,
-        archivo: archivoGeoJSON.name,
-        tipo: archivoGeoJSON.type,
-        size: archivoGeoJSON.size
+        archivo: filteredFile.name,
+        tipo: filteredFile.type,
+        sizeOriginal: archivoGeoJSON.size,
+        sizeFiltrado: filteredFile.size,
+        reduccion: `${reduction}%`
       })
 
       const response = await axios.post(`${API_URL}/visor/admin/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         withCredentials: true,
-        timeout: 900000 // 15 minutos para archivos muy grandes (600MB+)
+        timeout: 600000 // 10 minutos (el archivo ya está filtrado, debería ser más pequeño)
       })
 
       console.log('Capa subida correctamente:', response.data)
@@ -269,12 +406,11 @@ export default function Visor() {
       let errorMessage = 'Error desconocido al subir la capa'
       
       if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        errorMessage = `La subida tardó demasiado (más de 15 minutos). Esto puede pasar si:
-- El archivo es muy grande (600MB+)
+        errorMessage = `La subida tardó demasiado (más de 10 minutos). Esto puede pasar si:
 - El servidor está "durmiendo" (plan gratuito de Render)
 - La conexión es lenta
 
-Por favor, intenta con un archivo más pequeño o espera unos segundos y vuelve a intentar.`
+Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de Mallorca, por lo que el tamaño es mucho menor. Si el problema persiste, intenta recargar la página y vuelve a intentar.`
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error
       } else if (error.message) {
