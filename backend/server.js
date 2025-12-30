@@ -20,6 +20,9 @@ import userRoutes from './routes/users.js'
 import visorRoutes from './routes/visor.js'
 import { authMiddleware } from './middleware/auth.js'
 
+// Logging de diagnóstico - verificar que las rutas se cargan
+console.log('✅ Rutas del visor importadas correctamente')
+
 dotenv.config()
 
 const app = express()
@@ -56,6 +59,7 @@ app.use('/api/maps', authMiddleware, mapRoutes)
 app.use('/api/sheets', authMiddleware, sheetRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/visor', authMiddleware, visorRoutes)
+console.log('✅ Rutas /api/visor registradas correctamente')
 
 // Health check
 app.get('/api/health', (req, res) => {

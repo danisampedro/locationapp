@@ -1,15 +1,33 @@
 import express from 'express'
 import { Capa } from '../models/index.js'
 import multer from 'multer'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
 // Nota: authMiddleware se aplica globalmente en server.js para todas las rutas /api/visor
 
 const router = express.Router()
 
+// Asegurar que el directorio uploads existe
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const uploadsDir = path.join(__dirname, '..', 'uploads')
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true })
+  console.log('✅ Directorio uploads creado:', uploadsDir)
+}
+
 // Configurar multer para archivos GeoJSON, KML, Shapefile
 const upload = multer({
-  dest: 'uploads/',
+  dest: uploadsDir,
   limits: { fileSize: 50 * 1024 * 1024 } // 50MB
 })
+
+// Logging de diagnóstico - verificar que el router se carga
+console.log('✅ Router de visor cargado correctamente')
+console.log('✅ Directorio de uploads:', uploadsDir)
 
 // GET /api/visor/capas - Obtener todas las capas activas (público)
 router.get('/capas', async (req, res) => {
@@ -95,46 +113,66 @@ router.get('/admin/capas', async (req, res) => {
 // POST /api/visor/admin/upload - Subir una nueva capa (admin)
 // authMiddleware ya se aplica en server.js para todas las rutas /api/visor
 router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
+  console.log('📤 POST /api/visor/admin/upload - Petición recibida')
+  console.log('📤 Usuario:', req.user ? req.user.username : 'No autenticado')
+  console.log('📤 Body keys:', Object.keys(req.body))
+  console.log('📤 File:', req.file ? { name: req.file.originalname, size: req.file.size, path: req.file.path } : 'No file')
+  
   try {
     if (!req.user || req.user.role !== 'admin') {
+      console.log('❌ Acceso denegado - No es admin')
       return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de administrador.' })
     }
 
     const { nombre, tipo, fuente, fechaDatos, normativa, tipoPermiso, observaciones, color, opacidad, geometria } = req.body
 
     if (!nombre) {
+      console.log('❌ Nombre no proporcionado')
       return res.status(400).json({ error: 'El nombre de la capa es requerido' })
     }
+
+    console.log('📤 Procesando capa:', { nombre, tipo, tieneArchivo: !!req.file, tieneGeometria: !!geometria })
 
     let geometriaData = null
 
     // Si se subió un archivo, procesarlo
     if (req.file) {
-      const fs = await import('fs')
-      const path = await import('path')
       
       try {
+        console.log('📤 Leyendo archivo:', req.file.path)
         const fileContent = fs.readFileSync(req.file.path, 'utf8')
+        console.log('📤 Tamaño del archivo:', fileContent.length, 'bytes')
         const ext = path.extname(req.file.originalname).toLowerCase()
+        console.log('📤 Extensión del archivo:', ext)
 
         if (ext === '.geojson' || ext === '.json') {
           geometriaData = JSON.parse(fileContent)
+          console.log('✅ GeoJSON parseado correctamente, tipo:', geometriaData.type)
         } else if (ext === '.kml') {
           // Para KML necesitaríamos una librería como @mapbox/togeojson
           // Por ahora, requerimos que se pase la geometría directamente
+          if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path)
+          }
           return res.status(400).json({ error: 'Formato KML no soportado aún. Por favor, convierte a GeoJSON.' })
         } else {
+          if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path)
+          }
           return res.status(400).json({ error: 'Formato de archivo no soportado. Use GeoJSON (.geojson, .json)' })
         }
 
         // Eliminar archivo temporal
-        fs.unlinkSync(req.file.path)
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path)
+          console.log('✅ Archivo temporal eliminado')
+        }
       } catch (error) {
-        console.error('Error procesando archivo:', error)
+        console.error('❌ Error procesando archivo:', error)
         if (fs.existsSync(req.file.path)) {
           fs.unlinkSync(req.file.path)
         }
-        return res.status(400).json({ error: 'Error al procesar el archivo. Asegúrate de que sea un GeoJSON válido.' })
+        return res.status(400).json({ error: 'Error al procesar el archivo. Asegúrate de que sea un GeoJSON válido: ' + error.message })
       }
     } else if (geometria) {
       // Si se pasó la geometría directamente en el body
@@ -152,6 +190,7 @@ router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
       return res.status(400).json({ error: 'La geometría debe ser un GeoJSON válido' })
     }
 
+    console.log('📤 Creando capa en la base de datos...')
     const capa = await Capa.create({
       nombre,
       tipo: tipo || 'personalizada',
@@ -166,10 +205,12 @@ router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
       activa: true
     })
 
+    console.log('✅ Capa creada exitosamente con ID:', capa.id)
     res.status(201).json(capa)
   } catch (error) {
-    console.error('Error creando capa:', error)
-    res.status(500).json({ error: 'Error al crear la capa' })
+    console.error('❌ Error creando capa:', error)
+    console.error('❌ Error stack:', error.stack)
+    res.status(500).json({ error: 'Error al crear la capa: ' + error.message })
   }
 })
 
