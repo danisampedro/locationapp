@@ -55,7 +55,7 @@ app.use('/api/contract-documents', authMiddleware, contractDocumentRoutes)
 app.use('/api/maps', authMiddleware, mapRoutes)
 app.use('/api/sheets', authMiddleware, sheetRoutes)
 app.use('/api/users', userRoutes)
-app.use('/api/visor', visorRoutes)
+app.use('/api/visor', authMiddleware, visorRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -603,8 +603,22 @@ const migrateCapasTable = async () => {
           defaultValue: ''
         },
         geometria: {
-          type: sequelize.Sequelize.JSON,
-          allowNull: false
+          type: sequelize.Sequelize.TEXT('long'),
+          allowNull: false,
+          get() {
+            const value = this.getDataValue('geometria')
+            if (typeof value === 'string') {
+              try {
+                return JSON.parse(value)
+              } catch (e) {
+                return null
+              }
+            }
+            return value
+          },
+          set(value) {
+            this.setDataValue('geometria', typeof value === 'string' ? value : JSON.stringify(value))
+          }
         },
         activa: {
           type: sequelize.Sequelize.BOOLEAN,

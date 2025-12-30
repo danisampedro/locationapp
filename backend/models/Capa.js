@@ -41,9 +41,24 @@ const Capa = sequelize.define('Capa', {
     defaultValue: ''
   },
   geometria: {
-    type: DataTypes.JSON,
+    type: DataTypes.TEXT('long'),
     allowNull: false,
-    comment: 'Geometría en formato GeoJSON'
+    comment: 'Geometría en formato GeoJSON',
+    get() {
+      const value = this.getDataValue('geometria')
+      if (typeof value === 'string') {
+        try {
+          return JSON.parse(value)
+        } catch (e) {
+          console.error('Error parseando geometría:', e)
+          return null
+        }
+      }
+      return value
+    },
+    set(value) {
+      this.setDataValue('geometria', typeof value === 'string' ? value : JSON.stringify(value))
+    }
   },
   activa: {
     type: DataTypes.BOOLEAN,
