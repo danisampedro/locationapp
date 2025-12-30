@@ -22,7 +22,7 @@ if (!fs.existsSync(uploadsDir)) {
 // Configurar multer para archivos GeoJSON, KML, Shapefile
 const upload = multer({
   dest: uploadsDir,
-  limits: { fileSize: 100 * 1024 * 1024 } // 100MB (para archivos grandes de España/Europa que se filtrarán)
+  limits: { fileSize: 700 * 1024 * 1024 } // 700MB (para archivos grandes que se filtrarán)
 })
 
 // Bounding box de Mallorca (aproximado)

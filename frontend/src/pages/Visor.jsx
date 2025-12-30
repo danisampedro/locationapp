@@ -201,19 +201,19 @@ export default function Visor() {
       return
     }
 
-    // Validar tamaño del archivo (100MB máximo)
-    const maxSize = 100 * 1024 * 1024 // 100MB (se filtrará automáticamente para extraer solo Mallorca)
+    // Validar tamaño del archivo (700MB máximo)
+    const maxSize = 700 * 1024 * 1024 // 700MB (se filtrará automáticamente para extraer solo Mallorca)
     if (archivoGeoJSON.size > maxSize) {
-      alert(`El archivo es demasiado grande. Tamaño máximo: 100MB. Tu archivo: ${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB`)
+      alert(`El archivo es demasiado grande. Tamaño máximo: 700MB. Tu archivo: ${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB`)
       return
     }
 
-    // Advertir si el archivo es grande (más de 10MB)
-    if (archivoGeoJSON.size > 10 * 1024 * 1024) {
+    // Advertir si el archivo es grande (más de 50MB)
+    if (archivoGeoJSON.size > 50 * 1024 * 1024) {
       const confirmar = window.confirm(
         `El archivo es grande (${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB). ` +
         `Se filtrará automáticamente para extraer solo los datos de Mallorca. ` +
-        `La subida puede tardar varios minutos. ¿Continuar?`
+        `La subida puede tardar varios minutos (hasta 15 minutos para archivos muy grandes). ¿Continuar?`
       )
       if (!confirmar) return
     }
@@ -242,7 +242,7 @@ export default function Visor() {
       const response = await axios.post(`${API_URL}/visor/admin/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         withCredentials: true,
-        timeout: 300000 // 5 minutos para archivos grandes y servidor "sleeping"
+        timeout: 900000 // 15 minutos para archivos muy grandes (600MB+)
       })
 
       console.log('Capa subida correctamente:', response.data)
@@ -269,8 +269,8 @@ export default function Visor() {
       let errorMessage = 'Error desconocido al subir la capa'
       
       if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        errorMessage = `La subida tardó demasiado (más de 5 minutos). Esto puede pasar si:
-- El archivo es muy grande
+        errorMessage = `La subida tardó demasiado (más de 15 minutos). Esto puede pasar si:
+- El archivo es muy grande (600MB+)
 - El servidor está "durmiendo" (plan gratuito de Render)
 - La conexión es lenta
 
@@ -755,7 +755,7 @@ Por favor, intenta con un archivo más pequeño o espera unos segundos y vuelve 
                   </p>
                 )}
                 <p className="text-xs text-gray-500 mt-1">
-                  Solo archivos GeoJSON (.geojson, .json)
+                  Solo archivos GeoJSON (.geojson, .json). Máximo 700MB.
                 </p>
               </div>
             </div>
@@ -765,7 +765,7 @@ Por favor, intenta con un archivo más pequeño o espera unos segundos y vuelve 
                 disabled={loading}
                 className="flex-1 bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light transition-colors disabled:opacity-50"
               >
-                {loading ? (archivoGeoJSON && archivoGeoJSON.size > 10 * 1024 * 1024 
+                {loading ? (archivoGeoJSON && archivoGeoJSON.size > 50 * 1024 * 1024 
                   ? 'Subiendo archivo grande, por favor espera...' 
                   : 'Subiendo...') : 'Subir Capa'}
               </button>
