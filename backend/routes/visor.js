@@ -22,12 +22,121 @@ if (!fs.existsSync(uploadsDir)) {
 // Configurar multer para archivos GeoJSON, KML, Shapefile
 const upload = multer({
   dest: uploadsDir,
-  limits: { fileSize: 50 * 1024 * 1024 } // 50MB
+  limits: { fileSize: 100 * 1024 * 1024 } // 100MB (para archivos grandes de España/Europa que se filtrarán)
 })
+
+// Bounding box de Mallorca (aproximado)
+// Latitud: 39.2 a 40.0
+// Longitud: 2.3 a 3.2
+const MALLORCA_BBOX = {
+  minLat: 39.2,
+  maxLat: 40.0,
+  minLng: 2.3,
+  maxLng: 3.2
+}
+
+// Función para verificar si un punto está dentro del bounding box de Mallorca
+const pointInMallorcaBBOX = (lng, lat) => {
+  return lat >= MALLORCA_BBOX.minLat && 
+         lat <= MALLORCA_BBOX.maxLat && 
+         lng >= MALLORCA_BBOX.minLng && 
+         lng <= MALLORCA_BBOX.maxLng
+}
+
+// Función para verificar si una geometría intersecta con el bounding box de Mallorca
+const geometryIntersectsMallorca = (geometry) => {
+  if (!geometry || !geometry.type) return false
+
+  switch (geometry.type) {
+    case 'Point':
+      const [lng, lat] = geometry.coordinates
+      return pointInMallorcaBBOX(lng, lat)
+
+    case 'Polygon':
+    case 'MultiLineString':
+      // Verificar si alguno de los puntos del polígono está en Mallorca
+      const coordinates = geometry.type === 'Polygon' 
+        ? geometry.coordinates[0] 
+        : geometry.coordinates.flat()
+      return coordinates.some(coord => {
+        const [lng, lat] = Array.isArray(coord[0]) ? coord[0] : coord
+        return pointInMallorcaBBOX(lng, lat)
+      })
+
+    case 'MultiPolygon':
+      return geometry.coordinates.some(polygon => 
+        polygon[0].some(coord => {
+          const [lng, lat] = coord
+          return pointInMallorcaBBOX(lng, lat)
+        })
+      )
+
+    case 'LineString':
+      return geometry.coordinates.some(coord => {
+        const [lng, lat] = coord
+        return pointInMallorcaBBOX(lng, lat)
+      })
+
+    case 'GeometryCollection':
+      return geometry.geometries.some(geom => geometryIntersectsMallorca(geom))
+
+    default:
+      // Para otros tipos, intentar verificar coordenadas si existen
+      if (geometry.coordinates) {
+        const coords = Array.isArray(geometry.coordinates[0]) 
+          ? geometry.coordinates.flat(2)
+          : geometry.coordinates
+        if (coords.length >= 2) {
+          const [lng, lat] = coords
+          return pointInMallorcaBBOX(lng, lat)
+        }
+      }
+      return false
+  }
+}
+
+// Función para filtrar un GeoJSON y extraer solo las features dentro de Mallorca
+const filterGeoJSONForMallorca = (geojson) => {
+  if (!geojson || !geojson.type) {
+    throw new Error('GeoJSON inválido')
+  }
+
+  // Si es un FeatureCollection, filtrar las features
+  if (geojson.type === 'FeatureCollection') {
+    const originalCount = geojson.features?.length || 0
+    const filteredFeatures = geojson.features.filter(feature => {
+      if (!feature.geometry) return false
+      return geometryIntersectsMallorca(feature.geometry)
+    })
+
+    console.log(`📊 Filtrado GeoJSON: ${originalCount} features originales → ${filteredFeatures.length} features de Mallorca`)
+
+    return {
+      type: 'FeatureCollection',
+      features: filteredFeatures
+    }
+  }
+
+  // Si es un Feature, verificar si está en Mallorca
+  if (geojson.type === 'Feature') {
+    if (!geometryIntersectsMallorca(geojson.geometry)) {
+      throw new Error('La feature no está dentro del área de Mallorca')
+    }
+    return geojson
+  }
+
+  // Si es una Geometry directa, verificar
+  if (geometryIntersectsMallorca(geojson)) {
+    return geojson
+  }
+
+  throw new Error('La geometría no está dentro del área de Mallorca')
+}
 
 // Logging de diagnóstico - verificar que el router se carga
 console.log('✅ Router de visor cargado correctamente')
 console.log('✅ Directorio de uploads:', uploadsDir)
+console.log('✅ Bounding box de Mallorca configurado:', MALLORCA_BBOX)
 
 // GET /api/visor/capas - Obtener todas las capas activas (público)
 router.get('/capas', async (req, res) => {
@@ -196,8 +305,25 @@ router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
       return res.status(400).json({ error: 'La geometría debe ser un GeoJSON válido' })
     }
 
+    // Filtrar GeoJSON para extraer solo Mallorca
+    console.log('📤 Filtrando GeoJSON para extraer solo Mallorca...')
+    const originalSize = JSON.stringify(geometriaData).length
+    console.log(`📤 Tamaño original del GeoJSON: ${(originalSize / 1024 / 1024).toFixed(2)}MB`)
+    
+    try {
+      geometriaData = filterGeoJSONForMallorca(geometriaData)
+      const filteredSize = JSON.stringify(geometriaData).length
+      const reduction = ((1 - filteredSize / originalSize) * 100).toFixed(1)
+      console.log(`✅ GeoJSON filtrado: ${(filteredSize / 1024 / 1024).toFixed(2)}MB (reducción del ${reduction}%)`)
+    } catch (filterError) {
+      console.error('❌ Error filtrando GeoJSON:', filterError.message)
+      return res.status(400).json({ 
+        error: `Error al filtrar GeoJSON: ${filterError.message}. Asegúrate de que el archivo contenga datos de Mallorca.` 
+      })
+    }
+
     console.log('📤 Creando capa en la base de datos...')
-    console.log('📤 Geometría preparada, tipo:', geometriaData?.type)
+    console.log('📤 Geometría preparada (filtrada para Mallorca), tipo:', geometriaData?.type)
     
     try {
       const startCreate = Date.now()

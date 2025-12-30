@@ -168,10 +168,10 @@ export default function Visor() {
       return
     }
 
-    // Validar tamaño del archivo (50MB máximo)
-    const maxSize = 50 * 1024 * 1024 // 50MB
+    // Validar tamaño del archivo (100MB máximo)
+    const maxSize = 100 * 1024 * 1024 // 100MB (se filtrará automáticamente para extraer solo Mallorca)
     if (archivoGeoJSON.size > maxSize) {
-      alert(`El archivo es demasiado grande. Tamaño máximo: 50MB. Tu archivo: ${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB`)
+      alert(`El archivo es demasiado grande. Tamaño máximo: 100MB. Tu archivo: ${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB`)
       return
     }
 
@@ -179,6 +179,7 @@ export default function Visor() {
     if (archivoGeoJSON.size > 10 * 1024 * 1024) {
       const confirmar = window.confirm(
         `El archivo es grande (${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB). ` +
+        `Se filtrará automáticamente para extraer solo los datos de Mallorca. ` +
         `La subida puede tardar varios minutos. ¿Continuar?`
       )
       if (!confirmar) return
