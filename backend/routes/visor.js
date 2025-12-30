@@ -191,26 +191,58 @@ router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
     }
 
     console.log('📤 Creando capa en la base de datos...')
-    const capa = await Capa.create({
-      nombre,
-      tipo: tipo || 'personalizada',
-      fuente: fuente || '',
-      fechaDatos: fechaDatos ? new Date(fechaDatos) : null,
-      normativa: normativa || '',
-      tipoPermiso: tipoPermiso || 'permitido',
-      observaciones: observaciones || '',
-      geometria: geometriaData,
-      color: color || '#3b82f6',
-      opacidad: opacidad ? parseFloat(opacidad) : 0.5,
-      activa: true
-    })
+    console.log('📤 Geometría preparada, tipo:', geometriaData?.type)
+    
+    try {
+      const capa = await Capa.create({
+        nombre,
+        tipo: tipo || 'personalizada',
+        fuente: fuente || '',
+        fechaDatos: fechaDatos ? new Date(fechaDatos) : null,
+        normativa: normativa || '',
+        tipoPermiso: tipoPermiso || 'permitido',
+        observaciones: observaciones || '',
+        geometria: geometriaData, // El setter del modelo se encarga de convertir a JSON
+        color: color || '#3b82f6',
+        opacidad: opacidad ? parseFloat(opacidad) : 0.5,
+        activa: true
+      })
 
-    console.log('✅ Capa creada exitosamente con ID:', capa.id)
-    res.status(201).json(capa)
+      console.log('✅ Capa creada exitosamente con ID:', capa.id)
+      res.status(201).json(capa)
+    } catch (dbError) {
+      console.error('❌ Error al crear capa en BD:', dbError)
+      console.error('❌ Error name:', dbError.name)
+      console.error('❌ Error message:', dbError.message)
+      console.error('❌ Error stack:', dbError.stack)
+      
+      // Si es un error de validación de Sequelize, devolver más detalles
+      if (dbError.name === 'SequelizeValidationError' || dbError.name === 'SequelizeDatabaseError') {
+        return res.status(400).json({ 
+          error: 'Error de validación de base de datos', 
+          details: dbError.message,
+          name: dbError.name
+        })
+      }
+      
+      throw dbError // Re-lanzar para que lo capture el catch externo
+    }
   } catch (error) {
-    console.error('❌ Error creando capa:', error)
+    console.error('❌ Error general creando capa:', error)
+    console.error('❌ Error name:', error.name)
+    console.error('❌ Error message:', error.message)
     console.error('❌ Error stack:', error.stack)
-    res.status(500).json({ error: 'Error al crear la capa: ' + error.message })
+    
+    // Asegurar que siempre respondemos con JSON
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: 'Error al crear la capa', 
+        message: error.message,
+        name: error.name,
+        // Solo incluir stack en desarrollo
+        ...(process.env.NODE_ENV !== 'production' && { stack: error.stack })
+      })
+    }
   }
 })
 
