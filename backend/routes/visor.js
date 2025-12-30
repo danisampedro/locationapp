@@ -1,7 +1,7 @@
 import express from 'express'
 import { Capa } from '../models/index.js'
 import multer from 'multer'
-import { authMiddleware } from '../middleware/auth.js'
+// Nota: authMiddleware se aplica globalmente en server.js para todas las rutas /api/visor
 
 const router = express.Router()
 
@@ -75,9 +75,10 @@ router.get('/consulta', async (req, res) => {
 // ========== RUTAS DE ADMINISTRACIÓN (solo admin) ==========
 
 // GET /api/visor/admin/capas - Obtener todas las capas (admin)
-router.get('/admin/capas', authMiddleware, async (req, res) => {
+// authMiddleware ya se aplica en server.js para todas las rutas /api/visor
+router.get('/admin/capas', async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (!req.user || req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de administrador.' })
     }
 
@@ -92,9 +93,10 @@ router.get('/admin/capas', authMiddleware, async (req, res) => {
 })
 
 // POST /api/visor/admin/upload - Subir una nueva capa (admin)
-router.post('/admin/upload', authMiddleware, upload.single('archivo'), async (req, res) => {
+// authMiddleware ya se aplica en server.js para todas las rutas /api/visor
+router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (!req.user || req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de administrador.' })
     }
 
@@ -172,9 +174,10 @@ router.post('/admin/upload', authMiddleware, upload.single('archivo'), async (re
 })
 
 // PUT /api/visor/admin/capas/:id - Actualizar una capa (admin)
-router.put('/admin/capas/:id', authMiddleware, async (req, res) => {
+// authMiddleware ya se aplica en server.js para todas las rutas /api/visor
+router.put('/admin/capas/:id', async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (!req.user || req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de administrador.' })
     }
 
@@ -213,9 +216,10 @@ router.put('/admin/capas/:id', authMiddleware, async (req, res) => {
 })
 
 // DELETE /api/visor/admin/capas/:id - Eliminar una capa (admin)
-router.delete('/admin/capas/:id', authMiddleware, async (req, res) => {
+// authMiddleware ya se aplica en server.js para todas las rutas /api/visor
+router.delete('/admin/capas/:id', async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (!req.user || req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de administrador.' })
     }
 
