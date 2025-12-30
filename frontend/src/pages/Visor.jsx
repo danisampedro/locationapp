@@ -329,16 +329,46 @@ export default function Visor() {
       
       // Filtrar GeoJSON en el cliente ANTES de subirlo para reducir el tamaño
       console.log('📤 Leyendo y filtrando archivo GeoJSON en el cliente...')
-      const fileContent = await archivoGeoJSON.text()
-      const originalSize = fileContent.length
-      console.log(`📤 Tamaño original: ${(originalSize / 1024 / 1024).toFixed(2)}MB`)
+      console.log(`📤 Tamaño del archivo: ${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB`)
       
       let geojsonData
       try {
+        // Leer el archivo usando FileReader para manejar archivos grandes
+        const fileContent = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          
+          reader.onload = (e) => {
+            try {
+              resolve(e.target.result)
+            } catch (error) {
+              reject(new Error(`Error leyendo archivo: ${error.message}`))
+            }
+          }
+          
+          reader.onerror = () => {
+            reject(new Error('Error al leer el archivo. Asegúrate de que el archivo no esté corrupto.'))
+          }
+          
+          // Leer como texto
+          reader.readAsText(archivoGeoJSON, 'utf-8')
+        })
+        
+        const originalSize = fileContent.length
+        console.log(`📤 Contenido leído: ${(originalSize / 1024 / 1024).toFixed(2)}MB`)
+        
+        if (!fileContent || fileContent.length === 0) {
+          setLoading(false)
+          alert('El archivo está vacío o no se pudo leer correctamente.')
+          return
+        }
+        
+        // Parsear JSON
         geojsonData = JSON.parse(fileContent)
+        console.log(`✅ JSON parseado correctamente, tipo: ${geojsonData.type}`)
       } catch (parseError) {
         setLoading(false)
-        alert(`Error al parsear el archivo GeoJSON: ${parseError.message}`)
+        console.error('❌ Error parseando GeoJSON:', parseError)
+        alert(`Error al parsear el archivo GeoJSON: ${parseError.message}\n\nAsegúrate de que:\n- El archivo no esté corrupto\n- El archivo sea un GeoJSON válido\n- El archivo no esté vacío`)
         return
       }
       
