@@ -40,6 +40,10 @@ const corsOptions = {
   optionsSuccessStatus: 200
 }
 app.use(cors(corsOptions))
+
+// Manejar peticiones OPTIONS (preflight) explícitamente antes de otros middlewares
+app.options('*', cors(corsOptions))
+
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
