@@ -314,79 +314,92 @@ export default function Visor() {
       return
     }
 
-    // Advertir si el archivo es grande (más de 50MB)
+    // Para archivos muy grandes (más de 200MB), subir directamente sin filtrar en el cliente
+    // El backend se encargará del filtrado
+    const subirDirectamente = archivoGeoJSON.size > 200 * 1024 * 1024
+    
+    // Advertir si el archivo es grande
     if (archivoGeoJSON.size > 50 * 1024 * 1024) {
-      const confirmar = window.confirm(
-        `El archivo es grande (${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB). ` +
-        `Se filtrará automáticamente en el navegador para extraer solo los datos de Mallorca antes de subirlo. ` +
-        `Esto puede tardar varios minutos. ¿Continuar?`
-      )
+      const mensaje = subirDirectamente
+        ? `El archivo es muy grande (${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB). ` +
+          `Se subirá directamente y el servidor lo filtrará automáticamente para extraer solo los datos de Mallorca. ` +
+          `Esto puede tardar varios minutos. ¿Continuar?`
+        : `El archivo es grande (${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB). ` +
+          `Se filtrará automáticamente para extraer solo los datos de Mallorca. ` +
+          `Esto puede tardar varios minutos. ¿Continuar?`
+      
+      const confirmar = window.confirm(mensaje)
       if (!confirmar) return
     }
 
     try {
       setLoading(true)
       
-      // Filtrar GeoJSON en el cliente ANTES de subirlo para reducir el tamaño
-      console.log('📤 Leyendo y filtrando archivo GeoJSON en el cliente...')
-      console.log(`📤 Tamaño del archivo: ${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB`)
+      let fileToUpload = archivoGeoJSON
       
-      let geojsonData
-      try {
-        // Leer el archivo usando FileReader para manejar archivos grandes
-        const fileContent = await new Promise((resolve, reject) => {
-          const reader = new FileReader()
-          
-          reader.onload = (e) => {
-            try {
-              resolve(e.target.result)
-            } catch (error) {
-              reject(new Error(`Error leyendo archivo: ${error.message}`))
+      // Solo filtrar en el cliente si el archivo no es demasiado grande
+      if (!subirDirectamente) {
+        console.log('📤 Filtrando GeoJSON en el cliente antes de subir...')
+        console.log(`📤 Tamaño del archivo: ${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB`)
+        
+        try {
+          // Leer el archivo usando FileReader
+          const fileContent = await new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            
+            reader.onload = (e) => {
+              try {
+                resolve(e.target.result)
+              } catch (error) {
+                reject(new Error(`Error leyendo archivo: ${error.message}`))
+              }
             }
+            
+            reader.onerror = () => {
+              reject(new Error('Error al leer el archivo. Asegúrate de que el archivo no esté corrupto.'))
+            }
+            
+            reader.readAsText(archivoGeoJSON, 'utf-8')
+          })
+          
+          const originalSize = fileContent.length
+          console.log(`📤 Contenido leído: ${(originalSize / 1024 / 1024).toFixed(2)}MB`)
+          
+          if (!fileContent || fileContent.length === 0) {
+            setLoading(false)
+            alert('El archivo está vacío o no se pudo leer correctamente.')
+            return
           }
           
-          reader.onerror = () => {
-            reject(new Error('Error al leer el archivo. Asegúrate de que el archivo no esté corrupto.'))
-          }
+          // Parsear JSON
+          const geojsonData = JSON.parse(fileContent)
+          console.log(`✅ JSON parseado correctamente, tipo: ${geojsonData.type}`)
           
-          // Leer como texto
-          reader.readAsText(archivoGeoJSON, 'utf-8')
-        })
-        
-        const originalSize = fileContent.length
-        console.log(`📤 Contenido leído: ${(originalSize / 1024 / 1024).toFixed(2)}MB`)
-        
-        if (!fileContent || fileContent.length === 0) {
+          // Filtrar para extraer solo Mallorca
+          console.log('📤 Filtrando GeoJSON para extraer solo Mallorca...')
+          const filteredGeoJSON = filterGeoJSONForMallorca(geojsonData)
+          const filteredJSON = JSON.stringify(filteredGeoJSON)
+          const filteredSize = filteredJSON.length
+          const reduction = ((1 - filteredSize / originalSize) * 100).toFixed(1)
+          
+          console.log(`✅ GeoJSON filtrado: ${(filteredSize / 1024 / 1024).toFixed(2)}MB (reducción del ${reduction}%)`)
+          
+          // Crear un nuevo Blob con el GeoJSON filtrado
+          const filteredBlob = new Blob([filteredJSON], { type: 'application/json' })
+          fileToUpload = new File([filteredBlob], archivoGeoJSON.name, { type: 'application/json' })
+        } catch (parseError) {
           setLoading(false)
-          alert('El archivo está vacío o no se pudo leer correctamente.')
-          return
+          console.error('❌ Error procesando GeoJSON en cliente:', parseError)
+          alert(`Error al procesar el archivo en el cliente: ${parseError.message}\n\nEl archivo será subido sin filtrar y el servidor lo procesará.`)
+          // Continuar y subir el archivo original sin filtrar
+          fileToUpload = archivoGeoJSON
         }
-        
-        // Parsear JSON
-        geojsonData = JSON.parse(fileContent)
-        console.log(`✅ JSON parseado correctamente, tipo: ${geojsonData.type}`)
-      } catch (parseError) {
-        setLoading(false)
-        console.error('❌ Error parseando GeoJSON:', parseError)
-        alert(`Error al parsear el archivo GeoJSON: ${parseError.message}\n\nAsegúrate de que:\n- El archivo no esté corrupto\n- El archivo sea un GeoJSON válido\n- El archivo no esté vacío`)
-        return
+      } else {
+        console.log(`📤 Archivo muy grande (${(archivoGeoJSON.size / 1024 / 1024).toFixed(2)}MB), subiendo directamente sin filtrar en cliente`)
       }
       
-      // Filtrar para extraer solo Mallorca
-      console.log('📤 Filtrando GeoJSON para extraer solo Mallorca...')
-      const filteredGeoJSON = filterGeoJSONForMallorca(geojsonData)
-      const filteredJSON = JSON.stringify(filteredGeoJSON)
-      const filteredSize = filteredJSON.length
-      const reduction = ((1 - filteredSize / originalSize) * 100).toFixed(1)
-      
-      console.log(`✅ GeoJSON filtrado: ${(filteredSize / 1024 / 1024).toFixed(2)}MB (reducción del ${reduction}%)`)
-      
-      // Crear un nuevo Blob con el GeoJSON filtrado
-      const filteredBlob = new Blob([filteredJSON], { type: 'application/json' })
-      const filteredFile = new File([filteredBlob], archivoGeoJSON.name, { type: 'application/json' })
-      
       const formData = new FormData()
-      formData.append('archivo', filteredFile)
+      formData.append('archivo', fileToUpload)
       formData.append('nombre', nuevaCapa.nombre)
       formData.append('tipo', nuevaCapa.tipo)
       formData.append('fuente', nuevaCapa.fuente)
@@ -399,17 +412,16 @@ export default function Visor() {
 
       console.log('Subiendo capa:', {
         nombre: nuevaCapa.nombre,
-        archivo: filteredFile.name,
-        tipo: filteredFile.type,
-        sizeOriginal: archivoGeoJSON.size,
-        sizeFiltrado: filteredFile.size,
-        reduccion: `${reduction}%`
+        archivo: fileToUpload.name,
+        tipo: fileToUpload.type,
+        size: fileToUpload.size,
+        filtradoEnCliente: !subirDirectamente
       })
 
       const response = await axios.post(`${API_URL}/visor/admin/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         withCredentials: true,
-        timeout: 600000 // 10 minutos (el archivo ya está filtrado, debería ser más pequeño)
+        timeout: subirDirectamente ? 900000 : 600000 // 15 minutos para archivos grandes sin filtrar, 10 para filtrados
       })
 
       console.log('Capa subida correctamente:', response.data)
