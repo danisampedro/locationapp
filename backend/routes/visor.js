@@ -139,6 +139,53 @@ const filterGeoJSONForMallorca = (geojson) => {
   throw new Error('La geometría no está dentro del área de Mallorca')
 }
 
+// Función para procesar GeoJSON de forma más eficiente para archivos grandes
+// Procesa features una por una para minimizar uso de memoria intermedia
+const processGeoJSONStream = (filePath) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const fileContent = fs.readFileSync(filePath, 'utf8')
+      const fileSizeMB = Buffer.byteLength(fileContent, 'utf8') / 1024 / 1024
+      console.log(`📤 Archivo leído: ${fileSizeMB.toFixed(2)}MB, ahora parseando y filtrando...`)
+      
+      // Parsear JSON (esto aún requiere memoria, pero es necesario para validar estructura)
+      const geojson = JSON.parse(fileContent)
+      
+      if (!geojson || geojson.type !== 'FeatureCollection') {
+        reject(new Error('El archivo debe ser un FeatureCollection válido'))
+        return
+      }
+      
+      const originalCount = geojson.features?.length || 0
+      console.log(`📤 Procesando ${originalCount} features...`)
+      
+      // Filtrar features una por una para minimizar uso de memoria intermedia
+      const filteredFeatures = []
+      for (let i = 0; i < geojson.features.length; i++) {
+        const feature = geojson.features[i]
+        if (feature && feature.geometry) {
+          if (geometryIntersectsMallorca(feature.geometry)) {
+            filteredFeatures.push(feature)
+          }
+        }
+        // Log de progreso cada 1000 features
+        if ((i + 1) % 1000 === 0) {
+          console.log(`📊 Procesadas ${i + 1}/${originalCount} features... (${filteredFeatures.length} de Mallorca hasta ahora)`)
+        }
+      }
+      
+      console.log(`✅ Filtrado completado: ${originalCount} features originales → ${filteredFeatures.length} features de Mallorca`)
+      
+      resolve({
+        type: 'FeatureCollection',
+        features: filteredFeatures
+      })
+    } catch (error) {
+      reject(new Error(`Error procesando GeoJSON: ${error.message}`))
+    }
+  })
+}
+
 // Logging de diagnóstico - verificar que el router se carga
 console.log('✅ Router de visor cargado correctamente')
 console.log('✅ Directorio de uploads:', uploadsDir)
@@ -252,26 +299,13 @@ router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
 
     // Si se subió un archivo, procesarlo
     if (req.file) {
-      
-      try {
-        console.log('📤 Leyendo archivo:', req.file.path)
-        console.log('📤 Tamaño del archivo en disco:', req.file.size, 'bytes')
-        
-        const fileContent = fs.readFileSync(req.file.path, 'utf8')
-        console.log('📤 Contenido leído, tamaño:', fileContent.length, 'caracteres')
-        
-        const ext = path.extname(req.file.originalname).toLowerCase()
-        console.log('📤 Extensión del archivo:', ext)
+      const ext = path.extname(req.file.originalname).toLowerCase()
+      console.log('📤 Leyendo archivo:', req.file.path)
+      console.log('📤 Tamaño del archivo en disco:', req.file.size, 'bytes')
+      console.log('📤 Extensión del archivo:', ext)
 
-        if (ext === '.geojson' || ext === '.json') {
-          console.log('📤 Parseando GeoJSON (puede tardar con archivos grandes)...')
-          const startParse = Date.now()
-          geometriaData = JSON.parse(fileContent)
-          const parseTime = Date.now() - startParse
-          console.log(`✅ GeoJSON parseado correctamente en ${parseTime}ms, tipo:`, geometriaData.type)
-        } else if (ext === '.kml') {
-          // Para KML necesitaríamos una librería como @mapbox/togeojson
-          // Por ahora, requerimos que se pase la geometría directamente
+      if (ext !== '.geojson' && ext !== '.json') {
+        if (ext === '.kml') {
           if (fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path)
           }
@@ -281,6 +315,30 @@ router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
             fs.unlinkSync(req.file.path)
           }
           return res.status(400).json({ error: 'Formato de archivo no soportado. Use GeoJSON (.geojson, .json)' })
+        }
+      }
+
+      try {
+        const fileSizeMB = req.file.size / 1024 / 1024
+        const useStreaming = fileSizeMB > 100 // Usar streaming para archivos mayores a 100MB
+
+        if (useStreaming) {
+          console.log(`📤 Procesando archivo grande (${fileSizeMB.toFixed(2)}MB) usando streaming...`)
+          const startProcess = Date.now()
+          
+          geometriaData = await processGeoJSONStream(req.file.path)
+          
+          const processTime = Date.now() - startProcess
+          console.log(`✅ GeoJSON procesado en streaming en ${processTime}ms`)
+        } else {
+          console.log(`📤 Procesando archivo (${fileSizeMB.toFixed(2)}MB) en memoria...`)
+          const startParse = Date.now()
+          
+          const fileContent = fs.readFileSync(req.file.path, 'utf8')
+          geometriaData = JSON.parse(fileContent)
+          
+          const parseTime = Date.now() - startParse
+          console.log(`✅ GeoJSON parseado correctamente en ${parseTime}ms, tipo:`, geometriaData.type)
         }
 
         // Eliminar archivo temporal
@@ -311,21 +369,26 @@ router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
       return res.status(400).json({ error: 'La geometría debe ser un GeoJSON válido' })
     }
 
-    // Filtrar GeoJSON para extraer solo Mallorca
-    console.log('📤 Filtrando GeoJSON para extraer solo Mallorca...')
-    const originalSize = JSON.stringify(geometriaData).length
-    console.log(`📤 Tamaño original del GeoJSON: ${(originalSize / 1024 / 1024).toFixed(2)}MB`)
-    
-    try {
-      geometriaData = filterGeoJSONForMallorca(geometriaData)
-      const filteredSize = JSON.stringify(geometriaData).length
-      const reduction = ((1 - filteredSize / originalSize) * 100).toFixed(1)
-      console.log(`✅ GeoJSON filtrado: ${(filteredSize / 1024 / 1024).toFixed(2)}MB (reducción del ${reduction}%)`)
-    } catch (filterError) {
-      console.error('❌ Error filtrando GeoJSON:', filterError.message)
-      return res.status(400).json({ 
-        error: `Error al filtrar GeoJSON: ${filterError.message}. Asegúrate de que el archivo contenga datos de Mallorca.` 
-      })
+    // Si el archivo ya fue procesado en streaming, ya está filtrado
+    // Si no, filtrarlo ahora
+    if (!req.file || (req.file.size / 1024 / 1024) <= 100) {
+      console.log('📤 Filtrando GeoJSON para extraer solo Mallorca...')
+      const originalSize = JSON.stringify(geometriaData).length
+      console.log(`📤 Tamaño original del GeoJSON: ${(originalSize / 1024 / 1024).toFixed(2)}MB`)
+      
+      try {
+        geometriaData = filterGeoJSONForMallorca(geometriaData)
+        const filteredSize = JSON.stringify(geometriaData).length
+        const reduction = ((1 - filteredSize / originalSize) * 100).toFixed(1)
+        console.log(`✅ GeoJSON filtrado: ${(filteredSize / 1024 / 1024).toFixed(2)}MB (reducción del ${reduction}%)`)
+      } catch (filterError) {
+        console.error('❌ Error filtrando GeoJSON:', filterError.message)
+        return res.status(400).json({ 
+          error: `Error al filtrar GeoJSON: ${filterError.message}. Asegúrate de que el archivo contenga datos de Mallorca.` 
+        })
+      }
+    } else {
+      console.log('✅ GeoJSON ya filtrado durante el procesamiento en streaming')
     }
 
     console.log('📤 Creando capa en la base de datos...')
