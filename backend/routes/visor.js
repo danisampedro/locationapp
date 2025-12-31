@@ -25,14 +25,14 @@ const upload = multer({
   limits: { fileSize: 700 * 1024 * 1024 } // 700MB (para archivos grandes que se filtrarán)
 })
 
-// Bounding box de Mallorca (aproximado)
+// Bounding box de Mallorca (aproximado, incluyendo ARTA)
 // Latitud: 39.2 a 40.0
-// Longitud: 2.3 a 3.2
+// Longitud: 2.3 a 3.4 (ampliado para incluir ARTA en el noreste)
 const MALLORCA_BBOX = {
   minLat: 39.2,
   maxLat: 40.0,
   minLng: 2.3,
-  maxLng: 3.2
+  maxLng: 3.4
 }
 
 // Función para verificar si un punto está dentro del bounding box de Mallorca
@@ -270,8 +270,8 @@ router.get('/capas', async (req, res) => {
   try {
     const capas = await Capa.findAll({
       where: { activa: true },
-      order: [['nombre', 'ASC']],
-      attributes: ['id', 'nombre', 'tipo', 'fuente', 'fechaDatos', 'normativa', 'tipoPermiso', 'observaciones', 'geometria', 'color', 'opacidad']
+      order: [['grupo', 'ASC'], ['nombre', 'ASC']],
+      attributes: ['id', 'nombre', 'tipo', 'fuente', 'fechaDatos', 'normativa', 'tipoPermiso', 'observaciones', 'geometria', 'color', 'opacidad', 'grupo', 'informacionExtra']
     })
     res.json(capas)
   } catch (error) {
@@ -336,9 +336,9 @@ router.get('/admin/capas', async (req, res) => {
       return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de administrador.' })
     }
 
-    const capas = await Capa.findAll({
-      order: [['createdAt', 'DESC']]
-    })
+        const capas = await Capa.findAll({
+          order: [['grupo', 'ASC'], ['nombre', 'ASC']]
+        })
     res.json(capas)
   } catch (error) {
     console.error('Error obteniendo capas (admin):', error)
@@ -477,6 +477,9 @@ router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
         
         const capasCreadas = []
         
+        // Usar el nombre base como grupo para todas las capas relacionadas
+        const grupoNombre = nombre
+        
         for (let i = 0; i < geometriaData.features.length; i++) {
           const feature = geometriaData.features[i]
           
@@ -506,6 +509,8 @@ router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
               },
               color: color || '#3b82f6',
               opacidad: opacidad ? parseFloat(opacidad) : 0.5,
+              grupo: grupoNombre, // Agrupar todas las capas relacionadas
+              informacionExtra: '',
               activa: true
             })
             
@@ -593,7 +598,7 @@ router.put('/admin/capas/:id', async (req, res) => {
       return res.status(404).json({ error: 'Capa no encontrada' })
     }
 
-    const { nombre, tipo, fuente, fechaDatos, normativa, tipoPermiso, observaciones, color, opacidad, activa, geometria } = req.body
+    const { nombre, tipo, fuente, fechaDatos, normativa, tipoPermiso, observaciones, color, opacidad, activa, geometria, grupo, informacionExtra } = req.body
 
     const updateData = {}
     if (nombre !== undefined) updateData.nombre = nombre
@@ -606,6 +611,8 @@ router.put('/admin/capas/:id', async (req, res) => {
     if (color !== undefined) updateData.color = color
     if (opacidad !== undefined) updateData.opacidad = parseFloat(opacidad)
     if (activa !== undefined) updateData.activa = activa === true || activa === 'true'
+    if (grupo !== undefined) updateData.grupo = grupo || null
+    if (informacionExtra !== undefined) updateData.informacionExtra = informacionExtra || ''
     if (geometria !== undefined) {
       try {
         updateData.geometria = typeof geometria === 'string' ? JSON.parse(geometria) : geometria

@@ -74,6 +74,18 @@ const Capa = sequelize.define('Capa', {
     type: DataTypes.FLOAT,
     allowNull: true,
     defaultValue: 0.5
+  },
+  grupo: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: null,
+    comment: 'Nombre del grupo/carpeta para agrupar capas relacionadas'
+  },
+  informacionExtra: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    defaultValue: '',
+    comment: 'Información adicional en formato JSON o texto'
   }
 }, {
   tableName: 'capas',

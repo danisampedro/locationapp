@@ -192,6 +192,8 @@ export default function Visor() {
   const [puntoConsulta, setPuntoConsulta] = useState(null)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [capaEditando, setCapaEditando] = useState(null)
   const [nuevaCapa, setNuevaCapa] = useState({
     nombre: '',
     tipo: 'personalizada',
@@ -484,6 +486,43 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
     }
   }
 
+  const handleEditCapa = (capa) => {
+    setCapaEditando({
+      ...capa,
+      fechaDatos: capa.fechaDatos ? capa.fechaDatos.split('T')[0] : ''
+    })
+    setShowEditModal(true)
+  }
+
+  const handleUpdateCapa = async () => {
+    if (!capaEditando) return
+
+    try {
+      await axios.put(`${API_URL}/visor/admin/capas/${capaEditando.id}`, {
+        nombre: capaEditando.nombre,
+        tipo: capaEditando.tipo,
+        fuente: capaEditando.fuente,
+        fechaDatos: capaEditando.fechaDatos,
+        normativa: capaEditando.normativa,
+        tipoPermiso: capaEditando.tipoPermiso,
+        observaciones: capaEditando.observaciones,
+        color: capaEditando.color,
+        opacidad: capaEditando.opacidad,
+        activa: capaEditando.activa,
+        grupo: capaEditando.grupo || null,
+        informacionExtra: capaEditando.informacionExtra || ''
+      }, { withCredentials: true })
+      
+      alert('Capa actualizada correctamente')
+      setShowEditModal(false)
+      setCapaEditando(null)
+      loadCapas()
+    } catch (error) {
+      console.error('Error actualizando capa:', error)
+      alert('Error al actualizar la capa')
+    }
+  }
+
   const handleDeleteCapa = async (capaId) => {
     if (!confirm('¿Estás seguro de que quieres eliminar esta capa?')) {
       return
@@ -497,6 +536,19 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
       console.error('Error eliminando capa:', error)
       alert('Error al eliminar la capa')
     }
+  }
+
+  // Agrupar capas por grupo
+  const capasAgrupadas = () => {
+    const grupos = {}
+    capas.forEach(capa => {
+      const grupo = capa.grupo || 'Sin grupo'
+      if (!grupos[grupo]) {
+        grupos[grupo] = []
+      }
+      grupos[grupo].push(capa)
+    })
+    return grupos
   }
 
   const getPermisoColor = (tipoPermiso) => {
@@ -613,49 +665,74 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
             {capas.length === 0 ? (
               <p className="text-sm text-gray-500">No hay capas disponibles</p>
             ) : (
-              <div className="space-y-2">
-                {capas.map((capa) => (
-                  <div
-                    key={capa.id}
-                    className="p-3 border border-gray-200 rounded-lg hover:border-accent-green transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={capasActivas.has(capa.id)}
-                          onChange={() => toggleCapa(capa.id)}
-                          className="w-4 h-4 text-dark-blue rounded focus:ring-dark-blue"
-                        />
-                        <span className="font-medium text-sm text-gray-800">{capa.nombre}</span>
+              <div className="space-y-4">
+                {Object.entries(capasAgrupadas()).map(([grupo, capasDelGrupo]) => (
+                  <div key={grupo} className="space-y-2">
+                    {grupo !== 'Sin grupo' && (
+                      <div className="font-semibold text-sm text-gray-700 bg-gray-100 px-2 py-1 rounded">
+                        {grupo} ({capasDelGrupo.length})
                       </div>
-                      {user?.role === 'admin' && (
-                        <button
-                          onClick={() => handleDeleteCapa(capa.id)}
-                          className="text-red-500 hover:text-red-700 text-xs"
-                          title="Eliminar capa"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-500 space-y-1">
-                      <div>Tipo: {capa.tipo}</div>
-                      {capa.fuente && <div>Fuente: {capa.fuente}</div>}
-                      <div>
-                        Permiso:{' '}
-                        <span style={{ color: getPermisoColor(capa.tipoPermiso) }}>
-                          {getPermisoLabel(capa.tipoPermiso)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
+                    )}
+                    {capasDelGrupo.map((capa) => (
                       <div
-                        className="w-4 h-4 rounded border border-gray-300"
-                        style={{ backgroundColor: capa.color || '#3b82f6', opacity: capa.opacidad || 0.5 }}
-                      />
-                      <span className="text-xs text-gray-500">Color de visualización</span>
-                    </div>
+                        key={capa.id}
+                        className="p-3 border border-gray-200 rounded-lg hover:border-accent-green transition-colors"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={capasActivas.has(capa.id)}
+                              onChange={() => toggleCapa(capa.id)}
+                              className="w-4 h-4 text-dark-blue rounded focus:ring-dark-blue"
+                            />
+                            <span className="font-medium text-sm text-gray-800">{capa.nombre}</span>
+                          </div>
+                          {user?.role === 'admin' && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleEditCapa(capa)}
+                                className="text-blue-500 hover:text-blue-700 text-xs"
+                                title="Editar capa"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={() => handleDeleteCapa(capa.id)}
+                                className="text-red-500 hover:text-red-700 text-xs"
+                                title="Eliminar capa"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <div>Tipo: {capa.tipo}</div>
+                          {capa.fuente && <div>Fuente: {capa.fuente}</div>}
+                          <div>
+                            Permiso:{' '}
+                            <span style={{ color: getPermisoColor(capa.tipoPermiso) }}>
+                              {getPermisoLabel(capa.tipoPermiso)}
+                            </span>
+                          </div>
+                          {capa.informacionExtra && (
+                            <div className="text-gray-600 mt-1 italic">
+                              {capa.informacionExtra.length > 50 
+                                ? capa.informacionExtra.substring(0, 50) + '...' 
+                                : capa.informacionExtra}
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <div
+                            className="w-4 h-4 rounded border border-gray-300"
+                            style={{ backgroundColor: capa.color || '#3b82f6', opacity: capa.opacidad || 0.5 }}
+                          />
+                          <span className="text-xs text-gray-500">Color de visualización</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
@@ -984,6 +1061,199 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
                 }}
                 disabled={loading}
                 className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de editar capa */}
+      {showEditModal && capaEditando && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style={{ zIndex: 9999 }}>
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" style={{ zIndex: 10000 }}>
+            <h3 className="text-xl font-bold mb-4">Editar Capa</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre de la capa <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={capaEditando.nombre || ''}
+                  onChange={(e) => setCapaEditando({ ...capaEditando, nombre: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de zona
+                </label>
+                <select
+                  value={capaEditando.tipo || 'personalizada'}
+                  onChange={(e) => setCapaEditando({ ...capaEditando, tipo: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
+                >
+                  <option value="municipio">Municipio</option>
+                  <option value="zona_medioambiental">Zona Medioambiental</option>
+                  <option value="zona_costera">Zona Costera</option>
+                  <option value="personalizada">Personalizada</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Grupo/Carpeta
+                </label>
+                <input
+                  type="text"
+                  value={capaEditando.grupo || ''}
+                  onChange={(e) => setCapaEditando({ ...capaEditando, grupo: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
+                  placeholder="Nombre del grupo para agrupar capas relacionadas"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Las capas con el mismo grupo se mostrarán juntas
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fuente oficial
+                </label>
+                <input
+                  type="text"
+                  value={capaEditando.fuente || ''}
+                  onChange={(e) => setCapaEditando({ ...capaEditando, fuente: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fecha de datos
+                </label>
+                <input
+                  type="date"
+                  value={capaEditando.fechaDatos || ''}
+                  onChange={(e) => setCapaEditando({ ...capaEditando, fechaDatos: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Normativa
+                </label>
+                <textarea
+                  value={capaEditando.normativa || ''}
+                  onChange={(e) => setCapaEditando({ ...capaEditando, normativa: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
+                  rows="3"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de permiso
+                </label>
+                <select
+                  value={capaEditando.tipoPermiso || 'permitido'}
+                  onChange={(e) => setCapaEditando({ ...capaEditando, tipoPermiso: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
+                >
+                  <option value="permitido">Permitido</option>
+                  <option value="autorizacion_necesaria">Autorización necesaria</option>
+                  <option value="prohibido">Prohibido</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Observaciones
+                </label>
+                <textarea
+                  value={capaEditando.observaciones || ''}
+                  onChange={(e) => setCapaEditando({ ...capaEditando, observaciones: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
+                  rows="2"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Información Extra
+                </label>
+                <textarea
+                  value={capaEditando.informacionExtra || ''}
+                  onChange={(e) => setCapaEditando({ ...capaEditando, informacionExtra: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-dark-blue"
+                  rows="3"
+                  placeholder="Información adicional sobre esta capa"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Información adicional que se mostrará en el panel lateral
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Color
+                  </label>
+                  <input
+                    type="color"
+                    value={capaEditando.color || '#3b82f6'}
+                    onChange={(e) => setCapaEditando({ ...capaEditando, color: e.target.value })}
+                    className="w-full h-10 border rounded-lg cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Opacidad
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={capaEditando.opacidad || 0.5}
+                    onChange={(e) => setCapaEditando({ ...capaEditando, opacidad: parseFloat(e.target.value) })}
+                    className="w-full"
+                  />
+                  <div className="text-xs text-gray-500 text-center mt-1">
+                    {Math.round((capaEditando.opacidad || 0.5) * 100)}%
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={capaEditando.activa !== false}
+                    onChange={(e) => setCapaEditando({ ...capaEditando, activa: e.target.checked })}
+                    className="form-checkbox h-4 w-4 text-dark-blue rounded focus:ring-dark-blue"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Capa activa (visible en el visor público)</span>
+                </label>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={handleUpdateCapa}
+                className="flex-1 bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light transition-colors"
+              >
+                Guardar Cambios
+              </button>
+              <button
+                onClick={() => {
+                  setShowEditModal(false)
+                  setCapaEditando(null)
+                }}
+                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
               >
                 Cancelar
               </button>

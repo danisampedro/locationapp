@@ -656,7 +656,35 @@ const migrateCapasTable = async () => {
       })
       console.log('✅ Tabla capas creada')
     } else {
-      console.log('ℹ️  Tabla capas ya existe')
+      // Si la tabla existe, verificar y añadir columnas nuevas si no existen
+      const tableDescription = await queryInterface.describeTable('capas')
+      
+      const newColumns = {
+        grupo: { type: 'VARCHAR(255)', allowNull: true, defaultValue: null },
+        informacionExtra: { type: 'TEXT', allowNull: true, defaultValue: '' }
+      }
+
+      for (const [columnName, columnDefinition] of Object.entries(newColumns)) {
+        if (!tableDescription[columnName]) {
+          console.log(`🔄 Añadiendo columna ${columnName} a la tabla capas...`)
+          if (columnName === 'grupo') {
+            await queryInterface.addColumn('capas', columnName, {
+              type: sequelize.Sequelize.STRING,
+              allowNull: true,
+              defaultValue: null
+            })
+          } else if (columnName === 'informacionExtra') {
+            await queryInterface.addColumn('capas', columnName, {
+              type: sequelize.Sequelize.TEXT,
+              allowNull: true,
+              defaultValue: ''
+            })
+          }
+          console.log(`✅ Columna ${columnName} añadida exitosamente`)
+        } else {
+          console.log(`ℹ️  Columna ${columnName} ya existe en capas`)
+        }
+      }
     }
   } catch (error) {
     console.error('⚠️  Error en migración de capas:', error.message)
