@@ -17,12 +17,12 @@ L.Icon.Default.mergeOptions({
 const MALLORCA_CENTER = [39.5696, 2.6502]
 const MALLORCA_ZOOM = 10
 
-// Bounding box de Mallorca (para filtrar GeoJSON en el cliente)
+// Bounding box de Mallorca (para filtrar GeoJSON en el cliente, incluyendo ARTA y zonas costeras)
 const MALLORCA_BBOX = {
-  minLat: 39.2,
-  maxLat: 40.0,
-  minLng: 2.3,
-  maxLng: 3.2
+  minLat: 39.15,
+  maxLat: 40.05,
+  minLng: 2.25,
+  maxLng: 3.45
 }
 
 // Función para verificar si un punto está dentro del bounding box de Mallorca
