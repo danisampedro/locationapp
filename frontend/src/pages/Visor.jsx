@@ -335,6 +335,18 @@ export default function Visor() {
     try {
       setLoading(true)
       
+      // "Despertar" el servidor si está durmiendo (plan gratuito de Render)
+      console.log('🔔 Despertando servidor...')
+      try {
+        await axios.get(`${API_URL.replace('/api', '')}/api/health`, { 
+          timeout: 30000,
+          withCredentials: true 
+        })
+        console.log('✅ Servidor despierto')
+      } catch (wakeError) {
+        console.log('⚠️ Servidor puede estar durmiendo, continuando...')
+      }
+      
       let fileToUpload = archivoGeoJSON
       
       // Solo filtrar en el cliente si el archivo no es demasiado grande
