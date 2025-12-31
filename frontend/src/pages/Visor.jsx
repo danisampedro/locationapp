@@ -827,68 +827,6 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
             </div>
           )}
         </div>
-
-        {/* Panel lateral derecho - Resultados de consulta */}
-        <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="font-semibold text-gray-800">Consulta por Ubicación</h2>
-            <p className="text-xs text-gray-500 mt-1">Haz clic en el mapa para consultar</p>
-          </div>
-
-          {consultaResultado ? (
-            <div className="p-4 space-y-4">
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Coordenadas</div>
-                <div className="text-sm font-medium text-gray-800">
-                  {consultaResultado.coordenadas.lat.toFixed(6)}, {consultaResultado.coordenadas.lng.toFixed(6)}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs text-gray-500 mb-2">Zonas encontradas</div>
-                {consultaResultado.capas.length === 0 ? (
-                  <p className="text-sm text-gray-500">No se encontraron zonas en esta ubicación</p>
-                ) : (
-                  <div className="space-y-3">
-                    {consultaResultado.capas.map((capa) => (
-                      <div key={capa.id} className="p-3 border border-gray-200 rounded-lg">
-                        <div className="font-medium text-sm text-gray-800 mb-2">{capa.nombre}</div>
-                        <div className="text-xs text-gray-600 space-y-1">
-                          <div>Tipo: {capa.tipo}</div>
-                          {capa.fuente && <div>Fuente: {capa.fuente}</div>}
-                          <div>
-                            Permiso:{' '}
-                            <span style={{ color: getPermisoColor(capa.tipoPermiso) }}>
-                              {getPermisoLabel(capa.tipoPermiso)}
-                            </span>
-                          </div>
-                          {capa.normativa && (
-                            <div className="mt-2">
-                              <div className="font-medium text-gray-700">Normativa:</div>
-                              <div className="text-gray-600">{capa.normativa}</div>
-                            </div>
-                          )}
-                          {capa.observaciones && (
-                            <div className="mt-2">
-                              <div className="font-medium text-gray-700">Observaciones:</div>
-                              <div className="text-gray-600">{capa.observaciones}</div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="p-4">
-              <p className="text-sm text-gray-500 text-center">
-                Haz clic en el mapa para consultar las zonas y normativas aplicables en esa ubicación.
-              </p>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Panel de administración */}
