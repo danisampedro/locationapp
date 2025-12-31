@@ -25,14 +25,14 @@ const upload = multer({
   limits: { fileSize: 700 * 1024 * 1024 } // 700MB (para archivos grandes que se filtrarán)
 })
 
-// Bounding box de Mallorca (aproximado, incluyendo ARTA)
-// Latitud: 39.2 a 40.0
-// Longitud: 2.3 a 3.4 (ampliado para incluir ARTA en el noreste)
+// Bounding box de Mallorca (aproximado, incluyendo ARTA y todas las zonas costeras)
+// Latitud: 39.15 a 40.05 (ampliado para incluir zonas costeras y ARTA)
+// Longitud: 2.25 a 3.45 (ampliado para incluir ARTA y zonas costeras del noreste)
 const MALLORCA_BBOX = {
-  minLat: 39.2,
-  maxLat: 40.0,
-  minLng: 2.3,
-  maxLng: 3.4
+  minLat: 39.15,
+  maxLat: 40.05,
+  minLng: 2.25,
+  maxLng: 3.45
 }
 
 // Función para verificar si un punto está dentro del bounding box de Mallorca
@@ -102,19 +102,40 @@ const calculateCentroid = (geometry) => {
 }
 
 // Función mejorada para verificar si una geometría está realmente en Mallorca
-// Verifica el centroide en lugar de solo si algún punto está dentro
+// Usa una estrategia híbrida: verifica el centroide Y si alguna parte del polígono intersecta
 const geometryInMallorca = (geometry) => {
   if (!geometry || !geometry.type) return false
 
-  // Calcular centroide
+  // Primero, verificar si alguna parte del polígono intersecta con el bounding box
+  // Esto es más permisivo y captura polígonos que pueden tener el centroide ligeramente fuera
+  // pero que claramente pertenecen a Mallorca
+  const intersecta = geometryIntersectsMallorca(geometry)
+  
+  // Si intersecta, también verificar el centroide para mayor precisión
+  // pero ser más permisivo: si el centroide está cerca del bounding box, incluirlo
   const centroid = calculateCentroid(geometry)
-  if (!centroid) {
-    // Si no podemos calcular centroide, usar el método anterior como fallback
-    return geometryIntersectsMallorca(geometry)
+  if (centroid) {
+    const [lng, lat] = centroid
+    // Si el centroide está dentro, definitivamente incluirlo
+    if (pointInMallorcaBBOX(lng, lat)) {
+      return true
+    }
+    // Si intersecta pero el centroide está ligeramente fuera, incluirlo igualmente
+    // (puede pasar con polígonos grandes como Palma que se extienden)
+    if (intersecta) {
+      // Verificar si el centroide está cerca del bounding box (dentro de un margen)
+      const margin = 0.1 // ~11km de margen
+      if (lat >= MALLORCA_BBOX.minLat - margin && 
+          lat <= MALLORCA_BBOX.maxLat + margin &&
+          lng >= MALLORCA_BBOX.minLng - margin && 
+          lng <= MALLORCA_BBOX.maxLng + margin) {
+        return true
+      }
+    }
   }
-
-  const [lng, lat] = centroid
-  return pointInMallorcaBBOX(lng, lat)
+  
+  // Si no hay centroide, usar solo la intersección
+  return intersecta
 }
 
 // Función para verificar si una geometría intersecta con el bounding box de Mallorca (método anterior, usado como fallback)

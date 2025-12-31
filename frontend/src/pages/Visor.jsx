@@ -194,6 +194,7 @@ export default function Visor() {
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [capaEditando, setCapaEditando] = useState(null)
+  const [gruposExpandidos, setGruposExpandidos] = useState(new Set()) // Grupos que están expandidos
   const [nuevaCapa, setNuevaCapa] = useState({
     nombre: '',
     tipo: 'personalizada',
@@ -551,6 +552,25 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
     return grupos
   }
 
+  // Toggle para expandir/colapsar grupos
+  const toggleGrupo = (grupo) => {
+    const nuevos = new Set(gruposExpandidos)
+    if (nuevos.has(grupo)) {
+      nuevos.delete(grupo)
+    } else {
+      nuevos.add(grupo)
+    }
+    setGruposExpandidos(nuevos)
+  }
+
+  // Expandir todos los grupos por defecto al cargar
+  useEffect(() => {
+    if (capas.length > 0 && gruposExpandidos.size === 0) {
+      const todosLosGrupos = new Set(Object.keys(capasAgrupadas()))
+      setGruposExpandidos(todosLosGrupos)
+    }
+  }, [capas.length]) // Dependencia solo de la longitud para evitar loops infinitos
+
   const getPermisoColor = (tipoPermiso) => {
     switch (tipoPermiso) {
       case 'permitido':
@@ -665,76 +685,88 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
             {capas.length === 0 ? (
               <p className="text-sm text-gray-500">No hay capas disponibles</p>
             ) : (
-              <div className="space-y-4">
-                {Object.entries(capasAgrupadas()).map(([grupo, capasDelGrupo]) => (
-                  <div key={grupo} className="space-y-2">
-                    {grupo !== 'Sin grupo' && (
-                      <div className="font-semibold text-sm text-gray-700 bg-gray-100 px-2 py-1 rounded">
-                        {grupo} ({capasDelGrupo.length})
-                      </div>
-                    )}
-                    {capasDelGrupo.map((capa) => (
-                      <div
-                        key={capa.id}
-                        className="p-3 border border-gray-200 rounded-lg hover:border-accent-green transition-colors"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={capasActivas.has(capa.id)}
-                              onChange={() => toggleCapa(capa.id)}
-                              className="w-4 h-4 text-dark-blue rounded focus:ring-dark-blue"
-                            />
-                            <span className="font-medium text-sm text-gray-800">{capa.nombre}</span>
-                          </div>
-                          {user?.role === 'admin' && (
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => handleEditCapa(capa)}
-                                className="text-blue-500 hover:text-blue-700 text-xs"
-                                title="Editar capa"
-                              >
-                                ✏️
-                              </button>
-                              <button
-                                onClick={() => handleDeleteCapa(capa.id)}
-                                className="text-red-500 hover:text-red-700 text-xs"
-                                title="Eliminar capa"
-                              >
-                                ✕
-                              </button>
+              <div className="space-y-2">
+                {Object.entries(capasAgrupadas()).map(([grupo, capasDelGrupo]) => {
+                  const esGrupoSinCarpeta = grupo === 'Sin grupo'
+                  const estaExpandido = esGrupoSinCarpeta || gruposExpandidos.has(grupo)
+                  return (
+                    <div key={grupo} className="space-y-1">
+                      {!esGrupoSinCarpeta && (
+                        <button
+                          onClick={() => toggleGrupo(grupo)}
+                          className="w-full flex items-center justify-between font-semibold text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded transition-colors"
+                        >
+                          <span>{grupo} ({capasDelGrupo.length})</span>
+                          <span className="text-gray-500">{estaExpandido ? '▼' : '▶'}</span>
+                        </button>
+                      )}
+                      {estaExpandido && (
+                        <div className={esGrupoSinCarpeta ? "space-y-2" : "space-y-2 ml-2"}>
+                          {capasDelGrupo.map((capa) => (
+                            <div
+                              key={capa.id}
+                              className="p-3 border border-gray-200 rounded-lg hover:border-accent-green transition-colors"
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={capasActivas.has(capa.id)}
+                                    onChange={() => toggleCapa(capa.id)}
+                                    className="w-4 h-4 text-dark-blue rounded focus:ring-dark-blue"
+                                  />
+                                  <span className="font-medium text-sm text-gray-800">{capa.nombre}</span>
+                                </div>
+                                {user?.role === 'admin' && (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => handleEditCapa(capa)}
+                                      className="text-blue-500 hover:text-blue-700 text-xs"
+                                      title="Editar capa"
+                                    >
+                                      ✏️
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteCapa(capa.id)}
+                                      className="text-red-500 hover:text-red-700 text-xs"
+                                      title="Eliminar capa"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-500 space-y-1">
+                                <div>Tipo: {capa.tipo}</div>
+                                {capa.fuente && <div>Fuente: {capa.fuente}</div>}
+                                <div>
+                                  Permiso:{' '}
+                                  <span style={{ color: getPermisoColor(capa.tipoPermiso) }}>
+                                    {getPermisoLabel(capa.tipoPermiso)}
+                                  </span>
+                                </div>
+                                {capa.informacionExtra && (
+                                  <div className="text-gray-600 mt-1 italic">
+                                    {capa.informacionExtra.length > 50 
+                                      ? capa.informacionExtra.substring(0, 50) + '...' 
+                                      : capa.informacionExtra}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="mt-2 flex items-center gap-2">
+                                <div
+                                  className="w-4 h-4 rounded border border-gray-300"
+                                  style={{ backgroundColor: capa.color || '#3b82f6', opacity: capa.opacidad || 0.5 }}
+                                />
+                                <span className="text-xs text-gray-500">Color de visualización</span>
+                              </div>
                             </div>
-                          )}
+                          ))}
                         </div>
-                        <div className="text-xs text-gray-500 space-y-1">
-                          <div>Tipo: {capa.tipo}</div>
-                          {capa.fuente && <div>Fuente: {capa.fuente}</div>}
-                          <div>
-                            Permiso:{' '}
-                            <span style={{ color: getPermisoColor(capa.tipoPermiso) }}>
-                              {getPermisoLabel(capa.tipoPermiso)}
-                            </span>
-                          </div>
-                          {capa.informacionExtra && (
-                            <div className="text-gray-600 mt-1 italic">
-                              {capa.informacionExtra.length > 50 
-                                ? capa.informacionExtra.substring(0, 50) + '...' 
-                                : capa.informacionExtra}
-                            </div>
-                          )}
-                        </div>
-                        <div className="mt-2 flex items-center gap-2">
-                          <div
-                            className="w-4 h-4 rounded border border-gray-300"
-                            style={{ backgroundColor: capa.color || '#3b82f6', opacity: capa.opacidad || 0.5 }}
-                          />
-                          <span className="text-xs text-gray-500">Color de visualización</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
