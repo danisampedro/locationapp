@@ -436,8 +436,15 @@ export default function Visor() {
         timeout: subirDirectamente ? 900000 : 600000 // 15 minutos para archivos grandes sin filtrar, 10 para filtrados
       })
 
-      console.log('Capa subida correctamente:', response.data)
-      alert('Capa subida correctamente')
+      console.log('Respuesta del servidor:', response.data)
+      
+      // Si se crearon múltiples capas, mostrar mensaje diferente
+      if (response.data.capas && Array.isArray(response.data.capas)) {
+        alert(`Se crearon ${response.data.capas.length} capas independientes correctamente`)
+      } else {
+        alert('Capa subida correctamente')
+      }
+      
       setShowUploadModal(false)
       setNuevaCapa({
         nombre: '',

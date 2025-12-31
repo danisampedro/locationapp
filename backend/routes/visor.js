@@ -43,7 +43,81 @@ const pointInMallorcaBBOX = (lng, lat) => {
          lng <= MALLORCA_BBOX.maxLng
 }
 
-// Función para verificar si una geometría intersecta con el bounding box de Mallorca
+// Función para calcular el centroide de una geometría
+const calculateCentroid = (geometry) => {
+  if (!geometry || !geometry.coordinates) return null
+
+  switch (geometry.type) {
+    case 'Point':
+      return geometry.coordinates
+
+    case 'Polygon':
+      // Calcular centroide del polígono (promedio de coordenadas del anillo exterior)
+      const coords = geometry.coordinates[0]
+      let sumLng = 0
+      let sumLat = 0
+      let count = 0
+      
+      for (const coord of coords) {
+        sumLng += coord[0]
+        sumLat += coord[1]
+        count++
+      }
+      
+      return count > 0 ? [sumLng / count, sumLat / count] : null
+
+    case 'MultiPolygon':
+      // Calcular centroide del primer polígono (más representativo)
+      if (geometry.coordinates[0] && geometry.coordinates[0][0]) {
+        const coords = geometry.coordinates[0][0]
+        let sumLng = 0
+        let sumLat = 0
+        let count = 0
+        
+        for (const coord of coords) {
+          sumLng += coord[0]
+          sumLat += coord[1]
+          count++
+        }
+        
+        return count > 0 ? [sumLng / count, sumLat / count] : null
+      }
+      return null
+
+    case 'LineString':
+      // Calcular centroide de la línea (promedio de puntos)
+      let sumLng2 = 0
+      let sumLat2 = 0
+      let count2 = 0
+      for (const coord of geometry.coordinates) {
+        sumLng2 += coord[0]
+        sumLat2 += coord[1]
+        count2++
+      }
+      return count2 > 0 ? [sumLng2 / count2, sumLat2 / count2] : null
+
+    default:
+      return null
+  }
+}
+
+// Función mejorada para verificar si una geometría está realmente en Mallorca
+// Verifica el centroide en lugar de solo si algún punto está dentro
+const geometryInMallorca = (geometry) => {
+  if (!geometry || !geometry.type) return false
+
+  // Calcular centroide
+  const centroid = calculateCentroid(geometry)
+  if (!centroid) {
+    // Si no podemos calcular centroide, usar el método anterior como fallback
+    return geometryIntersectsMallorca(geometry)
+  }
+
+  const [lng, lat] = centroid
+  return pointInMallorcaBBOX(lng, lat)
+}
+
+// Función para verificar si una geometría intersecta con el bounding box de Mallorca (método anterior, usado como fallback)
 const geometryIntersectsMallorca = (geometry) => {
   if (!geometry || !geometry.type) return false
 
@@ -112,7 +186,7 @@ const filterGeoJSONForMallorca = (geojson) => {
     const originalCount = geojson.features?.length || 0
     const filteredFeatures = geojson.features.filter(feature => {
       if (!feature.geometry) return false
-      return geometryIntersectsMallorca(feature.geometry)
+      return geometryInMallorca(feature.geometry)
     })
 
     console.log(`📊 Filtrado GeoJSON: ${originalCount} features originales → ${filteredFeatures.length} features de Mallorca`)
@@ -125,14 +199,14 @@ const filterGeoJSONForMallorca = (geojson) => {
 
   // Si es un Feature, verificar si está en Mallorca
   if (geojson.type === 'Feature') {
-    if (!geometryIntersectsMallorca(geojson.geometry)) {
+    if (!geometryInMallorca(geojson.geometry)) {
       throw new Error('La feature no está dentro del área de Mallorca')
     }
     return geojson
   }
 
   // Si es una Geometry directa, verificar
-  if (geometryIntersectsMallorca(geojson)) {
+  if (geometryInMallorca(geojson)) {
     return geojson
   }
 
@@ -164,7 +238,7 @@ const processGeoJSONStream = (filePath) => {
       for (let i = 0; i < geojson.features.length; i++) {
         const feature = geojson.features[i]
         if (feature && feature.geometry) {
-          if (geometryIntersectsMallorca(feature.geometry)) {
+          if (geometryInMallorca(feature.geometry)) {
             filteredFeatures.push(feature)
           }
         }
@@ -391,11 +465,68 @@ router.post('/admin/upload', upload.single('archivo'), async (req, res) => {
       console.log('✅ GeoJSON ya filtrado durante el procesamiento en streaming')
     }
 
-    console.log('📤 Creando capa en la base de datos...')
+    console.log('📤 Creando capa(s) en la base de datos...')
     console.log('📤 Geometría preparada (filtrada para Mallorca), tipo:', geometriaData?.type)
     
     try {
       const startCreate = Date.now()
+      
+      // Si es un FeatureCollection con múltiples features, crear una capa por feature
+      if (geometriaData.type === 'FeatureCollection' && geometriaData.features && geometriaData.features.length > 1) {
+        console.log(`📤 Detectado FeatureCollection con ${geometriaData.features.length} features. Creando capas independientes...`)
+        
+        const capasCreadas = []
+        
+        for (let i = 0; i < geometriaData.features.length; i++) {
+          const feature = geometriaData.features[i]
+          
+          // Obtener nombre del municipio de las properties
+          const nombreMunicipio = feature.properties?.nombre || 
+                                 feature.properties?.name || 
+                                 feature.properties?.NOMBRE || 
+                                 feature.properties?.NAME ||
+                                 feature.properties?.NOM || 
+                                 feature.properties?.NOMBRE_ACT ||
+                                 `Municipio ${i + 1}`
+          
+          const nombreCapa = `${nombre} - ${nombreMunicipio}`
+          
+          try {
+            const capa = await Capa.create({
+              nombre: nombreCapa,
+              tipo: tipo || 'municipio',
+              fuente: fuente || '',
+              fechaDatos: fechaDatos ? new Date(fechaDatos) : null,
+              normativa: normativa || '',
+              tipoPermiso: tipoPermiso || 'permitido',
+              observaciones: observaciones || '',
+              geometria: {
+                type: 'FeatureCollection',
+                features: [feature]
+              },
+              color: color || '#3b82f6',
+              opacidad: opacidad ? parseFloat(opacidad) : 0.5,
+              activa: true
+            })
+            
+            capasCreadas.push(capa)
+            console.log(`✅ Capa ${i + 1}/${geometriaData.features.length} creada: ${nombreCapa} (ID: ${capa.id})`)
+          } catch (error) {
+            console.error(`❌ Error creando capa para ${nombreMunicipio}:`, error)
+          }
+        }
+        
+        const createTime = Date.now() - startCreate
+        console.log(`✅ Total de ${capasCreadas.length} capas creadas en ${createTime}ms`)
+        
+        return res.status(201).json({ 
+          message: `Se crearon ${capasCreadas.length} capas independientes`,
+          capas: capasCreadas,
+          total: capasCreadas.length
+        })
+      }
+      
+      // Si no es un FeatureCollection con múltiples features, crear una sola capa como antes
       const capa = await Capa.create({
         nombre,
         tipo: tipo || 'personalizada',
