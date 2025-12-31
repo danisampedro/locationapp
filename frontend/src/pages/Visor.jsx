@@ -770,25 +770,6 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
               </div>
             )}
           </div>
-
-          {/* Leyenda */}
-          <div className="p-4 border-t border-gray-200">
-            <h3 className="font-semibold text-gray-800 mb-2">Leyenda de Permisos</h3>
-            <div className="space-y-1 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: '#10b981' }} />
-                <span>Permitido</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: '#f59e0b' }} />
-                <span>Autorización necesaria</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: '#ef4444' }} />
-                <span>Prohibido</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Mapa central */}
