@@ -556,6 +556,11 @@ router.post('/', uploadProyectoLogos, async (req, res) => {
       await proyecto.setVendors(vendorInstances)
     }
 
+    // Crear evento en el calendario si hay fechaInicio
+    if (fechaInicio) {
+      await syncProyectoEvento(proyecto, fechaInicio, fechaFin)
+    }
+
     // Recargar con relaciones (sin through para evitar errores SQL)
     await proyecto.reload({
       include: [
