@@ -101,7 +101,9 @@ export default function Calendar() {
 
   // Algoritmo para apilar eventos verticalmente
   const stackEvents = (events, year, month) => {
-    if (events.length === 0) return []
+    if (!events || events.length === 0) {
+      return { tracks: [], eventTracks: new Map() }
+    }
 
     const monthStart = new Date(year, month, 1)
     const monthEnd = new Date(year, month + 1, 0)
@@ -304,7 +306,8 @@ export default function Calendar() {
           {/* Filas de meses */}
           {MONTHS.map((monthName, monthIndex) => {
             const weeks = getWeeksOfMonth(currentYear, monthIndex)
-            const monthEventos = eventos.filter(evento => {
+            const monthEventos = (eventos || []).filter(evento => {
+              if (!evento || !evento.fechaInicio) return false
               const inicio = new Date(evento.fechaInicio + 'T00:00:00')
               const fin = new Date((evento.fechaFin || evento.fechaInicio) + 'T00:00:00')
               const monthStart = new Date(currentYear, monthIndex, 1)
@@ -313,7 +316,7 @@ export default function Calendar() {
             })
 
             const { tracks, eventTracks } = stackEvents(monthEventos, currentYear, monthIndex)
-            const maxTracks = tracks.length
+            const maxTracks = tracks ? tracks.length : 0
 
             return (
               <div
