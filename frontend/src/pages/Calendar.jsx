@@ -6,8 +6,8 @@ const MONTHS = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ]
 
-const DAYS_OF_WEEK = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
-const DAYS_OF_WEEK_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+const DAYS_OF_WEEK = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+const DAYS_OF_WEEK_LONG = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
 const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
@@ -61,16 +61,18 @@ export default function Calendar() {
     return DAYS_IN_MONTH[month]
   }
 
-  // Obtener el día de la semana (0 = Domingo, 1 = Lunes, etc.)
-  const getDayOfWeek = (year, month, day) => {
+  // Obtener el día de la semana (0 = Domingo, 1 = Lunes, etc.) y convertir a lunes=0
+  const getDayOfWeekMondayStart = (year, month, day) => {
     const date = new Date(year, month, day)
-    return date.getDay()
+    const dayOfWeek = date.getDay() // 0=Domingo, 1=Lunes, ..., 6=Sábado
+    // Convertir a lunes=0, martes=1, ..., domingo=6
+    return dayOfWeek === 0 ? 6 : dayOfWeek - 1
   }
 
-  // Calcular las semanas de un mes
+  // Calcular las semanas de un mes (empezando en lunes)
   const getWeeksOfMonth = (year, month) => {
     const daysInMonth = getDaysInMonth(year, month)
-    const firstDayOfWeek = getDayOfWeek(year, month, 1)
+    const firstDayOfWeek = getDayOfWeekMondayStart(year, month, 1) // 0=Lunes, 6=Domingo
     const weeks = []
     let currentWeek = []
 
@@ -340,8 +342,9 @@ export default function Calendar() {
                     {/* Días de la semana */}
                     <div className="flex-1 flex relative">
                       {week.map((day, dayIndex) => {
-                        const dayOfWeek = (dayIndex) % 7
-                        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+                        const dayOfWeek = dayIndex % 7
+                        // En el array DAYS_OF_WEEK, índice 5=Sábado, 6=Domingo
+                        const isWeekend = dayOfWeek === 5 || dayOfWeek === 6
                         const isCurrentMonth = day !== null
 
                         // Obtener eventos que están en este día
