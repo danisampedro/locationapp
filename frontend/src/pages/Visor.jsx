@@ -135,37 +135,49 @@ function MapClickHandler({ onMapClick }) {
 
 // Función para verificar si un punto está dentro de una geometría GeoJSON
 const pointInGeometry = (point, geometry) => {
-  if (!geometry || !geometry.type) return false
+  if (!geometry || !geometry.type) {
+    return false
+  }
 
   const lat = point.lat
   const lng = point.lng
 
-  if (geometry.type === 'Point') {
-    const coords = geometry.coordinates
-    return Math.abs(coords[1] - lat) < 0.0001 && Math.abs(coords[0] - lng) < 0.0001
-  }
+  try {
+    if (geometry.type === 'Point') {
+      const coords = geometry.coordinates
+      return Math.abs(coords[1] - lat) < 0.0001 && Math.abs(coords[0] - lng) < 0.0001
+    }
 
-  if (geometry.type === 'Polygon') {
-    return pointInPolygon([lng, lat], geometry.coordinates[0])
-  }
+    if (geometry.type === 'Polygon') {
+      if (!geometry.coordinates || !geometry.coordinates[0]) return false
+      return pointInPolygon([lng, lat], geometry.coordinates[0])
+    }
 
-  if (geometry.type === 'MultiPolygon') {
-    return geometry.coordinates.some(polygon => 
-      pointInPolygon([lng, lat], polygon[0])
-    )
-  }
+    if (geometry.type === 'MultiPolygon') {
+      if (!geometry.coordinates) return false
+      return geometry.coordinates.some(polygon => {
+        if (!polygon || !polygon[0]) return false
+        return pointInPolygon([lng, lat], polygon[0])
+      })
+    }
 
-  if (geometry.type === 'FeatureCollection') {
-    return geometry.features.some(feature => 
-      pointInGeometry(point, feature.geometry)
-    )
-  }
+    if (geometry.type === 'FeatureCollection') {
+      if (!geometry.features) return false
+      return geometry.features.some(feature => 
+        feature && feature.geometry && pointInGeometry(point, feature.geometry)
+      )
+    }
 
-  if (geometry.type === 'Feature') {
-    return pointInGeometry(point, geometry.geometry)
-  }
+    if (geometry.type === 'Feature') {
+      if (!geometry.geometry) return false
+      return pointInGeometry(point, geometry.geometry)
+    }
 
-  return false
+    return false
+  } catch (error) {
+    console.error('Error en pointInGeometry:', error, 'Geometry type:', geometry.type)
+    return false
+  }
 }
 
 // Algoritmo ray casting para verificar si un punto está dentro de un polígono
@@ -264,22 +276,65 @@ export default function Visor() {
   const handleMapClick = async (latlng) => {
     try {
       setLoading(true)
-      const response = await axios.get(`${API_URL}/visor/consulta`, {
-        params: { lat: latlng.lat, lng: latlng.lng },
-        withCredentials: true
-      })
+      
+      // Si estamos en modo admin, usar la consulta del backend
+      if (showAdminPanel) {
+        const response = await axios.get(`${API_URL}/visor/consulta`, {
+          params: { lat: latlng.lat, lng: latlng.lng },
+          withCredentials: true
+        })
 
-      // Filtrar capas que contienen el punto
-      const capasContenedoras = response.data.capas.filter(capa => {
-        if (!capa.geometria) return false
-        return pointInGeometry(latlng, capa.geometria)
-      })
+        // Filtrar capas que contienen el punto
+        const capasContenedoras = response.data.capas.filter(capa => {
+          if (!capa.geometria) return false
+          return pointInGeometry(latlng, capa.geometria)
+        })
 
-      setPuntoConsulta(latlng)
-      setConsultaResultado({
-        coordenadas: latlng,
-        capas: capasContenedoras
-      })
+        setPuntoConsulta(latlng)
+        setConsultaResultado({
+          coordenadas: latlng,
+          capas: capasContenedoras
+        })
+      } else {
+        // Si no estamos en modo admin, detectar capas localmente
+        console.log('🔍 Detectando capas en punto:', latlng, 'Total capas:', capas.length, 'Capas activas:', capasActivas.size)
+        
+        const capasContenedoras = capas.filter(capa => {
+          // Solo verificar capas activas
+          if (!capasActivas.has(capa.id)) {
+            return false
+          }
+          
+          if (!capa.geometria) {
+            console.log(`⚠️ Capa ${capa.id} (${capa.nombre}) no tiene geometría`)
+            return false
+          }
+          
+          let geometria = capa.geometria
+          if (typeof geometria === 'string') {
+            try {
+              geometria = JSON.parse(geometria)
+            } catch (e) {
+              console.error(`❌ Error parseando geometría de capa ${capa.id}:`, e)
+              return false
+            }
+          }
+          
+          const contiene = pointInGeometry(latlng, geometria)
+          if (contiene) {
+            console.log(`✅ Capa ${capa.id} (${capa.nombre}) contiene el punto`)
+          }
+          return contiene
+        })
+
+        console.log(`📊 Capas encontradas: ${capasContenedoras.length}`)
+
+        setPuntoConsulta(latlng)
+        setConsultaResultado({
+          coordenadas: latlng,
+          capas: capasContenedoras
+        })
+      }
     } catch (error) {
       console.error('Error en consulta:', error)
       setError('Error al realizar la consulta')
@@ -600,6 +655,7 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
 
   // Renderizar capa GeoJSON
   const renderCapa = (capa) => {
+    // En modo admin, solo mostrar capas activas. En modo consulta, mostrar todas las capas activas
     if (!capasActivas.has(capa.id)) {
       console.log(`⏸️ Capa ${capa.id} no está activa`)
       return null
@@ -636,7 +692,8 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
     }
 
     const onEachFeature = (feature, layer) => {
-      if (feature.properties) {
+      // En modo admin, mostrar popup normal. En modo consulta, desactivar popup
+      if (showAdminPanel && feature.properties) {
         const popupContent = `
           <div>
             <h3 class="font-bold">${capa.nombre}</h3>
@@ -672,6 +729,16 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
             weight: 2,
             opacity: 0.8
           })
+        },
+        click: (e) => {
+          // Cuando se hace click en una capa, ejecutar handleMapClick si no estamos en modo admin
+          if (!showAdminPanel) {
+            const latlng = e.latlng
+            // Ejecutar handleMapClick para actualizar el panel lateral y el marcador
+            handleMapClick(latlng)
+            // Cerrar cualquier popup abierto
+            layer.closePopup()
+          }
         }
       })
     }
@@ -705,16 +772,19 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Panel lateral izquierdo - Capas */}
+        {/* Panel lateral izquierdo - Capas (solo en modo admin) o Información de consulta */}
         <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto flex flex-col">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="font-semibold text-gray-800 mb-3">Capas Geográficas</h2>
-            
-            {capas.length === 0 ? (
-              <p className="text-sm text-gray-500">No hay capas disponibles</p>
-            ) : (
-              <div className="space-y-2">
-                {Object.entries(capasAgrupadas()).map(([grupo, capasDelGrupo]) => {
+          {showAdminPanel ? (
+            // Modo Admin: Mostrar menú de capas
+            <>
+              <div className="p-4 border-b border-gray-200">
+                <h2 className="font-semibold text-gray-800 mb-3">Capas Geográficas</h2>
+                
+                {capas.length === 0 ? (
+                  <p className="text-sm text-gray-500">No hay capas disponibles</p>
+                ) : (
+                  <div className="space-y-2">
+                    {Object.entries(capasAgrupadas()).map(([grupo, capasDelGrupo]) => {
                   const esGrupoSinCarpeta = grupo === 'Sin grupo'
                   const estaExpandido = esGrupoSinCarpeta || gruposExpandidos.has(grupo)
                   return (
@@ -797,7 +867,80 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
                 })}
               </div>
             )}
-          </div>
+              </div>
+              </>
+          ) : (
+            // Modo Consulta: Mostrar información de capas encontradas al hacer click
+            <div className="p-4">
+              <h2 className="font-semibold text-gray-800 mb-3">Consulta por Ubicación</h2>
+              
+              {!consultaResultado ? (
+                <div className="text-center py-8">
+                  <p className="text-sm text-gray-500 mb-2">Haz click en el mapa</p>
+                  <p className="text-xs text-gray-400">para consultar las capas en esa ubicación</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Coordenadas</h3>
+                    <p className="text-xs text-gray-600">
+                      Lat: {consultaResultado.coordenadas.lat.toFixed(6)}<br />
+                      Lng: {consultaResultado.coordenadas.lng.toFixed(6)}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                      Capas encontradas ({consultaResultado.capas.length})
+                    </h3>
+                    
+                    {consultaResultado.capas.length === 0 ? (
+                      <p className="text-sm text-gray-500">No hay capas en esta ubicación</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {consultaResultado.capas.map((capa) => (
+                          <div
+                            key={capa.id}
+                            className="p-3 border border-gray-200 rounded-lg bg-white"
+                          >
+                            <h4 className="font-medium text-sm text-gray-800 mb-2">{capa.nombre}</h4>
+                            <div className="text-xs text-gray-600 space-y-1">
+                              <div>Tipo: {capa.tipo}</div>
+                              {capa.fuente && <div>Fuente: {capa.fuente}</div>}
+                              <div>
+                                Permiso:{' '}
+                                <span style={{ color: getPermisoColor(capa.tipoPermiso) }}>
+                                  {getPermisoLabel(capa.tipoPermiso)}
+                                </span>
+                              </div>
+                              {capa.normativa && (
+                                <div className="mt-2">
+                                  <span className="font-semibold">Normativa:</span>
+                                  <p className="text-gray-700 mt-1">{capa.normativa}</p>
+                                </div>
+                              )}
+                              {capa.observaciones && (
+                                <div className="mt-2">
+                                  <span className="font-semibold">Observaciones:</span>
+                                  <p className="text-gray-700 mt-1">{capa.observaciones}</p>
+                                </div>
+                              )}
+                              {capa.informacionExtra && (
+                                <div className="mt-2">
+                                  <span className="font-semibold">Información adicional:</span>
+                                  <p className="text-gray-700 mt-1">{capa.informacionExtra}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Mapa central */}
