@@ -195,6 +195,7 @@ export default function Visor() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [capaEditando, setCapaEditando] = useState(null)
   const [gruposExpandidos, setGruposExpandidos] = useState(new Set()) // Grupos que están expandidos
+  const [capaHovered, setCapaHovered] = useState(null) // ID de la capa sobre la que está el ratón
   const [nuevaCapa, setNuevaCapa] = useState({
     nombre: '',
     tipo: 'personalizada',
@@ -646,6 +647,33 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
         `
         layer.bindPopup(popupContent)
       }
+
+      // Eventos de hover para resaltar el municipio
+      layer.on({
+        mouseover: (e) => {
+          const layer = e.target
+          setCapaHovered(capa.id)
+          layer.setStyle({
+            fillColor: '#3b82f6', // Azul para resaltar
+            fillOpacity: 0.7,
+            color: '#2563eb', // Borde más oscuro
+            weight: 3,
+            opacity: 1
+          })
+        },
+        mouseout: (e) => {
+          const layer = e.target
+          setCapaHovered(null)
+          // Restaurar estilo original
+          layer.setStyle({
+            fillColor: capa.color || '#3b82f6',
+            fillOpacity: capa.opacidad || 0.5,
+            color: capa.color || '#3b82f6',
+            weight: 2,
+            opacity: 0.8
+          })
+        }
+      })
     }
 
     return (
