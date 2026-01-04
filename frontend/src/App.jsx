@@ -12,6 +12,7 @@ import Permits from './pages/Permits'
 import PermitDetail from './pages/PermitDetail'
 import Mapas from './pages/Mapas'
 import Visor from './pages/Visor'
+import Calendar from './pages/Calendar'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 
@@ -140,6 +141,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Visor />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/calendar"
+            element={
+              <PrivateRoute>
+                <Calendar />
               </PrivateRoute>
             }
           />

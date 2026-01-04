@@ -23,6 +23,8 @@ export default function ProyectoDetail() {
     assistantLocationManager: '',
     basecampManager: '',
     projectDate: '',
+    fechaInicio: '',
+    fechaFin: '',
     locations: [], // Array de objetos {id, setName, basecampLink, distanceLocBase}
     crew: [], // Array de objetos {id, startDate, endDate, weeklyRate, carAllowance, boxRental}
     vendors: []
@@ -56,6 +58,8 @@ export default function ProyectoDetail() {
         assistantLocationManager: response.data.assistantLocationManager || '',
         basecampManager: response.data.basecampManager || '',
         projectDate: response.data.projectDate ? response.data.projectDate.slice(0, 10) : '',
+        fechaInicio: response.data.fechaInicio ? response.data.fechaInicio.slice(0, 10) : '',
+        fechaFin: response.data.fechaFin ? response.data.fechaFin.slice(0, 10) : '',
         locations: response.data.Locations?.map(l => ({
           id: l.id.toString(),
           setName: l.ProyectoLocation?.setName || '',
@@ -151,6 +155,12 @@ export default function ProyectoDetail() {
       data.append('basecampManager', formData.basecampManager)
       if (formData.projectDate) {
         data.append('projectDate', formData.projectDate)
+      }
+      if (formData.fechaInicio) {
+        data.append('fechaInicio', formData.fechaInicio)
+      }
+      if (formData.fechaFin) {
+        data.append('fechaFin', formData.fechaFin)
       }
       if (formData.logo) {
         data.append('logo', formData.logo)
@@ -1227,6 +1237,27 @@ export default function ProyectoDetail() {
                   onChange={(e) => setFormData({ ...formData, projectDate: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg"
                 />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Fecha de Inicio (Calendario)</label>
+                <input
+                  type="date"
+                  value={formData.fechaInicio}
+                  onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+                <p className="text-xs text-gray-500 mt-1">Se mostrará en el calendario si está definida</p>
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Fecha de Fin (Calendario)</label>
+                <input
+                  type="date"
+                  value={formData.fechaFin}
+                  onChange={(e) => setFormData({ ...formData, fechaFin: e.target.value })}
+                  min={formData.fechaInicio}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+                <p className="text-xs text-gray-500 mt-1">Opcional: deja vacío para evento de un solo día</p>
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Locations</label>

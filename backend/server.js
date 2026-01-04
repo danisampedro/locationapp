@@ -18,6 +18,7 @@ import sheetRoutes from './routes/sheets.js'
 import authRoutes from './routes/auth.js'
 import userRoutes from './routes/users.js'
 import visorRoutes from './routes/visor.js'
+import eventRoutes from './routes/events.js'
 import { authMiddleware } from './middleware/auth.js'
 
 // Logging de diagnóstico - verificar que las rutas se cargan
@@ -63,7 +64,9 @@ app.use('/api/maps', authMiddleware, mapRoutes)
 app.use('/api/sheets', authMiddleware, sheetRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/visor', authMiddleware, visorRoutes)
+app.use('/api/events', authMiddleware, eventRoutes)
 console.log('✅ Rutas /api/visor registradas correctamente')
+console.log('✅ Rutas /api/events registradas correctamente')
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -227,17 +230,27 @@ const migrateProyectoTable = async () => {
     const newColumns = {
       assistantLocationManager: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
       basecampManager: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
-      secondaryLogoUrl: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' }
+      secondaryLogoUrl: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+      fechaInicio: { type: 'DATE', allowNull: true, defaultValue: null },
+      fechaFin: { type: 'DATE', allowNull: true, defaultValue: null }
     }
 
     for (const [columnName, columnDefinition] of Object.entries(newColumns)) {
       if (!tableDescription[columnName]) {
         console.log(`🔄 Añadiendo columna ${columnName} a la tabla proyectos...`)
-        await queryInterface.addColumn('proyectos', columnName, {
-          type: sequelize.Sequelize.STRING,
-          allowNull: true,
-          defaultValue: ''
-        })
+        if (columnName === 'fechaInicio' || columnName === 'fechaFin') {
+          await queryInterface.addColumn('proyectos', columnName, {
+            type: sequelize.Sequelize.DATEONLY,
+            allowNull: true,
+            defaultValue: null
+          })
+        } else {
+          await queryInterface.addColumn('proyectos', columnName, {
+            type: sequelize.Sequelize.STRING,
+            allowNull: true,
+            defaultValue: ''
+          })
+        }
         console.log(`✅ Columna ${columnName} añadida exitosamente`)
       } else {
         console.log(`ℹ️  Columna ${columnName} ya existe`)
@@ -563,6 +576,58 @@ const migrateVendorTable = async () => {
   }
 }
 
+// Migración: Crear tabla eventos si no existe
+const migrateEventosTable = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface()
+    const tableExists = await queryInterface.tableExists('eventos')
+
+    if (!tableExists) {
+      console.log('ℹ️  Tabla eventos no existe, creando...')
+      await queryInterface.createTable('eventos', {
+        id: {
+          type: sequelize.Sequelize.INTEGER,
+          primaryKey: true,
+          autoIncrement: true
+        },
+        titulo: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: false
+        },
+        fechaInicio: {
+          type: sequelize.Sequelize.DATEONLY,
+          allowNull: false
+        },
+        fechaFin: {
+          type: sequelize.Sequelize.DATEONLY,
+          allowNull: true,
+          defaultValue: null
+        },
+        color: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: false,
+          defaultValue: '#3b82f6'
+        },
+        createdAt: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        },
+        updatedAt: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        }
+      })
+      console.log('✅ Tabla eventos creada')
+    } else {
+      console.log('ℹ️  Tabla eventos ya existe')
+    }
+  } catch (error) {
+    console.error('⚠️  Error en migración de eventos:', error.message)
+  }
+}
+
 // Migración: Crear tabla capas si no existe
 const migrateCapasTable = async () => {
   try {
@@ -768,6 +833,7 @@ const connectDB = async () => {
     await migrateRecceDocumentsTable()
     await migrateContractDocumentsTable()
     await migrateCapasTable()
+    await migrateEventosTable()
     
     await seedAdminUser()
     console.log('✅ Database models synchronized')

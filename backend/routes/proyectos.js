@@ -8,9 +8,45 @@ import Crew from '../models/Crew.js'
 import Vendor from '../models/Vendor.js'
 import ProyectoLocation from '../models/ProyectoLocation.js'
 import ProyectoCrew from '../models/ProyectoCrew.js'
+import Evento from '../models/Evento.js'
 import sequelize from '../config/database.js'
 
 const router = express.Router()
+
+// Función auxiliar para sincronizar evento de calendario con proyecto
+const syncProyectoEvento = async (proyecto, fechaInicio, fechaFin, nombreAnterior = null) => {
+  try {
+    // Si se cambió el nombre, buscar evento por nombre anterior
+    const tituloBusqueda = nombreAnterior || proyecto.nombre
+    
+    // Buscar evento existente por título
+    const eventoExistente = await Evento.findOne({
+      where: { titulo: tituloBusqueda }
+    })
+
+    if (fechaInicio) {
+      // Si hay fecha de inicio, crear o actualizar evento
+      const eventoData = {
+        titulo: proyecto.nombre,
+        fechaInicio: fechaInicio,
+        fechaFin: fechaFin || null,
+        color: '#3b82f6' // Color azul por defecto para proyectos
+      }
+
+      if (eventoExistente) {
+        await eventoExistente.update(eventoData)
+      } else {
+        await Evento.create(eventoData)
+      }
+    } else if (eventoExistente) {
+      // Si no hay fecha pero existe evento, eliminarlo
+      await eventoExistente.destroy()
+    }
+  } catch (error) {
+    console.error('Error sincronizando evento de proyecto:', error)
+    // No fallar la creación del proyecto si falla la creación del evento
+  }
+}
 
 // Configure Cloudinary
 cloudinary.config({
@@ -411,7 +447,7 @@ router.post('/', uploadProyectoLogos, async (req, res) => {
     console.log('Creating proyecto...')
     console.log('Body:', req.body)
     console.log('File:', req.file)
-    const { nombre, descripcion, company, cif, address, locationManager, locationCoordinator, assistantLocationManager, basecampManager, projectDate, locations, crew, vendors } = req.body
+    const { nombre, descripcion, company, cif, address, locationManager, locationCoordinator, assistantLocationManager, basecampManager, projectDate, fechaInicio, fechaFin, locations, crew, vendors } = req.body
     
     const proyectoData = {
       nombre,
@@ -423,7 +459,9 @@ router.post('/', uploadProyectoLogos, async (req, res) => {
       locationCoordinator: locationCoordinator || '',
       assistantLocationManager: assistantLocationManager || '',
       basecampManager: basecampManager || '',
-      projectDate: projectDate || null
+      projectDate: projectDate || null,
+      fechaInicio: fechaInicio || null,
+      fechaFin: fechaFin || null
     }
 
     const files = req.files || {}
@@ -585,7 +623,7 @@ router.post('/', uploadProyectoLogos, async (req, res) => {
 // PUT update proyecto
 router.put('/:id', uploadProyectoLogos, async (req, res) => {
   try {
-    const { nombre, descripcion, company, cif, address, locationManager, locationCoordinator, assistantLocationManager, basecampManager, projectDate, locations, crew, vendors } = req.body
+    const { nombre, descripcion, company, cif, address, locationManager, locationCoordinator, assistantLocationManager, basecampManager, projectDate, fechaInicio, fechaFin, locations, crew, vendors } = req.body
     
     const proyecto = await Proyecto.findByPk(req.params.id)
     if (!proyecto) {
@@ -603,6 +641,8 @@ router.put('/:id', uploadProyectoLogos, async (req, res) => {
     if (assistantLocationManager !== undefined) updateData.assistantLocationManager = assistantLocationManager
     if (basecampManager !== undefined) updateData.basecampManager = basecampManager
     if (projectDate !== undefined) updateData.projectDate = projectDate || null
+    if (fechaInicio !== undefined) updateData.fechaInicio = fechaInicio || null
+    if (fechaFin !== undefined) updateData.fechaFin = fechaFin || null
 
     const files = req.files || {}
     if (files.logo && files.logo[0]) {
@@ -612,7 +652,15 @@ router.put('/:id', uploadProyectoLogos, async (req, res) => {
       updateData.secondaryLogoUrl = files.secondaryLogo[0].path
     }
 
+    const nombreAnterior = proyecto.nombre
     await proyecto.update(updateData)
+
+    // Sincronizar evento en el calendario
+    const finalFechaInicio = fechaInicio !== undefined ? (fechaInicio || null) : proyecto.fechaInicio
+    const finalFechaFin = fechaFin !== undefined ? (fechaFin || null) : proyecto.fechaFin
+    // Recargar proyecto para obtener los datos actualizados
+    await proyecto.reload()
+    await syncProyectoEvento(proyecto, finalFechaInicio, finalFechaFin, nombre !== nombreAnterior ? nombreAnterior : null)
 
     // Actualizar relaciones de locations con datos extra
     if (locations) {
@@ -817,6 +865,20 @@ router.delete('/:id', async (req, res) => {
     if (!proyecto) {
       return res.status(404).json({ error: 'Proyecto no encontrado' })
     }
+    
+    // Eliminar evento asociado en el calendario
+    try {
+      const evento = await Evento.findOne({
+        where: { titulo: proyecto.nombre }
+      })
+      if (evento) {
+        await evento.destroy()
+      }
+    } catch (error) {
+      console.error('Error eliminando evento de proyecto:', error)
+      // Continuar con la eliminación del proyecto aunque falle la eliminación del evento
+    }
+    
     await proyecto.destroy()
     res.json({ message: 'Proyecto eliminado' })
   } catch (error) {

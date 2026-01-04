@@ -63,6 +63,8 @@ export default function Proyectos() {
     locationManager: '',
     locationCoordinator: '',
     projectDate: '',
+    fechaInicio: '',
+    fechaFin: '',
     locations: [],
     crew: [],
     vendors: []
@@ -146,6 +148,12 @@ export default function Proyectos() {
       if (formData.projectDate) {
         data.append('projectDate', formData.projectDate)
       }
+      if (formData.fechaInicio) {
+        data.append('fechaInicio', formData.fechaInicio)
+      }
+      if (formData.fechaFin) {
+        data.append('fechaFin', formData.fechaFin)
+      }
       if (formData.logo) {
         data.append('logo', formData.logo)
       }
@@ -172,7 +180,7 @@ export default function Proyectos() {
       if (response.status === 201 || response.status === 200) {
         console.log('Proyecto creado exitosamente:', response.data)
         setShowModal(false)
-        setFormData({ nombre: '', descripcion: '', logo: null, company: '', cif: '', address: '', locationManager: '', locationCoordinator: '', projectDate: '', locations: [], crew: [], vendors: [] })
+        setFormData({ nombre: '', descripcion: '', logo: null, company: '', cif: '', address: '', locationManager: '', locationCoordinator: '', projectDate: '', fechaInicio: '', fechaFin: '', locations: [], crew: [], vendors: [] })
         await loadProyectos()
         console.log('Proyectos recargados')
       } else {
@@ -392,6 +400,27 @@ export default function Proyectos() {
                   onChange={(e) => setFormData({ ...formData, projectDate: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg"
                 />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Fecha de Inicio (Calendario)</label>
+                <input
+                  type="date"
+                  value={formData.fechaInicio}
+                  onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+                <p className="text-xs text-gray-500 mt-1">Se mostrará en el calendario si está definida</p>
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Fecha de Fin (Calendario)</label>
+                <input
+                  type="date"
+                  value={formData.fechaFin}
+                  onChange={(e) => setFormData({ ...formData, fechaFin: e.target.value })}
+                  min={formData.fechaInicio}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+                <p className="text-xs text-gray-500 mt-1">Opcional: deja vacío para evento de un solo día</p>
               </div>
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Address</label>

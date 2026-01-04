@@ -65,6 +65,12 @@ const VisorIcon = () => (
   </svg>
 )
 
+const CalendarIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+)
+
 const menuItems = [
   { path: '/proyectos', label: 'Proyectos', icon: FolderIcon },
   { path: '/locations', label: 'Locations', icon: LocationIcon },
@@ -72,7 +78,8 @@ const menuItems = [
   { path: '/vendors', label: 'Vendors', icon: StoreIcon },
   { path: '/permits', label: 'Permits', icon: PermitIcon },
   { path: '/mapas', label: 'Mapas', icon: MapIcon },
-  { path: '/visor', label: 'Visor', icon: VisorIcon }
+  { path: '/visor', label: 'Visor', icon: VisorIcon },
+  { path: '/calendar', label: 'Calendario', icon: CalendarIcon }
 ]
 
 const adminMenuItems = [
