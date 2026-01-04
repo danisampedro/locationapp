@@ -6,6 +6,9 @@ const MONTHS = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ]
 
+const DAYS_OF_WEEK = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+const DAYS_OF_WEEK_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+
 const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 const PRESET_COLORS = [
@@ -58,6 +61,98 @@ export default function Calendar() {
     return DAYS_IN_MONTH[month]
   }
 
+  // Obtener el día de la semana (0 = Domingo, 1 = Lunes, etc.)
+  const getDayOfWeek = (year, month, day) => {
+    const date = new Date(year, month, day)
+    return date.getDay()
+  }
+
+  // Calcular las semanas de un mes
+  const getWeeksOfMonth = (year, month) => {
+    const daysInMonth = getDaysInMonth(year, month)
+    const firstDayOfWeek = getDayOfWeek(year, month, 1)
+    const weeks = []
+    let currentWeek = []
+
+    // Rellenar días vacíos al inicio del mes
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      currentWeek.push(null)
+    }
+
+    // Añadir días del mes
+    for (let day = 1; day <= daysInMonth; day++) {
+      currentWeek.push(day)
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek)
+        currentWeek = []
+      }
+    }
+
+    // Rellenar días vacíos al final del mes
+    while (currentWeek.length > 0 && currentWeek.length < 7) {
+      currentWeek.push(null)
+    }
+    if (currentWeek.length > 0) {
+      weeks.push(currentWeek)
+    }
+
+    return weeks
+  }
+
+  // Algoritmo para apilar eventos verticalmente
+  const stackEvents = (events, year, month) => {
+    if (events.length === 0) return []
+
+    const monthStart = new Date(year, month, 1)
+    const monthEnd = new Date(year, month + 1, 0)
+
+    // Normalizar eventos y calcular días dentro del mes
+    const normalizedEvents = events.map(evento => {
+      const inicio = new Date(evento.fechaInicio + 'T00:00:00')
+      const fin = new Date((evento.fechaFin || evento.fechaInicio) + 'T00:00:00')
+      const startDay = inicio >= monthStart ? inicio.getDate() : 1
+      const endDay = fin <= monthEnd ? fin.getDate() : getDaysInMonth(year, month)
+      return {
+        ...evento,
+        startDay: inicio < monthStart ? 1 : startDay,
+        endDay: fin > monthEnd ? getDaysInMonth(year, month) : endDay
+      }
+    })
+
+    // Ordenar eventos por día de inicio
+    normalizedEvents.sort((a, b) => a.startDay - b.startDay)
+
+    // Algoritmo de apilamiento: asignar pistas (tracks) a eventos
+    const tracks = []
+    const eventTracks = new Map()
+
+    normalizedEvents.forEach(evento => {
+      let assignedTrack = -1
+
+      // Buscar la primera pista disponible donde el evento no se solape
+      for (let trackIndex = 0; trackIndex < tracks.length; trackIndex++) {
+        const trackEvents = tracks[trackIndex]
+        const overlaps = trackEvents.some(existingEvento => {
+          return !(evento.endDay < existingEvento.startDay || evento.startDay > existingEvento.endDay)
+        })
+        if (!overlaps) {
+          assignedTrack = trackIndex
+          break
+        }
+      }
+
+      // Si no hay pista disponible, crear una nueva
+      if (assignedTrack === -1) {
+        assignedTrack = tracks.length
+        tracks.push([])
+      }
+
+      tracks[assignedTrack].push(evento)
+      eventTracks.set(evento.id, assignedTrack)
+    })
+
+    return { tracks, eventTracks }
+  }
 
   const openCreateModal = () => {
     setEditingEvento(null)
@@ -130,50 +225,6 @@ export default function Calendar() {
     }
   }
 
-  const renderEventBar = (evento, year, month) => {
-    const inicio = new Date(evento.fechaInicio + 'T00:00:00')
-    const fin = new Date((evento.fechaFin || evento.fechaInicio) + 'T00:00:00')
-    const monthStart = new Date(year, month, 1)
-    const monthEnd = new Date(year, month + 1, 0)
-    
-    // Asegurar que el evento está dentro del mes
-    if (fin < monthStart || inicio > monthEnd) {
-      return null
-    }
-    
-    // Calcular día de inicio y fin dentro del mes
-    const startDay = inicio >= monthStart ? inicio.getDate() : 1
-    const endDay = fin <= monthEnd ? fin.getDate() : getDaysInMonth(year, month)
-    
-    // Calcular posición (0-31) y ancho
-    const startOffset = inicio < monthStart ? 0 : startDay - 1
-    const width = endDay - startDay + 1
-    const daysInMonth = getDaysInMonth(year, month)
-
-    const color = evento.color || PRESET_COLORS[0]
-    const rgba = hexToRgba(color, 0.7)
-
-    return (
-      <div
-        key={evento.id}
-        className="absolute h-6 rounded px-2 flex items-center text-xs font-medium text-white cursor-pointer hover:opacity-90 transition-opacity"
-        style={{
-          left: `${(startOffset / 31) * 100}%`,
-          width: `${(width / 31) * 100}%`,
-          backgroundColor: rgba,
-          borderLeft: `3px solid ${color}`
-        }}
-        onClick={(e) => {
-          e.stopPropagation()
-          openEditModal(evento)
-        }}
-        title={evento.titulo}
-      >
-        <span className="truncate">{evento.titulo}</span>
-      </div>
-    )
-  }
-
   const hexToRgba = (hex, alpha) => {
     const r = parseInt(hex.slice(1, 3), 16)
     const g = parseInt(hex.slice(3, 5), 16)
@@ -226,20 +277,24 @@ export default function Calendar() {
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
-        <div className="min-w-[1200px]">
-          {/* Header con días del mes */}
+        <div className="min-w-[1400px]">
+          {/* Header con días de la semana */}
           <div className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
             <div className="flex">
               <div className="w-32 p-3 font-semibold text-gray-700 border-r border-gray-200">
                 Mes
               </div>
               <div className="flex-1 flex">
-                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                {DAYS_OF_WEEK.map((dayName, index) => (
                   <div
-                    key={day}
-                    className="flex-1 p-2 text-center text-xs font-medium text-gray-600 border-r border-gray-200 last:border-r-0"
+                    key={index}
+                    className={`flex-1 p-3 text-center text-sm font-semibold border-r border-gray-200 last:border-r-0 ${
+                      index === 0 || index === 6 
+                        ? 'text-gray-600 bg-blue-50/50' 
+                        : 'text-gray-700'
+                    }`}
                   >
-                    {day}
+                    {dayName}
                   </div>
                 ))}
               </div>
@@ -248,7 +303,7 @@ export default function Calendar() {
 
           {/* Filas de meses */}
           {MONTHS.map((monthName, monthIndex) => {
-            const daysInMonth = getDaysInMonth(currentYear, monthIndex)
+            const weeks = getWeeksOfMonth(currentYear, monthIndex)
             const monthEventos = eventos.filter(evento => {
               const inicio = new Date(evento.fechaInicio + 'T00:00:00')
               const fin = new Date((evento.fechaFin || evento.fechaInicio) + 'T00:00:00')
@@ -257,36 +312,130 @@ export default function Calendar() {
               return (inicio <= monthEnd && fin >= monthStart)
             })
 
+            const { tracks, eventTracks } = stackEvents(monthEventos, currentYear, monthIndex)
+            const maxTracks = tracks.length
+
             return (
               <div
                 key={monthIndex}
-                className="border-b border-gray-200 hover:bg-gray-50/50 transition-colors"
+                className="border-b border-gray-200"
               >
-                <div className="flex min-h-[60px]">
-                  {/* Nombre del mes */}
-                  <div className="w-32 p-4 font-semibold text-gray-800 border-r border-gray-200 flex items-center">
-                    {monthName}
-                  </div>
-                  
-                  {/* Grid de días */}
-                  <div className="flex-1 relative">
-                    <div className="flex h-full">
-                      {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                        <div
-                          key={day}
-                          className={`flex-1 p-1 border-r border-gray-100 last:border-r-0 ${
-                            day <= daysInMonth ? 'bg-white' : 'bg-gray-50'
-                          } ${day === daysInMonth ? 'border-r-2 border-gray-300' : ''}`}
-                        />
-                      ))}
+
+                {/* Semanas del mes */}
+                {weeks.map((week, weekIndex) => (
+                  <div key={weekIndex} className="flex min-h-[80px]">
+                    {/* Columna del mes solo en la primera semana */}
+                    {weekIndex === 0 && (
+                      <div className="w-32 p-4 font-semibold text-gray-800 border-r border-gray-200 flex items-center bg-gray-50/30">
+                        {monthName}
+                      </div>
+                    )}
+                    {weekIndex > 0 && (
+                      <div className="w-32 border-r border-gray-200 bg-gray-50/30"></div>
+                    )}
+
+                    {/* Días de la semana */}
+                    <div className="flex-1 flex relative">
+                      {week.map((day, dayIndex) => {
+                        const dayOfWeek = (dayIndex) % 7
+                        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+                        const isCurrentMonth = day !== null
+
+                        // Obtener eventos que están en este día
+                        const dayEventos = monthEventos.filter(evento => {
+                          const inicio = new Date(evento.fechaInicio + 'T00:00:00')
+                          const fin = new Date((evento.fechaFin || evento.fechaInicio) + 'T00:00:00')
+                          const monthStart = new Date(currentYear, monthIndex, 1)
+                          const monthEnd = new Date(currentYear, monthIndex + 1, 0)
+
+                          if (!day) return false
+                          
+                          // Normalizar fechas para el mes actual
+                          const eventStartInMonth = inicio < monthStart ? monthStart : inicio
+                          const eventEndInMonth = fin > monthEnd ? monthEnd : fin
+                          
+                          const eventStartDay = eventStartInMonth.getDate()
+                          const eventEndDay = eventEndInMonth.getDate()
+
+                          return day >= eventStartDay && day <= eventEndDay
+                        })
+
+                        return (
+                          <div
+                            key={dayIndex}
+                            className={`flex-1 border-r border-gray-100 last:border-r-0 p-1 ${
+                              isCurrentMonth 
+                                ? isWeekend 
+                                  ? 'bg-blue-50/30' 
+                                  : 'bg-white'
+                                : 'bg-gray-50/50'
+                            }`}
+                            style={{ minWidth: '140px' }}
+                          >
+                            {/* Número del día */}
+                            <div className={`text-xs font-medium mb-1 ${
+                              isCurrentMonth 
+                                ? isWeekend 
+                                  ? 'text-blue-700' 
+                                  : 'text-gray-700'
+                                : 'text-gray-400'
+                            }`}>
+                              {day || ''}
+                            </div>
+
+                            {/* Eventos del día */}
+                            <div className="relative" style={{ minHeight: `${Math.max(1, maxTracks) * 32}px` }}>
+                              {dayEventos.map(evento => {
+                                const trackIndex = eventTracks.get(evento.id) || 0
+                                const inicio = new Date(evento.fechaInicio + 'T00:00:00')
+                                const fin = new Date((evento.fechaFin || evento.fechaInicio) + 'T00:00:00')
+                                const monthStart = new Date(currentYear, monthIndex, 1)
+                                const monthEnd = new Date(currentYear, monthIndex + 1, 0)
+                                
+                                const eventStartInMonth = inicio < monthStart ? monthStart : inicio
+                                const eventEndInMonth = fin > monthEnd ? monthEnd : fin
+                                
+                                const eventStartDay = eventStartInMonth.getDate()
+                                const eventEndDay = eventEndInMonth.getDate()
+                                const isStart = day === eventStartDay
+                                const isEnd = day === eventEndDay
+                                const spansMultipleDays = eventEndDay > eventStartDay
+
+                                const color = evento.color || PRESET_COLORS[0]
+                                const rgba = hexToRgba(color, 0.75)
+
+                                return (
+                                  <div
+                                    key={evento.id}
+                                    className="absolute rounded px-2 py-1 flex items-center text-xs font-medium text-white cursor-pointer hover:opacity-90 transition-opacity z-10"
+                                    style={{
+                                      top: `${trackIndex * 32}px`,
+                                      left: isStart ? '2px' : '0',
+                                      right: isEnd ? '2px' : '0',
+                                      width: spansMultipleDays ? '100%' : 'calc(100% - 4px)',
+                                      backgroundColor: rgba,
+                                      borderLeft: isStart ? `3px solid ${color}` : 'none',
+                                      height: '28px'
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      openEditModal(evento)
+                                    }}
+                                    title={evento.titulo}
+                                  >
+                                    {isStart && (
+                                      <span className="truncate font-semibold">{evento.titulo}</span>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
-                    
-                    {/* Eventos del mes */}
-                    <div className="absolute inset-0 flex items-center px-1">
-                      {monthEventos.map(evento => renderEventBar(evento, currentYear, monthIndex)).filter(Boolean)}
-                    </div>
                   </div>
-                </div>
+                ))}
               </div>
             )
           })}
@@ -407,4 +556,3 @@ export default function Calendar() {
     </div>
   )
 }
-
