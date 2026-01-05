@@ -1105,6 +1105,17 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
                   >
                     Consolidar: Natura2000 ZEPA
                   </button>
+                  
+                  <button
+                    onClick={() => consolidarGrupo(
+                      'Porn Paratge natural serra tramuntana',
+                      'Porn Paratge Natural Serra Tramuntana (Consolidada)'
+                    )}
+                    className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                    disabled={loading}
+                  >
+                    Consolidar: Porn Paratge Serra Tramuntana
+                  </button>
                 </div>
               )
             })()}
