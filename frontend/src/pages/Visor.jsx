@@ -1016,40 +1016,99 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
           >
             Subir Nueva Capa
           </button>
-          <button
-            onClick={async () => {
-              const nombreGrupo = 'Linea de deslinde de Dominio Publico mMartimo Terrestre'
-              const nombreNuevaCapa = 'Línea de Deslinde de Dominio Público Marítimo Terrestre (Consolidada)'
-              
-              if (!confirm(`¿Consolidar todas las capas del grupo "${nombreGrupo}" en una sola capa llamada "${nombreNuevaCapa}"?\n\nLas capas originales serán eliminadas.`)) {
-                return
-              }
-              
-              try {
-                setLoading(true)
-                const response = await axios.post(
-                  `${API_URL}/visor/admin/capas/consolidar-grupo`,
-                  {
-                    nombreGrupo,
-                    nombreNuevaCapa,
-                    eliminarOriginales: true
-                  },
-                  { withCredentials: true }
-                )
+          
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">Consolidar Grupos</h4>
+            
+            {/* Función auxiliar para consolidar un grupo */}
+            {(() => {
+              const consolidarGrupo = async (nombreGrupo, nombreNuevaCapa) => {
+                if (!confirm(`¿Consolidar todas las capas del grupo "${nombreGrupo}" en una sola capa llamada "${nombreNuevaCapa}"?\n\nLas capas originales serán eliminadas.`)) {
+                  return
+                }
                 
-                alert(`✅ Capa consolidada creada exitosamente!\n\n${response.data.featuresConsolidadas} features combinadas de ${response.data.capasOriginales} capas.\n${response.data.eliminadas} capas originales eliminadas.`)
-                await loadCapas()
-              } catch (error) {
-                console.error('Error consolidando grupo:', error)
-                alert(`Error: ${error.response?.data?.error || error.message || 'Error al consolidar las capas'}`)
-              } finally {
-                setLoading(false)
+                try {
+                  setLoading(true)
+                  const response = await axios.post(
+                    `${API_URL}/visor/admin/capas/consolidar-grupo`,
+                    {
+                      nombreGrupo,
+                      nombreNuevaCapa,
+                      eliminarOriginales: true
+                    },
+                    { withCredentials: true }
+                  )
+                  
+                  alert(`✅ Capa consolidada creada exitosamente!\n\n${response.data.featuresConsolidadas} features combinadas de ${response.data.capasOriginales} capas.\n${response.data.eliminadas} capas originales eliminadas.`)
+                  await loadCapas()
+                } catch (error) {
+                  console.error('Error consolidando grupo:', error)
+                  alert(`Error: ${error.response?.data?.error || error.message || 'Error al consolidar las capas'}`)
+                } finally {
+                  setLoading(false)
+                }
               }
-            }}
-            className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors mt-2"
-          >
-            Consolidar: Línea Deslinde DPMT
-          </button>
+              
+              return (
+                <div className="space-y-2">
+                  <button
+                    onClick={() => consolidarGrupo(
+                      'Linea de deslinde de Dominio Publico mMartimo Terrestre',
+                      'Línea de Deslinde de Dominio Público Marítimo Terrestre (Consolidada)'
+                    )}
+                    className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                    disabled={loading}
+                  >
+                    Consolidar: Línea Deslinde DPMT
+                  </button>
+                  
+                  <button
+                    onClick={() => consolidarGrupo(
+                      'Natura2000 - Gestion Estatal',
+                      'Natura2000 - Gestión Estatal (Consolidada)'
+                    )}
+                    className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                    disabled={loading}
+                  >
+                    Consolidar: Natura2000 Gestión Estatal
+                  </button>
+                  
+                  <button
+                    onClick={() => consolidarGrupo(
+                      'Natura2000 - LIC Gestió Autonomica',
+                      'Natura2000 - LIC Gestión Autonómica (Consolidada)'
+                    )}
+                    className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                    disabled={loading}
+                  >
+                    Consolidar: Natura2000 LIC
+                  </button>
+                  
+                  <button
+                    onClick={() => consolidarGrupo(
+                      'Natura2000 - ZEC Gestio Autonomica',
+                      'Natura2000 - ZEC Gestión Autonómica (Consolidada)'
+                    )}
+                    className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                    disabled={loading}
+                  >
+                    Consolidar: Natura2000 ZEC
+                  </button>
+                  
+                  <button
+                    onClick={() => consolidarGrupo(
+                      'Natura2000 - ZEPA Gestio Autonomica',
+                      'Natura2000 - ZEPA Gestión Autonómica (Consolidada)'
+                    )}
+                    className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                    disabled={loading}
+                  >
+                    Consolidar: Natura2000 ZEPA
+                  </button>
+                </div>
+              )
+            })()}
+          </div>
         </div>
       )}
 
