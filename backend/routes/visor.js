@@ -671,5 +671,122 @@ router.delete('/admin/capas/:id', async (req, res) => {
   }
 })
 
+// POST /api/visor/admin/capas/consolidar-grupo - Consolidar todas las capas de un grupo
+router.post('/admin/capas/consolidar-grupo', async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de administrador.' })
+    }
+
+    const { nombreGrupo, nombreNuevaCapa, tipo, fuente, fechaDatos, normativa, tipoPermiso, observaciones, color, opacidad, eliminarOriginales } = req.body
+
+    if (!nombreGrupo) {
+      return res.status(400).json({ error: 'El nombre del grupo es requerido' })
+    }
+
+    if (!nombreNuevaCapa) {
+      return res.status(400).json({ error: 'El nombre de la capa consolidada es requerido' })
+    }
+
+    console.log(`📦 Consolidando capas del grupo: "${nombreGrupo}"...`)
+
+    // Obtener todas las capas del grupo
+    const capas = await Capa.findAll({
+      where: { grupo: nombreGrupo }
+    })
+
+    if (capas.length === 0) {
+      return res.status(404).json({ error: `No se encontraron capas en el grupo "${nombreGrupo}"` })
+    }
+
+    console.log(`✅ Encontradas ${capas.length} capas en el grupo "${nombreGrupo}"`)
+    capas.forEach((capa, index) => {
+      console.log(`  ${index + 1}. ${capa.nombre} (ID: ${capa.id})`)
+    })
+
+    // Combinar todas las features en una sola FeatureCollection
+    const todasLasFeatures = []
+    
+    for (const capa of capas) {
+      let geometria = capa.geometria
+      
+      // Parsear geometría si es string
+      if (typeof geometria === 'string') {
+        try {
+          geometria = JSON.parse(geometria)
+        } catch (e) {
+          console.warn(`⚠️ Error parseando geometría de capa ${capa.id} (${capa.nombre}):`, e)
+          continue
+        }
+      }
+
+      // Extraer features según el tipo de geometría
+      if (geometria.type === 'FeatureCollection' && geometria.features) {
+        todasLasFeatures.push(...geometria.features)
+        console.log(`  ✓ Capa "${capa.nombre}": ${geometria.features.length} features añadidas`)
+      } else if (geometria.type === 'Feature') {
+        todasLasFeatures.push(geometria)
+        console.log(`  ✓ Capa "${capa.nombre}": 1 feature añadida`)
+      } else if (geometria.type) {
+        // Si es una geometría directa, convertirla a Feature
+        todasLasFeatures.push({
+          type: 'Feature',
+          geometry: geometria,
+          properties: {}
+        })
+        console.log(`  ✓ Capa "${capa.nombre}": 1 geometría convertida a feature`)
+      }
+    }
+
+    console.log(`✅ Total de features combinadas: ${todasLasFeatures.length}`)
+
+    // Usar valores de la primera capa como defaults si no se especifican
+    const primeraCapa = capas[0]
+
+    // Crear la nueva capa consolidada
+    const capaConsolidada = await Capa.create({
+      nombre: nombreNuevaCapa,
+      tipo: tipo || primeraCapa.tipo || 'personalizada',
+      fuente: fuente || primeraCapa.fuente || '',
+      fechaDatos: fechaDatos ? new Date(fechaDatos) : (primeraCapa.fechaDatos || null),
+      normativa: normativa || primeraCapa.normativa || '',
+      tipoPermiso: tipoPermiso || primeraCapa.tipoPermiso || 'permitido',
+      observaciones: observaciones || `Consolidada de ${capas.length} capas del grupo "${nombreGrupo}": ${capas.map(c => c.nombre).join(', ')}`,
+      geometria: {
+        type: 'FeatureCollection',
+        features: todasLasFeatures
+      },
+      color: color || primeraCapa.color || '#3b82f6',
+      opacidad: opacidad !== undefined ? parseFloat(opacidad) : (primeraCapa.opacidad || 0.5),
+      grupo: nombreGrupo, // Mantener el mismo grupo
+      informacionExtra: '',
+      activa: true
+    })
+
+    console.log(`✅ Capa consolidada creada con ID: ${capaConsolidada.id}`)
+
+    // Eliminar capas originales si se solicita
+    let eliminadas = 0
+    if (eliminarOriginales) {
+      const idsAEliminar = capas.map(c => c.id)
+      eliminadas = await Capa.destroy({
+        where: { id: idsAEliminar }
+      })
+      console.log(`🗑️ ${eliminadas} capas originales eliminadas`)
+    }
+
+    res.status(201).json({
+      capa: capaConsolidada,
+      featuresConsolidadas: todasLasFeatures.length,
+      capasOriginales: capas.length,
+      eliminadas: eliminadas,
+      grupo: nombreGrupo
+    })
+  } catch (error) {
+    console.error('Error consolidando capas del grupo:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 export default router
 

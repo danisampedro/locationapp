@@ -221,6 +221,7 @@ export default function Visor() {
   })
   const [archivoGeoJSON, setArchivoGeoJSON] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [loadingCapas, setLoadingCapas] = useState(true)
   const [error, setError] = useState(null)
 
   // Cargar capas al montar el componente
@@ -230,6 +231,7 @@ export default function Visor() {
 
   const loadCapas = async () => {
     try {
+      setLoadingCapas(true)
       const response = await axios.get(`${API_URL}/visor/capas`, { withCredentials: true })
       
       // Parsear geometría si viene como string y agregar logging
@@ -270,6 +272,8 @@ export default function Visor() {
     } catch (error) {
       console.error('Error cargando capas:', error)
       setError('Error al cargar las capas')
+    } finally {
+      setLoadingCapas(false)
     }
   }
 
@@ -734,10 +738,13 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
           // Cuando se hace click en una capa, ejecutar handleMapClick si no estamos en modo admin
           if (!showAdminPanel) {
             const latlng = e.latlng
-            // Ejecutar handleMapClick para actualizar el panel lateral y el marcador
-            handleMapClick(latlng)
-            // Cerrar cualquier popup abierto
-            layer.closePopup()
+            if (latlng) {
+              console.log('🖱️ Click en capa, ejecutando handleMapClick con latlng:', latlng)
+              // Ejecutar handleMapClick para actualizar el panel lateral y el marcador
+              handleMapClick(latlng)
+            } else {
+              console.warn('⚠️ No se pudo obtener latlng del evento de click en capa:', e)
+            }
           }
         }
       })
@@ -772,8 +779,55 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Panel lateral izquierdo - Capas (solo en modo admin) o Información de consulta */}
-        <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto flex flex-col">
+        {/* Mapa central */}
+        <div className="flex-1 relative" style={{ zIndex: 1 }}>
+          {/* Mensaje de carga de capas */}
+          {loadingCapas && (
+            <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg shadow-lg p-6 flex flex-col items-center gap-3">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-dark-blue"></div>
+                <p className="text-gray-700 font-medium">Cargando capas...</p>
+              </div>
+            </div>
+          )}
+          
+          <MapContainer
+            center={MALLORCA_CENTER}
+            zoom={MALLORCA_ZOOM}
+            style={{ height: '100%', width: '100%', zIndex: 1 }}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <MapClickHandler onMapClick={handleMapClick} />
+            
+            {/* Renderizar capas activas */}
+            {capas.map(capa => renderCapa(capa))}
+
+            {/* Marcador del punto de consulta */}
+            {puntoConsulta && (
+              <Marker position={[puntoConsulta.lat, puntoConsulta.lng]}>
+                <Popup>
+                  <div>
+                    <strong>Coordenadas:</strong><br />
+                    Lat: {puntoConsulta.lat.toFixed(6)}<br />
+                    Lng: {puntoConsulta.lng.toFixed(6)}
+                  </div>
+                </Popup>
+              </Marker>
+            )}
+          </MapContainer>
+
+          {loading && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-lg">
+              <p className="text-sm text-gray-600">Consultando...</p>
+            </div>
+          )}
+        </div>
+
+        {/* Panel lateral derecho - Capas (solo en modo admin) o Información de consulta */}
+        <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto flex flex-col flex-shrink-0">
           {showAdminPanel ? (
             // Modo Admin: Mostrar menú de capas
             <>
@@ -942,43 +996,6 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
             </div>
           )}
         </div>
-
-        {/* Mapa central */}
-        <div className="flex-1 relative" style={{ zIndex: 1 }}>
-          <MapContainer
-            center={MALLORCA_CENTER}
-            zoom={MALLORCA_ZOOM}
-            style={{ height: '100%', width: '100%', zIndex: 1 }}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <MapClickHandler onMapClick={handleMapClick} />
-            
-            {/* Renderizar capas activas */}
-            {capas.map(capa => renderCapa(capa))}
-
-            {/* Marcador del punto de consulta */}
-            {puntoConsulta && (
-              <Marker position={[puntoConsulta.lat, puntoConsulta.lng]}>
-                <Popup>
-                  <div>
-                    <strong>Coordenadas:</strong><br />
-                    Lat: {puntoConsulta.lat.toFixed(6)}<br />
-                    Lng: {puntoConsulta.lng.toFixed(6)}
-                  </div>
-                </Popup>
-              </Marker>
-            )}
-          </MapContainer>
-
-          {loading && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-lg">
-              <p className="text-sm text-gray-600">Consultando...</p>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Panel de administración */}
@@ -998,6 +1015,40 @@ Nota: El archivo ya fue filtrado en tu navegador para extraer solo los datos de 
             className="w-full bg-dark-blue text-white px-4 py-2 rounded-lg hover:bg-dark-blue-light transition-colors"
           >
             Subir Nueva Capa
+          </button>
+          <button
+            onClick={async () => {
+              const nombreGrupo = 'Linea de deslinde de Dominio Publico mMartimo Terrestre'
+              const nombreNuevaCapa = 'Línea de Deslinde de Dominio Público Marítimo Terrestre (Consolidada)'
+              
+              if (!confirm(`¿Consolidar todas las capas del grupo "${nombreGrupo}" en una sola capa llamada "${nombreNuevaCapa}"?\n\nLas capas originales serán eliminadas.`)) {
+                return
+              }
+              
+              try {
+                setLoading(true)
+                const response = await axios.post(
+                  `${API_URL}/visor/admin/capas/consolidar-grupo`,
+                  {
+                    nombreGrupo,
+                    nombreNuevaCapa,
+                    eliminarOriginales: true
+                  },
+                  { withCredentials: true }
+                )
+                
+                alert(`✅ Capa consolidada creada exitosamente!\n\n${response.data.featuresConsolidadas} features combinadas de ${response.data.capasOriginales} capas.\n${response.data.eliminadas} capas originales eliminadas.`)
+                await loadCapas()
+              } catch (error) {
+                console.error('Error consolidando grupo:', error)
+                alert(`Error: ${error.response?.data?.error || error.message || 'Error al consolidar las capas'}`)
+              } finally {
+                setLoading(false)
+              }
+            }}
+            className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors mt-2"
+          >
+            Consolidar: Línea Deslinde DPMT
           </button>
         </div>
       )}
