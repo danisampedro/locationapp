@@ -100,7 +100,36 @@ export default function Documents() {
     return new Promise((resolve, reject) => {
       const img = new Image()
       img.crossOrigin = 'anonymous'
-      img.onload = () => resolve(img)
+      img.onload = () => {
+        // Si es PNG, procesar en canvas para preservar transparencia
+        if (url.toLowerCase().includes('.png') || url.toLowerCase().includes('png')) {
+          try {
+            const canvas = document.createElement('canvas')
+            canvas.width = img.width
+            canvas.height = img.height
+            const ctx = canvas.getContext('2d')
+            
+            // Limpiar canvas (transparente)
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            
+            // Dibujar imagen en canvas (preserva transparencia)
+            ctx.drawImage(img, 0, 0)
+            
+            // Convertir a data URL PNG para preservar transparencia
+            const dataUrl = canvas.toDataURL('image/png')
+            const processedImg = new Image()
+            processedImg.onload = () => resolve(processedImg)
+            processedImg.onerror = () => resolve(img) // Fallback a imagen original
+            processedImg.src = dataUrl
+          } catch (e) {
+            console.error('Error procesando PNG:', e)
+            resolve(img) // Fallback a imagen original
+          }
+        } else {
+          // Para otros formatos, usar imagen directamente
+          resolve(img)
+        }
+      }
       img.onerror = (error) => {
         console.error('Error cargando imagen:', url, error)
         reject(error)
@@ -296,7 +325,10 @@ export default function Documents() {
 
           const logoX = marginSides
           const logoY = headerY + (headerHeight - h) / 2
-          doc.addImage(logoImg, 'PNG', logoX, logoY, w, h)
+          // Detectar formato de imagen y usar el formato correcto para preservar transparencia
+          const isPng = logoImg.src.toLowerCase().includes('.png') || logoImg.src.toLowerCase().includes('data:image/png')
+          const imageFormat = isPng ? 'PNG' : 'JPEG'
+          doc.addImage(logoImg, imageFormat, logoX, logoY, w, h)
           logoBlockWidth = w + 4
         } catch (e) {
           console.error('Error cargando logo:', e)
@@ -320,7 +352,10 @@ export default function Documents() {
 
           const logoRightX = pageWidth - marginSides - wRight
           const logoRightY = headerY + (headerHeight - hRight) / 2
-          doc.addImage(logoImgRight, 'PNG', logoRightX, logoRightY, wRight, hRight)
+          // Detectar formato de imagen y usar el formato correcto para preservar transparencia
+          const isPngRight = logoImgRight.src.toLowerCase().includes('.png') || logoImgRight.src.toLowerCase().includes('data:image/png')
+          const imageFormatRight = isPngRight ? 'PNG' : 'JPEG'
+          doc.addImage(logoImgRight, imageFormatRight, logoRightX, logoRightY, wRight, hRight)
         } catch (e) {
           console.error('Error cargando segundo logo:', e)
         }
@@ -673,7 +708,10 @@ export default function Documents() {
           }
           const logoX = marginSides
           const logoY = headerY + (headerHeight - h) / 2
-          doc.addImage(logoImg, 'PNG', logoX, logoY, w, h)
+          // Detectar formato de imagen y usar el formato correcto para preservar transparencia
+          const isPng = logoImg.src.toLowerCase().includes('.png') || logoImg.src.toLowerCase().includes('data:image/png')
+          const imageFormat = isPng ? 'PNG' : 'JPEG'
+          doc.addImage(logoImg, imageFormat, logoX, logoY, w, h)
         } catch (e) {
           console.error('Error cargando logo principal en Location Recce:', e)
         }
@@ -694,7 +732,10 @@ export default function Documents() {
           }
           const logoRightX = pageWidth - marginSides - wRight
           const logoRightY = headerY + (headerHeight - hRight) / 2
-          doc.addImage(logoImgRight, 'PNG', logoRightX, logoRightY, wRight, hRight)
+          // Detectar formato de imagen y usar el formato correcto para preservar transparencia
+          const isPngRight = logoImgRight.src.toLowerCase().includes('.png') || logoImgRight.src.toLowerCase().includes('data:image/png')
+          const imageFormatRight = isPngRight ? 'PNG' : 'JPEG'
+          doc.addImage(logoImgRight, imageFormatRight, logoRightX, logoRightY, wRight, hRight)
         } catch (e) {
           console.error('Error cargando segundo logo en Location Recce:', e)
         }
@@ -1495,7 +1536,10 @@ export default function Documents() {
 
           const logoX = marginSides
           const logoY = headerY + (headerHeight - h) / 2
-          doc.addImage(logoImg, 'PNG', logoX, logoY, w, h)
+          // Detectar formato de imagen y usar el formato correcto para preservar transparencia
+          const isPng = logoImg.src.toLowerCase().includes('.png') || logoImg.src.toLowerCase().includes('data:image/png')
+          const imageFormat = isPng ? 'PNG' : 'JPEG'
+          doc.addImage(logoImg, imageFormat, logoX, logoY, w, h)
           logoBlockWidth = w + 4
         } catch (e) {
           console.error('Error cargando logo:', e)
@@ -1519,7 +1563,10 @@ export default function Documents() {
 
           const logoRightX = pageWidth - marginSides - wRight
           const logoRightY = headerY + (headerHeight - hRight) / 2
-          doc.addImage(logoImgRight, 'PNG', logoRightX, logoRightY, wRight, hRight)
+          // Detectar formato de imagen y usar el formato correcto para preservar transparencia
+          const isPngRight = logoImgRight.src.toLowerCase().includes('.png') || logoImgRight.src.toLowerCase().includes('data:image/png')
+          const imageFormatRight = isPngRight ? 'PNG' : 'JPEG'
+          doc.addImage(logoImgRight, imageFormatRight, logoRightX, logoRightY, wRight, hRight)
         } catch (e) {
           console.error('Error cargando segundo logo:', e)
         }
@@ -1866,7 +1913,10 @@ export default function Documents() {
           }
           const logoX = marginSides
           const logoY = headerY + (headerHeight - h) / 2
-          doc.addImage(logoImg, 'PNG', logoX, logoY, w, h)
+          // Detectar formato de imagen y usar el formato correcto para preservar transparencia
+          const isPng = logoImg.src.toLowerCase().includes('.png') || logoImg.src.toLowerCase().includes('data:image/png')
+          const imageFormat = isPng ? 'PNG' : 'JPEG'
+          doc.addImage(logoImg, imageFormat, logoX, logoY, w, h)
         } catch (e) {
           console.error('Error cargando logo:', e)
         }
@@ -2042,7 +2092,10 @@ export default function Documents() {
           }
           const logoX = marginSides
           const logoY = headerY + (headerHeight - h) / 2
-          doc.addImage(logoImg, 'PNG', logoX, logoY, w, h)
+          // Detectar formato de imagen y usar el formato correcto para preservar transparencia
+          const isPng = logoImg.src.toLowerCase().includes('.png') || logoImg.src.toLowerCase().includes('data:image/png')
+          const imageFormat = isPng ? 'PNG' : 'JPEG'
+          doc.addImage(logoImg, imageFormat, logoX, logoY, w, h)
         } catch (e) {
           console.error('Error cargando logo principal:', e)
         }
@@ -2063,7 +2116,10 @@ export default function Documents() {
           }
           const logoX = pageWidth - marginSides - w
           const logoY = headerY + (headerHeight - h) / 2
-          doc.addImage(secondaryLogoImg, 'PNG', logoX, logoY, w, h)
+          // Detectar formato de imagen y usar el formato correcto para preservar transparencia
+          const isPngSecondary = secondaryLogoImg.src.toLowerCase().includes('.png') || secondaryLogoImg.src.toLowerCase().includes('data:image/png')
+          const imageFormatSecondary = isPngSecondary ? 'PNG' : 'JPEG'
+          doc.addImage(secondaryLogoImg, imageFormatSecondary, logoX, logoY, w, h)
         } catch (e) {
           console.error('Error cargando logo secundario:', e)
         }
