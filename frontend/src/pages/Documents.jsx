@@ -846,7 +846,13 @@ export default function Documents() {
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(50, 50, 50)
 
-        recceConfig.attendants.forEach((att) => {
+        // Ordenar attendants por order antes de mostrar
+        const sortedAttendants = [...recceConfig.attendants].map((att, index) => ({
+          ...att,
+          order: att.order !== undefined ? att.order : index
+        })).sort((a, b) => a.order - b.order)
+        
+        sortedAttendants.forEach((att) => {
           if (y > pageHeight - marginBottom - 20) {
             doc.addPage()
             y = marginTop
@@ -1133,30 +1139,20 @@ export default function Documents() {
             }
           }
           
-          doc.setFontSize(8)
-          doc.setFont('helvetica', 'normal')
-          doc.setTextColor(60, 60, 60)
-          
-          // Primera línea: texto de la entrada
-          const line = item.data.text || ''
-          const textLines = doc.splitTextToSize(line || '', usableWidth - padding * 2 - 100)
-          const baseHeight = textLines.length * 4 + padding * 2
-          
-          // Añadir altura para los tiempos si existen
-          const timesHeight = (arrivalTime || departTime) ? 6 : 0
-          const entryHeight = baseHeight + timesHeight
-          
           // Marco sutil alrededor de la entrada libre
           doc.setDrawColor(220, 220, 220)
           doc.setLineWidth(0.3)
-          doc.rect(marginSides, entryStartY, usableWidth, entryHeight, 'S')
           
-          // Texto de la entrada
-          doc.text(textLines, marginSides + padding, entryStartY + padding + 3)
-          
-          // Tiempos (arrival y depart) a la derecha
+          // Primera fila: texto de la entrada + arrival/depart (dentro del marco)
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(30, 30, 30)
+          const entryText = item.data.text || 'ENTRADA LIBRE'
+          doc.text(entryText, marginSides + padding, entryStartY + padding + 3)
+
           if (arrivalTime || departTime) {
-            doc.setFontSize(7)
+            doc.setFontSize(8)
+            doc.setFont('helvetica', 'normal')
             doc.setTextColor(70, 70, 70)
             const timesText = [
               arrivalTime ? `Arrival: ${arrivalTime}` : '',
@@ -1165,9 +1161,12 @@ export default function Documents() {
               .filter(Boolean)
               .join('   |   ')
             if (timesText) {
-              doc.text(timesText, pageWidth - marginSides - padding, entryStartY + padding + 3 + (textLines.length * 4), { align: 'right' })
+              doc.text(timesText, pageWidth - marginSides - padding, entryStartY + padding + 3, { align: 'right' })
             }
           }
+          
+          const entryHeight = 6 + padding * 2
+          doc.rect(marginSides, entryStartY, usableWidth, entryHeight, 'S')
           
           y = entryStartY + entryHeight + 4
         } else if (item.type === 'location') {
@@ -2209,11 +2208,12 @@ export default function Documents() {
                     sunriseTime: '',
                     sunsetTime: '',
                     weatherForecast: '',
-                    attendants: (proyecto.Crews || []).map((c) => ({
+                    attendants: (proyecto.Crews || []).map((c, index) => ({
                       name: c.nombre || '',
                       position: c.rol || '',
                       phone: c.telefono || '',
-                      email: c.email || ''
+                      email: c.email || '',
+                      order: index
                     })),
                   legs: (proyecto.Locations || []).map((loc, index) => ({
                     include: true,
@@ -2276,7 +2276,10 @@ export default function Documents() {
                               sunriseTime: savedDoc.sunriseTime || '',
                               sunsetTime: savedDoc.sunsetTime || '',
                               weatherForecast: savedDoc.weatherForecast || '',
-                              attendants: Array.isArray(savedDoc.attendants) ? savedDoc.attendants : (savedDoc.attendants ? [savedDoc.attendants] : []),
+                              attendants: (Array.isArray(savedDoc.attendants) ? savedDoc.attendants : (savedDoc.attendants ? [savedDoc.attendants] : [])).map((att, index) => ({
+                                ...att,
+                                order: att.order !== undefined ? att.order : index
+                              })),
                               legs: Array.isArray(savedDoc.legs) ? savedDoc.legs : (savedDoc.legs ? [savedDoc.legs] : []),
                               freeEntries: Array.isArray(savedDoc.freeEntries) ? savedDoc.freeEntries : (savedDoc.freeEntries ? [savedDoc.freeEntries] : [])
                             })
@@ -2328,7 +2331,10 @@ export default function Documents() {
                               sunriseTime: savedDoc.sunriseTime || '',
                               sunsetTime: savedDoc.sunsetTime || '',
                               weatherForecast: savedDoc.weatherForecast || '',
-                              attendants: Array.isArray(savedDoc.attendants) ? savedDoc.attendants : (savedDoc.attendants ? [savedDoc.attendants] : []),
+                              attendants: (Array.isArray(savedDoc.attendants) ? savedDoc.attendants : (savedDoc.attendants ? [savedDoc.attendants] : [])).map((att, index) => ({
+                                ...att,
+                                order: att.order !== undefined ? att.order : index
+                              })),
                               legs: Array.isArray(savedDoc.legs) ? savedDoc.legs : (savedDoc.legs ? [savedDoc.legs] : []),
                               freeEntries: Array.isArray(savedDoc.freeEntries) ? savedDoc.freeEntries : (savedDoc.freeEntries ? [savedDoc.freeEntries] : [])
                             })
@@ -2983,15 +2989,19 @@ export default function Documents() {
                   </h3>
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      const maxOrder = Math.max(
+                        ...(recceConfig.attendants || []).map(a => a.order !== undefined ? a.order : -1),
+                        -1
+                      )
                       setRecceConfig({
                         ...recceConfig,
                         attendants: [
                           ...(recceConfig.attendants || []),
-                          { name: '', position: '', phone: '', email: '' }
+                          { name: '', position: '', phone: '', email: '', order: maxOrder + 1 }
                         ]
                       })
-                    }
+                    }}
                     className="text-xs text-dark-blue hover:text-dark-blue-light"
                   >
                     + Añadir asistente
@@ -3003,69 +3013,137 @@ export default function Documents() {
                   </p>
                 ) : (
                   <div className="space-y-2">
-                    {recceConfig.attendants.map((att, index) => (
-                      <div
-                        key={index}
-                        className="grid grid-cols-1 md:grid-cols-4 gap-2 items-center"
-                      >
-                        <input
-                          type="text"
-                          value={att.name}
-                          onChange={(e) => {
-                            const updated = [...recceConfig.attendants]
-                            updated[index] = { ...updated[index], name: e.target.value }
-                            setRecceConfig({ ...recceConfig, attendants: updated })
-                          }}
-                          className="px-2 py-1.5 border rounded-lg text-xs"
-                          placeholder="Nombre"
-                        />
-                        <input
-                          type="text"
-                          value={att.position}
-                          onChange={(e) => {
-                            const updated = [...recceConfig.attendants]
-                            updated[index] = { ...updated[index], position: e.target.value }
-                            setRecceConfig({ ...recceConfig, attendants: updated })
-                          }}
-                          className="px-2 py-1.5 border rounded-lg text-xs"
-                          placeholder="Posición"
-                        />
-                        <input
-                          type="text"
-                          value={att.phone}
-                          onChange={(e) => {
-                            const updated = [...recceConfig.attendants]
-                            updated[index] = { ...updated[index], phone: e.target.value }
-                            setRecceConfig({ ...recceConfig, attendants: updated })
-                          }}
-                          className="px-2 py-1.5 border rounded-lg text-xs"
-                          placeholder="Teléfono"
-                        />
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="email"
-                            value={att.email}
-                            onChange={(e) => {
-                              const updated = [...recceConfig.attendants]
-                              updated[index] = { ...updated[index], email: e.target.value }
-                              setRecceConfig({ ...recceConfig, attendants: updated })
-                            }}
-                            className="flex-1 px-2 py-1.5 border rounded-lg text-xs"
-                            placeholder="Email"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = recceConfig.attendants.filter((_, i) => i !== index)
-                              setRecceConfig({ ...recceConfig, attendants: updated })
-                            }}
-                            className="text-xs text-red-500 hover:text-red-600"
+                    {(() => {
+                      // Ordenar attendants por order
+                      const sortedAttendants = [...(recceConfig.attendants || [])].map((att, index) => ({
+                        ...att,
+                        order: att.order !== undefined ? att.order : index
+                      })).sort((a, b) => a.order - b.order)
+                      
+                      const moveAttendant = (currentIndex, direction) => {
+                        if (direction === 'up' && currentIndex === 0) return
+                        if (direction === 'down' && currentIndex === sortedAttendants.length - 1) return
+
+                        const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+                        const item = sortedAttendants[currentIndex]
+                        const targetItem = sortedAttendants[newIndex]
+
+                        // Intercambiar orders
+                        const tempOrder = item.order
+                        const newOrder = targetItem.order
+                        const targetNewOrder = tempOrder
+
+                        // Actualizar en el estado
+                        setRecceConfig(prev => {
+                          const newAttendants = [...prev.attendants]
+                          const itemIndex = newAttendants.findIndex(a => 
+                            a.name === item.name && a.position === item.position && a.phone === item.phone && a.email === item.email
+                          )
+                          const targetIndex = newAttendants.findIndex(a => 
+                            a.name === targetItem.name && a.position === targetItem.position && a.phone === targetItem.phone && a.email === targetItem.email
+                          )
+                          
+                          if (itemIndex >= 0 && targetIndex >= 0) {
+                            newAttendants[itemIndex] = { ...newAttendants[itemIndex], order: newOrder }
+                            newAttendants[targetIndex] = { ...newAttendants[targetIndex], order: targetNewOrder }
+                          }
+                          
+                          return { ...prev, attendants: newAttendants }
+                        })
+                      }
+                      
+                      return sortedAttendants.map((att, displayIndex) => {
+                        const originalIndex = recceConfig.attendants.findIndex(a => 
+                          a.name === att.name && a.position === att.position && a.phone === att.phone && a.email === att.email
+                        )
+                        
+                        return (
+                          <div
+                            key={originalIndex}
+                            className="grid grid-cols-1 md:grid-cols-[auto_1fr_1fr_1fr_1fr_auto] gap-2 items-center bg-gray-50/50 p-2 rounded border border-gray-200"
                           >
-                            Eliminar
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                            <div className="flex flex-col gap-1">
+                              <button
+                                type="button"
+                                onClick={() => moveAttendant(displayIndex, 'up')}
+                                disabled={displayIndex === 0}
+                                className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Mover arriba"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveAttendant(displayIndex, 'down')}
+                                disabled={displayIndex === sortedAttendants.length - 1}
+                                className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Mover abajo"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={att.name}
+                              onChange={(e) => {
+                                const updated = [...recceConfig.attendants]
+                                updated[originalIndex] = { ...updated[originalIndex], name: e.target.value }
+                                setRecceConfig({ ...recceConfig, attendants: updated })
+                              }}
+                              className="px-2 py-1.5 border rounded-lg text-xs"
+                              placeholder="Nombre"
+                            />
+                            <input
+                              type="text"
+                              value={att.position}
+                              onChange={(e) => {
+                                const updated = [...recceConfig.attendants]
+                                updated[originalIndex] = { ...updated[originalIndex], position: e.target.value }
+                                setRecceConfig({ ...recceConfig, attendants: updated })
+                              }}
+                              className="px-2 py-1.5 border rounded-lg text-xs"
+                              placeholder="Posición"
+                            />
+                            <input
+                              type="text"
+                              value={att.phone}
+                              onChange={(e) => {
+                                const updated = [...recceConfig.attendants]
+                                updated[originalIndex] = { ...updated[originalIndex], phone: e.target.value }
+                                setRecceConfig({ ...recceConfig, attendants: updated })
+                              }}
+                              className="px-2 py-1.5 border rounded-lg text-xs"
+                              placeholder="Teléfono"
+                            />
+                            <input
+                              type="email"
+                              value={att.email}
+                              onChange={(e) => {
+                                const updated = [...recceConfig.attendants]
+                                updated[originalIndex] = { ...updated[originalIndex], email: e.target.value }
+                                setRecceConfig({ ...recceConfig, attendants: updated })
+                              }}
+                              className="px-2 py-1.5 border rounded-lg text-xs"
+                              placeholder="Email"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = recceConfig.attendants.filter((_, i) => i !== originalIndex)
+                                setRecceConfig({ ...recceConfig, attendants: updated })
+                              }}
+                              className="text-xs text-red-500 hover:text-red-600"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        )
+                      })
+                    })()}
                   </div>
                 )}
               </div>
