@@ -3834,10 +3834,24 @@ export default function Documents() {
                             </div>
                           )
                         } else if (item.type === 'flight') {
+                          const row = item.previewRow
+                          let departTime = ''
+                          if (item.previewRowIndex !== undefined && item.previewRowIndex < previewRowsByIndex.length - 1) {
+                            const nextRow = previewRowsByIndex[item.previewRowIndex + 1]
+                            departTime = nextRow.departTime || ''
+                          } else if (row && row.arrivalTime && item.data.timeOnPlaceMinutes) {
+                            const arrivalMinutes = parseTimeToMinutes(row.arrivalTime)
+                            const timeOnPlaceMinutes = parseInt(item.data.timeOnPlaceMinutes || '0', 10) || 0
+                            if (arrivalMinutes != null) {
+                              const departMinutes = arrivalMinutes + timeOnPlaceMinutes
+                              departTime = formatMinutesToTime(departMinutes)
+                            }
+                          }
+                          
                           return (
                             <div
                               key={`flight-${item.originalIndex}`}
-                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_auto] gap-2 items-center text-xs bg-purple-50/30 p-2 rounded border border-purple-100"
+                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_100px_100px_auto] gap-2 items-center text-xs bg-purple-50/30 p-2 rounded border border-purple-100"
                             >
                               <div className="flex flex-col gap-1">
                                 <button
@@ -3863,7 +3877,7 @@ export default function Documents() {
                                   </svg>
                                 </button>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1.5">
                                 <svg className="w-5 h-5 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                 </svg>
@@ -3880,6 +3894,34 @@ export default function Documents() {
                                 className="px-2 py-1.5 border rounded-lg"
                                 placeholder="Información del vuelo"
                               />
+                              <input
+                                type="number"
+                                value={item.data.travelTimeMinutes || ''}
+                                onChange={(e) => {
+                                  const updated = [...recceConfig.flights]
+                                  updated[item.originalIndex] = { ...updated[item.originalIndex], travelTimeMinutes: e.target.value }
+                                  setRecceConfig({ ...recceConfig, flights: updated })
+                                }}
+                                className="px-2 py-1.5 border rounded-lg"
+                                placeholder="Travel (min)"
+                              />
+                              <input
+                                type="number"
+                                value={item.data.timeOnPlaceMinutes || ''}
+                                onChange={(e) => {
+                                  const updated = [...recceConfig.flights]
+                                  updated[item.originalIndex] = { ...updated[item.originalIndex], timeOnPlaceMinutes: e.target.value }
+                                  setRecceConfig({ ...recceConfig, flights: updated })
+                                }}
+                                className="px-2 py-1.5 border rounded-lg"
+                                placeholder="Time on place (min)"
+                              />
+                              <div className="text-[10px] text-gray-600 font-medium">
+                                {row?.arrivalTime ? `Arrival: ${row.arrivalTime}` : ''}
+                              </div>
+                              <div className="text-[10px] text-gray-600 font-medium">
+                                {departTime ? `Depart: ${departTime}` : ''}
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => {
