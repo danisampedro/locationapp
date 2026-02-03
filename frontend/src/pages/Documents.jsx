@@ -35,6 +35,7 @@ export default function Documents() {
     recceSchedule: '',
     meetingPoint: '',
     meetingPointLink: '',
+    departureTime: '', // Hora de salida del meeting point
     locationManagerName: '',
     locationManagerPhone: '',
     locationManagerEmail: '',
@@ -43,7 +44,7 @@ export default function Documents() {
     weatherForecast: '',
     attendants: [],
     legs: [],
-    freeEntries: [] // { time: '08:00', text: 'Nota...' }
+    freeEntries: [] // { time: '08:00', text: 'Nota...', travelTimeMinutes: '', timeOnPlaceMinutes: '', order: 0 }
   })
 
   useEffect(() => {
@@ -128,11 +129,7 @@ export default function Documents() {
   const computeRecceRows = (config, proyecto) => {
     const meetingPointName = config.meetingPoint || 'MEETING POINT'
     const rows = []
-    if (!config.legs || config.legs.length === 0) return rows
-
-    let currentFrom = meetingPointName
-    let currentDepartMinutes = null
-
+    
     const locationsById = {}
     if (proyecto?.Locations) {
       proyecto.Locations.forEach((loc) => {
@@ -140,38 +137,101 @@ export default function Documents() {
       })
     }
 
-    config.legs
-      .filter((leg) => leg.include && leg.locationId)
-      .forEach((leg, index) => {
+    // Crear lista combinada de elementos (entradas libres y localizaciones) con orden
+    const combinedItems = []
+    
+    // Añadir entradas libres
+    if (config.freeEntries && config.freeEntries.length > 0) {
+      config.freeEntries.forEach((entry, index) => {
+        combinedItems.push({
+          type: 'freeEntry',
+          order: entry.order !== undefined ? entry.order : index,
+          data: entry
+        })
+      })
+    }
+
+    // Añadir localizaciones incluidas
+    const includedLegs = (config.legs || []).filter(
+      (leg) => leg.include && leg.locationId
+    )
+    includedLegs.forEach((leg, index) => {
+      combinedItems.push({
+        type: 'location',
+        order: leg.order !== undefined ? leg.order : index + (config.freeEntries?.length || 0),
+        data: leg
+      })
+    })
+
+    // Ordenar por el campo order
+    combinedItems.sort((a, b) => a.order - b.order)
+
+    if (combinedItems.length === 0) return rows
+
+    // Inicializar con la hora de salida del meeting point
+    let currentDepartMinutes = parseTimeToMinutes(config.departureTime || '')
+    let currentFrom = meetingPointName
+
+    // Procesar cada elemento en orden
+    combinedItems.forEach((item) => {
+      if (item.type === 'freeEntry') {
+        // Entrada libre
+        const entry = item.data
+        const travelMinutes = parseInt(entry.travelTimeMinutes || '0', 10) || 0
+        const timeOnPlaceMinutes = parseInt(entry.timeOnPlaceMinutes || '0', 10) || 0
+
+        if (currentDepartMinutes == null) {
+          // Si no hay hora de salida inicial, usar la hora de la entrada libre si está definida
+          currentDepartMinutes = parseTimeToMinutes(entry.time || '')
+        }
+
+        const arrivalMinutes = currentDepartMinutes != null ? currentDepartMinutes + travelMinutes : null
+
+        rows.push({
+          from: currentFrom,
+          to: entry.text || 'ENTRADA LIBRE',
+          departTime: formatMinutesToTime(currentDepartMinutes),
+          travelTime: `${travelMinutes} min`,
+          arrivalTime: formatMinutesToTime(arrivalMinutes),
+          timeOnLocation: `${timeOnPlaceMinutes} min`,
+          locationId: null,
+          isFreeEntry: true
+        })
+
+        // Actualizar para el siguiente elemento
+        currentFrom = entry.text || 'ENTRADA LIBRE'
+        if (arrivalMinutes != null) {
+          currentDepartMinutes = arrivalMinutes + timeOnPlaceMinutes
+        }
+      } else if (item.type === 'location') {
+        // Localización
+        const leg = item.data
         const loc = locationsById[leg.locationId?.toString()]
         const toName = loc?.nombre || `Location ${leg.locationId}`
 
-        // Primer depart: el que indique el usuario
-        if (index === 0) {
-          currentDepartMinutes = parseTimeToMinutes(leg.departTime)
-        }
-        const departMinutes = currentDepartMinutes
         const travelMinutes = parseInt(leg.travelTimeMinutes || '0', 10) || 0
         const timeOnLocationMinutes = parseInt(leg.timeOnLocationMinutes || '0', 10) || 0
 
-        const arrivalMinutes = departMinutes != null ? departMinutes + travelMinutes : null
+        const arrivalMinutes = currentDepartMinutes != null ? currentDepartMinutes + travelMinutes : null
 
         rows.push({
           from: currentFrom,
           to: toName,
-          departTime: formatMinutesToTime(departMinutes),
+          departTime: formatMinutesToTime(currentDepartMinutes),
           travelTime: `${travelMinutes} min`,
           arrivalTime: formatMinutesToTime(arrivalMinutes),
           timeOnLocation: `${timeOnLocationMinutes} min`,
-          locationId: leg.locationId
+          locationId: leg.locationId,
+          isFreeEntry: false
         })
 
-        // El siguiente from es el destino actual
+        // Actualizar para el siguiente elemento
         currentFrom = toName
         if (arrivalMinutes != null) {
           currentDepartMinutes = arrivalMinutes + timeOnLocationMinutes
         }
-      })
+      }
+    })
 
     return rows
   }
@@ -2059,6 +2119,7 @@ export default function Documents() {
                     recceSchedule: '',
                     meetingPoint: '',
                     meetingPointLink: '',
+                    departureTime: '08:00',
                     locationManagerName: proyecto.locationManager || '',
                     locationManagerPhone: '',
                     locationManagerEmail: '',
@@ -2074,7 +2135,6 @@ export default function Documents() {
                   legs: (proyecto.Locations || []).map((loc, index) => ({
                     include: true,
                     locationId: loc.id?.toString(),
-                    departTime: index === 0 ? '08:00' : '',
                     travelTimeMinutes: '15',
                     timeOnLocationMinutes: '60',
                     order: index
@@ -2126,6 +2186,7 @@ export default function Documents() {
                               recceSchedule: savedDoc.recceSchedule || '',
                               meetingPoint: savedDoc.meetingPoint || '',
                               meetingPointLink: savedDoc.meetingPointLink || '',
+                              departureTime: savedDoc.departureTime || '',
                               locationManagerName: savedDoc.locationManagerName || '',
                               locationManagerPhone: savedDoc.locationManagerPhone || '',
                               locationManagerEmail: savedDoc.locationManagerEmail || '',
@@ -2177,6 +2238,7 @@ export default function Documents() {
                               recceSchedule: savedDoc.recceSchedule || '',
                               meetingPoint: savedDoc.meetingPoint || '',
                               meetingPointLink: savedDoc.meetingPointLink || '',
+                              departureTime: savedDoc.departureTime || '',
                               locationManagerName: savedDoc.locationManagerName || '',
                               locationManagerPhone: savedDoc.locationManagerPhone || '',
                               locationManagerEmail: savedDoc.locationManagerEmail || '',
@@ -2719,6 +2781,23 @@ export default function Documents() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Hora de salida <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={recceConfig.departureTime}
+                    onChange={(e) =>
+                      setRecceConfig({ ...recceConfig, departureTime: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                    placeholder="Ej: 08:00"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Hora de salida desde el meeting point
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Location Manager - Nombre
                   </label>
                   <input
@@ -2933,7 +3012,7 @@ export default function Documents() {
                           ...recceConfig,
                           freeEntries: [
                             ...(recceConfig.freeEntries || []),
-                            { time: '', text: '', order: maxOrder + 1 }
+                            { text: '', travelTimeMinutes: '', timeOnPlaceMinutes: '', order: maxOrder + 1 }
                           ]
                         })
                       }}
@@ -2960,7 +3039,6 @@ export default function Documents() {
                         const newLeg = {
                           locationId: availableLocations[0].id?.toString(),
                           include: true,
-                          departTime: '',
                           travelTimeMinutes: '',
                           timeOnLocationMinutes: '',
                           order: maxOrder + 1
@@ -3064,7 +3142,7 @@ export default function Documents() {
                           return (
                             <div
                               key={`free-${item.originalIndex}`}
-                              className="grid grid-cols-1 md:grid-cols-[auto_auto_80px_1fr_auto] gap-2 items-center text-xs bg-blue-50/30 p-2 rounded border border-blue-100"
+                              className="grid grid-cols-1 md:grid-cols-[auto_auto_80px_1fr_80px_80px_auto] gap-2 items-center text-xs bg-blue-50/30 p-2 rounded border border-blue-100"
                             >
                               <div className="flex flex-col gap-1">
                                 <button
@@ -3093,17 +3171,6 @@ export default function Documents() {
                               <div className="text-[10px] text-gray-500 font-medium">ENTRADA</div>
                               <input
                                 type="text"
-                                value={item.data.time || ''}
-                                onChange={(e) => {
-                                  const updated = [...recceConfig.freeEntries]
-                                  updated[item.originalIndex] = { ...updated[item.originalIndex], time: e.target.value }
-                                  setRecceConfig({ ...recceConfig, freeEntries: updated })
-                                }}
-                                className="px-2 py-1.5 border rounded-lg"
-                                placeholder="Hora"
-                              />
-                              <input
-                                type="text"
                                 value={item.data.text || ''}
                                 onChange={(e) => {
                                   const updated = [...recceConfig.freeEntries]
@@ -3112,6 +3179,28 @@ export default function Documents() {
                                 }}
                                 className="px-2 py-1.5 border rounded-lg"
                                 placeholder="Texto de la entrada"
+                              />
+                              <input
+                                type="number"
+                                value={item.data.travelTimeMinutes || ''}
+                                onChange={(e) => {
+                                  const updated = [...recceConfig.freeEntries]
+                                  updated[item.originalIndex] = { ...updated[item.originalIndex], travelTimeMinutes: e.target.value }
+                                  setRecceConfig({ ...recceConfig, freeEntries: updated })
+                                }}
+                                className="px-2 py-1.5 border rounded-lg"
+                                placeholder="Travel (min)"
+                              />
+                              <input
+                                type="number"
+                                value={item.data.timeOnPlaceMinutes || ''}
+                                onChange={(e) => {
+                                  const updated = [...recceConfig.freeEntries]
+                                  updated[item.originalIndex] = { ...updated[item.originalIndex], timeOnPlaceMinutes: e.target.value }
+                                  setRecceConfig({ ...recceConfig, freeEntries: updated })
+                                }}
+                                className="px-2 py-1.5 border rounded-lg"
+                                placeholder="Time on place (min)"
                               />
                               <button
                                 type="button"
@@ -3132,7 +3221,7 @@ export default function Documents() {
                           return (
                             <div
                               key={`leg-${item.originalIndex}`}
-                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_80px] gap-2 items-center text-xs bg-green-50/30 p-2 rounded border border-green-100"
+                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_auto] gap-2 items-center text-xs bg-green-50/30 p-2 rounded border border-green-100"
                             >
                               <div className="flex flex-col gap-1">
                                 <button
@@ -3173,17 +3262,6 @@ export default function Documents() {
                                 </span>
                               </label>
                               <input
-                                type="text"
-                                value={item.data.departTime || ''}
-                                onChange={(e) => {
-                                  const updated = [...recceConfig.legs]
-                                  updated[item.originalIndex] = { ...updated[item.originalIndex], departTime: e.target.value }
-                                  setRecceConfig({ ...recceConfig, legs: updated })
-                                }}
-                                className="px-2 py-1.5 border rounded-lg text-[10px]"
-                                placeholder="Hora salida"
-                              />
-                              <input
                                 type="number"
                                 value={item.data.travelTimeMinutes || ''}
                                 onChange={(e) => {
@@ -3195,7 +3273,7 @@ export default function Documents() {
                                   setRecceConfig({ ...recceConfig, legs: updated })
                                 }}
                                 className="px-2 py-1.5 border rounded-lg text-[10px]"
-                                placeholder="Travel"
+                                placeholder="Travel (min)"
                               />
                               <input
                                 type="number"
@@ -3209,7 +3287,7 @@ export default function Documents() {
                                   setRecceConfig({ ...recceConfig, legs: updated })
                                 }}
                                 className="px-2 py-1.5 border rounded-lg text-[10px]"
-                                placeholder="Time on loc"
+                                placeholder="Time on loc (min)"
                               />
                               <button
                                 type="button"

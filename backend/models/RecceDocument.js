@@ -39,6 +39,11 @@ const RecceDocument = sequelize.define('RecceDocument', {
     allowNull: true,
     defaultValue: ''
   },
+  departureTime: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
   locationManagerName: {
     type: DataTypes.STRING,
     allowNull: true,
@@ -90,6 +95,7 @@ const RecceDocument = sequelize.define('RecceDocument', {
 })
 
 export default RecceDocument
+
 
 
 

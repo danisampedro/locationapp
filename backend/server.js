@@ -374,6 +374,11 @@ const migrateRecceDocumentsTable = async () => {
           allowNull: true,
           defaultValue: ''
         },
+        departureTime: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
         locationManagerName: {
           type: sequelize.Sequelize.STRING,
           allowNull: true,
@@ -430,6 +435,17 @@ const migrateRecceDocumentsTable = async () => {
       console.log('✅ Tabla recce_documents creada')
     } else {
       console.log('ℹ️  Tabla recce_documents ya existe')
+      // Verificar si falta el campo departureTime y añadirlo
+      const tableDescription = await queryInterface.describeTable('recce_documents')
+      if (!tableDescription.departureTime) {
+        console.log('ℹ️  Añadiendo campo departureTime a recce_documents...')
+        await queryInterface.addColumn('recce_documents', 'departureTime', {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        })
+        console.log('✅ Campo departureTime añadido')
+      }
     }
   } catch (error) {
     console.error('⚠️  Error en migración de recce_documents:', error.message)
