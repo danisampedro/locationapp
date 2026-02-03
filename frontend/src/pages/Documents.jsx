@@ -1246,20 +1246,74 @@ export default function Documents() {
           doc.setDrawColor(220, 220, 220)
           doc.setLineWidth(0.3)
           
-          // Primera fila: icono de avión + texto del vuelo
+          // Texto del vuelo
+          const flightText = item.data.text || 'VUELO'
+          
+          // Añadir tiempos si existen
+          let arrivalTime = ''
+          let departTime = ''
+          if (recceRowsByIndex && recceRowsByIndex.length > 0) {
+            const flightRow = recceRowsByIndex.find(r => r.isFlight && r.to === flightText)
+            if (flightRow) {
+              arrivalTime = flightRow.arrivalTime || ''
+              // Calcular depart time (siguiente elemento o arrival + time on place)
+              const flightIndex = recceRowsByIndex.findIndex(r => r === flightRow)
+              if (flightIndex < recceRowsByIndex.length - 1) {
+                departTime = recceRowsByIndex[flightIndex + 1].departTime || ''
+              } else if (arrivalTime && item.data.timeOnPlaceMinutes) {
+                const arrivalMinutes = parseTimeToMinutes(arrivalTime)
+                const timeOnPlaceMinutes = parseInt(item.data.timeOnPlaceMinutes || '0', 10) || 0
+                if (arrivalMinutes != null) {
+                  const departMinutes = arrivalMinutes + timeOnPlaceMinutes
+                  departTime = formatMinutesToTime(departMinutes)
+                }
+              }
+            }
+          }
+          
+          // Calcular ancho disponible para el texto (restando espacio para icono y tiempos)
+          const iconWidth = 8
+          const timesWidth = (arrivalTime || departTime) ? 60 : 0
+          const textMaxWidth = usableWidth - padding * 2 - iconWidth - timesWidth
+          
+          // Dividir texto en líneas
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'bold')
+          const textLines = doc.splitTextToSize(flightText, textMaxWidth)
+          
+          // Calcular altura total necesaria
+          const lineHeight = 4.5
+          const textHeight = textLines.length * lineHeight
+          const minHeight = 6
+          const flightHeight = Math.max(minHeight, textHeight) + padding * 2
+          
+          // Icono de avión (símbolo Unicode)
+          doc.setFontSize(12)
+          doc.setTextColor(100, 50, 150) // Color púrpura para el icono
+          doc.text('✈', marginSides + padding, flightStartY + padding + 3)
+          
+          // Texto del vuelo
           doc.setFontSize(10)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(30, 30, 30)
+          doc.text(textLines, marginSides + padding + iconWidth, flightStartY + padding + 3)
           
-          // Icono de avión (símbolo Unicode)
-          doc.setFontSize(14)
-          doc.text('✈', marginSides + padding, flightStartY + padding + 3)
+          // Tiempos alineados a la derecha
+          if (arrivalTime || departTime) {
+            doc.setFontSize(8)
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(70, 70, 70)
+            const timesText = [
+              arrivalTime ? `Arrival: ${arrivalTime}` : '',
+              departTime ? `Depart: ${departTime}` : ''
+            ]
+              .filter(Boolean)
+              .join('   |   ')
+            if (timesText) {
+              doc.text(timesText, pageWidth - marginSides - padding, flightStartY + padding + 3, { align: 'right' })
+            }
+          }
           
-          const flightText = item.data.text || 'VUELO'
-          doc.setFontSize(10)
-          doc.text(flightText, marginSides + padding + 8, flightStartY + padding + 3)
-
-          const flightHeight = 6 + padding * 2
           doc.rect(marginSides, flightStartY, usableWidth, flightHeight, 'S')
           
           y = flightStartY + flightHeight + 4
@@ -3445,8 +3499,8 @@ export default function Documents() {
                       }}
                       className="text-xs text-dark-blue hover:text-dark-blue-light px-2 py-1 border border-dark-blue rounded flex items-center gap-1"
                     >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                       </svg>
                       + Vuelo
                     </button>
@@ -3810,8 +3864,8 @@ export default function Documents() {
                                 </button>
                               </div>
                               <div className="flex items-center gap-2">
-                                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                <svg className="w-5 h-5 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                 </svg>
                                 <span className="text-[10px] text-gray-500 font-medium">VUELO</span>
                               </div>
