@@ -45,7 +45,8 @@ export default function Documents() {
     attendants: [],
     legs: [],
     freeEntries: [], // { time: '08:00', text: 'Nota...', travelTimeMinutes: '', timeOnPlaceMinutes: '', order: 0 }
-    flights: [] // { text: 'Información del vuelo...', order: 0 }
+    flights: [], // { text: 'Información del vuelo...', order: 0 }
+    notes: [] // { text: 'Texto libre sin horario...', order: 0 }
   })
 
   useEffect(() => {
@@ -138,7 +139,8 @@ export default function Documents() {
       })
     }
 
-    // Crear lista combinada de elementos (entradas libres y localizaciones) con orden
+    // Crear lista combinada de elementos (entradas libres, vuelos y localizaciones) con orden
+    // NOTA: Las notas (notes) NO se incluyen aquí porque no tienen tiempos
     const combinedItems = []
     
     // Añadir entradas libres
@@ -152,6 +154,17 @@ export default function Documents() {
       })
     }
 
+    // Añadir vuelos
+    if (config.flights && config.flights.length > 0) {
+      config.flights.forEach((flight, index) => {
+        combinedItems.push({
+          type: 'flight',
+          order: flight.order !== undefined ? flight.order : index + (config.freeEntries?.length || 0),
+          data: flight
+        })
+      })
+    }
+
     // Añadir localizaciones incluidas
     const includedLegs = (config.legs || []).filter(
       (leg) => leg.include && leg.locationId
@@ -159,7 +172,7 @@ export default function Documents() {
     includedLegs.forEach((leg, index) => {
       combinedItems.push({
         type: 'location',
-        order: leg.order !== undefined ? leg.order : index + (config.freeEntries?.length || 0),
+        order: leg.order !== undefined ? leg.order : index + (config.freeEntries?.length || 0) + (config.flights?.length || 0),
         data: leg
       })
     })
@@ -196,11 +209,37 @@ export default function Documents() {
           arrivalTime: formatMinutesToTime(arrivalMinutes),
           timeOnLocation: `${timeOnPlaceMinutes} min`,
           locationId: null,
-          isFreeEntry: true
+          isFreeEntry: true,
+          isFlight: false
         })
 
         // Actualizar para el siguiente elemento
         currentFrom = entry.text || 'ENTRADA LIBRE'
+        if (arrivalMinutes != null) {
+          currentDepartMinutes = arrivalMinutes + timeOnPlaceMinutes
+        }
+      } else if (item.type === 'flight') {
+        // Vuelo
+        const flight = item.data
+        const travelMinutes = parseInt(flight.travelTimeMinutes || '0', 10) || 0
+        const timeOnPlaceMinutes = parseInt(flight.timeOnPlaceMinutes || '0', 10) || 0
+
+        const arrivalMinutes = currentDepartMinutes != null ? currentDepartMinutes + travelMinutes : null
+
+        rows.push({
+          from: currentFrom,
+          to: flight.text || 'VUELO',
+          departTime: formatMinutesToTime(currentDepartMinutes),
+          travelTime: `${travelMinutes} min`,
+          arrivalTime: formatMinutesToTime(arrivalMinutes),
+          timeOnLocation: `${timeOnPlaceMinutes} min`,
+          locationId: null,
+          isFreeEntry: false,
+          isFlight: true
+        })
+
+        // Actualizar para el siguiente elemento
+        currentFrom = flight.text || 'VUELO'
         if (arrivalMinutes != null) {
           currentDepartMinutes = arrivalMinutes + timeOnPlaceMinutes
         }
@@ -223,7 +262,8 @@ export default function Documents() {
           arrivalTime: formatMinutesToTime(arrivalMinutes),
           timeOnLocation: `${timeOnLocationMinutes} min`,
           locationId: leg.locationId,
-          isFreeEntry: false
+          isFreeEntry: false,
+          isFlight: false
         })
 
         // Actualizar para el siguiente elemento
@@ -1084,6 +1124,17 @@ export default function Documents() {
         })
       }
 
+      // Añadir notas (texto libre sin horario)
+      if (recceConfig.notes && recceConfig.notes.length > 0) {
+        recceConfig.notes.forEach((note, index) => {
+          combinedItems.push({
+            type: 'note',
+            order: note.order !== undefined ? note.order : index + (recceConfig.freeEntries?.length || 0) + (recceConfig.flights?.length || 0),
+            data: note
+          })
+        })
+      }
+
       // Añadir localizaciones incluidas
       const includedLegs = (recceConfig.legs || []).filter(
         (leg) => leg.include && leg.locationId
@@ -1091,7 +1142,7 @@ export default function Documents() {
       includedLegs.forEach((leg, index) => {
         combinedItems.push({
           type: 'location',
-          order: leg.order !== undefined ? leg.order : index + (recceConfig.freeEntries?.length || 0) + (recceConfig.flights?.length || 0),
+          order: leg.order !== undefined ? leg.order : index + (recceConfig.freeEntries?.length || 0) + (recceConfig.flights?.length || 0) + (recceConfig.notes?.length || 0),
           data: leg
         })
       })
@@ -1212,6 +1263,33 @@ export default function Documents() {
           doc.rect(marginSides, flightStartY, usableWidth, flightHeight, 'S')
           
           y = flightStartY + flightHeight + 4
+        } else if (item.type === 'note') {
+          // Renderizar nota (texto libre sin horario)
+          if (y > pageHeight - marginBottom - 30) {
+            doc.addPage()
+            y = marginTop
+          }
+          
+          const noteStartY = y
+          const padding = 3
+          
+          // Marco sutil alrededor de la nota
+          doc.setDrawColor(220, 220, 220)
+          doc.setLineWidth(0.3)
+          
+          // Texto de la nota
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(60, 60, 60)
+          
+          const noteText = item.data.text || ''
+          const textLines = doc.splitTextToSize(noteText || '', usableWidth - padding * 2)
+          const noteHeight = Math.max(6, textLines.length * 4) + padding * 2
+          
+          doc.rect(marginSides, noteStartY, usableWidth, noteHeight, 'S')
+          doc.text(textLines, marginSides + padding, noteStartY + padding + 3)
+          
+          y = noteStartY + noteHeight + 4
         } else if (item.type === 'location') {
           // Renderizar bloque de localización
           const leg = item.data
@@ -2266,7 +2344,8 @@ export default function Documents() {
                     order: index
                   })),
                     freeEntries: [],
-                    flights: []
+                    flights: [],
+                    notes: []
                   })
                   setShowRecceModal(true)
                 }}
@@ -2329,6 +2408,7 @@ export default function Documents() {
                             const parsedLegs = parseJsonField(savedDoc.legs)
                             const parsedFreeEntries = parseJsonField(savedDoc.freeEntries)
                             const parsedFlights = parseJsonField(savedDoc.flights)
+                            const parsedNotes = parseJsonField(savedDoc.notes)
                             
                             setRecceConfig({
                               documentTitle: savedDoc.documentTitle || 'LOCATION RECCE',
@@ -2348,7 +2428,8 @@ export default function Documents() {
                               })),
                               legs: parsedLegs,
                               freeEntries: parsedFreeEntries,
-                              flights: parsedFlights
+                              flights: parsedFlights,
+                              notes: parsedNotes
                             })
                             setShowRecceModal(true)
                           } catch (error) {
@@ -2389,6 +2470,7 @@ export default function Documents() {
                             const parsedLegs = parseJsonField(savedDoc.legs)
                             const parsedFreeEntries = parseJsonField(savedDoc.freeEntries)
                             const parsedFlights = parseJsonField(savedDoc.flights)
+                            const parsedNotes = parseJsonField(savedDoc.notes)
                             
                             // Crear nuevo documento con datos duplicados
                             const duplicateData = {
@@ -2411,7 +2493,8 @@ export default function Documents() {
                               })),
                               legs: parsedLegs,
                               freeEntries: parsedFreeEntries,
-                              flights: parsedFlights
+                              flights: parsedFlights,
+                              notes: parsedNotes
                             }
                             
                             await axios.post(`${API_URL}/recce-documents`, duplicateData, { withCredentials: true })
@@ -2473,6 +2556,7 @@ export default function Documents() {
                             const parsedLegs = parseJsonField(savedDoc.legs)
                             const parsedFreeEntries = parseJsonField(savedDoc.freeEntries)
                             const parsedFlights = parseJsonField(savedDoc.flights)
+                            const parsedNotes = parseJsonField(savedDoc.notes)
                             
                             setRecceConfig({
                               documentTitle: savedDoc.documentTitle || 'LOCATION RECCE',
@@ -2492,7 +2576,8 @@ export default function Documents() {
                               })),
                               legs: parsedLegs,
                               freeEntries: parsedFreeEntries,
-                              flights: parsedFlights
+                              flights: parsedFlights,
+                              notes: parsedNotes
                             })
                             await generateLocationReccePDF()
                           } catch (error) {
@@ -3312,7 +3397,7 @@ export default function Documents() {
                       Orden de elementos en el documento
                     </h3>
                     <p className="text-xs text-gray-500">
-                      Arrastra o usa los botones para reordenar localizaciones, entradas libres y vuelos
+                      Arrastra o usa los botones para reordenar localizaciones, entradas libres, vuelos y notas
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -3324,6 +3409,7 @@ export default function Documents() {
                           ...(recceConfig.freeEntries || []).map(e => e.order !== undefined ? e.order : -1),
                           ...(recceConfig.legs || []).map(l => l.order !== undefined ? l.order : -1),
                           ...(recceConfig.flights || []).map(f => f.order !== undefined ? f.order : -1),
+                          ...(recceConfig.notes || []).map(n => n.order !== undefined ? n.order : -1),
                           -1
                         )
                         setRecceConfig({
@@ -3346,6 +3432,7 @@ export default function Documents() {
                           ...(recceConfig.freeEntries || []).map(e => e.order !== undefined ? e.order : -1),
                           ...(recceConfig.legs || []).map(l => l.order !== undefined ? l.order : -1),
                           ...(recceConfig.flights || []).map(f => f.order !== undefined ? f.order : -1),
+                          ...(recceConfig.notes || []).map(n => n.order !== undefined ? n.order : -1),
                           -1
                         )
                         setRecceConfig({
@@ -3366,6 +3453,32 @@ export default function Documents() {
                     <button
                       type="button"
                       onClick={() => {
+                        // Añadir nueva nota de texto libre al final
+                        const maxOrder = Math.max(
+                          ...(recceConfig.freeEntries || []).map(e => e.order !== undefined ? e.order : -1),
+                          ...(recceConfig.legs || []).map(l => l.order !== undefined ? l.order : -1),
+                          ...(recceConfig.flights || []).map(f => f.order !== undefined ? f.order : -1),
+                          ...(recceConfig.notes || []).map(n => n.order !== undefined ? n.order : -1),
+                          -1
+                        )
+                        setRecceConfig({
+                          ...recceConfig,
+                          notes: [
+                            ...(recceConfig.notes || []),
+                            { text: '', order: maxOrder + 1 }
+                          ]
+                        })
+                      }}
+                      className="text-xs text-dark-blue hover:text-dark-blue-light px-2 py-1 border border-dark-blue rounded flex items-center gap-1"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      + Nota
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
                         // Añadir nueva localización al final (si hay locations disponibles)
                         const availableLocations = (proyecto.Locations || []).filter(
                           loc => !(recceConfig.legs || []).some(leg => leg.locationId?.toString() === loc.id?.toString())
@@ -3378,6 +3491,7 @@ export default function Documents() {
                           ...(recceConfig.freeEntries || []).map(e => e.order !== undefined ? e.order : -1),
                           ...(recceConfig.legs || []).map(l => l.order !== undefined ? l.order : -1),
                           ...(recceConfig.flights || []).map(f => f.order !== undefined ? f.order : -1),
+                          ...(recceConfig.notes || []).map(n => n.order !== undefined ? n.order : -1),
                           -1
                         )
                         const newLeg = {
@@ -3438,12 +3552,24 @@ export default function Documents() {
                     })
                   }
 
+                  // Añadir notas (texto libre sin horario)
+                  if (recceConfig.notes && recceConfig.notes.length > 0) {
+                    recceConfig.notes.forEach((note, index) => {
+                      combinedItems.push({
+                        type: 'note',
+                        order: note.order !== undefined ? note.order : index + (recceConfig.freeEntries?.length || 0) + (recceConfig.flights?.length || 0),
+                        data: note,
+                        originalIndex: index
+                      })
+                    })
+                  }
+
                   // Añadir localizaciones
                   if (recceConfig.legs && recceConfig.legs.length > 0) {
                     recceConfig.legs.forEach((leg, index) => {
                       combinedItems.push({
                         type: 'location',
-                        order: leg.order !== undefined ? leg.order : index + (recceConfig.freeEntries?.length || 0) + (recceConfig.flights?.length || 0),
+                        order: leg.order !== undefined ? leg.order : index + (recceConfig.freeEntries?.length || 0) + (recceConfig.flights?.length || 0) + (recceConfig.notes?.length || 0),
                         data: leg,
                         originalIndex: index
                       })
@@ -3467,6 +3593,16 @@ export default function Documents() {
                           currentRowIndex++
                         }
                       }
+                    } else if (item.type === 'flight') {
+                      // Buscar la fila correspondiente a este vuelo
+                      if (currentRowIndex < previewRowsByIndex.length) {
+                        const row = previewRowsByIndex[currentRowIndex]
+                        if (row.isFlight) {
+                          item.previewRow = row
+                          item.previewRowIndex = currentRowIndex
+                          currentRowIndex++
+                        }
+                      }
                     } else if (item.type === 'location' && item.data.include) {
                       const locationRowData = previewRowsByLocation[item.data.locationId?.toString()]
                       if (locationRowData) {
@@ -3475,12 +3611,13 @@ export default function Documents() {
                         currentRowIndex = locationRowData.index + 1
                       }
                     }
+                    // Las notas (item.type === 'note') no tienen tiempos, así que no se procesan aquí
                   })
 
                   if (combinedItems.length === 0) {
                     return (
                       <p className="text-xs text-gray-500">
-                        No hay elementos. Añade localizaciones, entradas libres o vuelos para comenzar.
+                        No hay elementos. Añade localizaciones, entradas libres, vuelos o notas para comenzar.
                       </p>
                     )
                   }
@@ -3510,6 +3647,10 @@ export default function Documents() {
                         const updated = [...newConfig.flights]
                         updated[item.originalIndex] = { ...updated[item.originalIndex], order: newOrder }
                         newConfig.flights = updated
+                      } else if (item.type === 'note') {
+                        const updated = [...newConfig.notes]
+                        updated[item.originalIndex] = { ...updated[item.originalIndex], order: newOrder }
+                        newConfig.notes = updated
                       } else {
                         const updated = [...newConfig.legs]
                         updated[item.originalIndex] = { ...updated[item.originalIndex], order: newOrder }
@@ -3524,6 +3665,10 @@ export default function Documents() {
                         const updated = [...newConfig.flights]
                         updated[targetItem.originalIndex] = { ...updated[targetItem.originalIndex], order: targetNewOrder }
                         newConfig.flights = updated
+                      } else if (targetItem.type === 'note') {
+                        const updated = [...newConfig.notes]
+                        updated[targetItem.originalIndex] = { ...updated[targetItem.originalIndex], order: targetNewOrder }
+                        newConfig.notes = updated
                       } else {
                         const updated = [...newConfig.legs]
                         updated[targetItem.originalIndex] = { ...updated[targetItem.originalIndex], order: targetNewOrder }
@@ -3693,6 +3838,64 @@ export default function Documents() {
                               </button>
                             </div>
                           )
+                        } else if (item.type === 'note') {
+                          return (
+                            <div
+                              key={`note-${item.originalIndex}`}
+                              className="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] gap-2 items-center text-xs bg-gray-50/30 p-2 rounded border border-gray-200"
+                            >
+                              <div className="flex flex-col gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => moveItem(displayIndex, 'up')}
+                                  disabled={displayIndex === 0}
+                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  title="Mover arriba"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                  </svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveItem(displayIndex, 'down')}
+                                  disabled={displayIndex === combinedItems.length - 1}
+                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  title="Mover abajo"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                <input
+                                  type="text"
+                                  value={item.data.text || ''}
+                                  onChange={(e) => {
+                                    const updated = [...recceConfig.notes]
+                                    updated[item.originalIndex] = { ...updated[item.originalIndex], text: e.target.value }
+                                    setRecceConfig({ ...recceConfig, notes: updated })
+                                  }}
+                                  className="flex-1 px-2 py-1.5 border rounded-lg"
+                                  placeholder="Texto libre sin horario..."
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = recceConfig.notes.filter((_, i) => i !== item.originalIndex)
+                                  setRecceConfig({ ...recceConfig, notes: updated })
+                                }}
+                                className="text-xs text-red-500 hover:text-red-600"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          )
                         } else {
                           const loc = (proyecto.Locations || []).find(
                             (l) => l.id?.toString() === item.data.locationId?.toString()
@@ -3850,7 +4053,8 @@ export default function Documents() {
                         attendants: recceConfig.attendants || [],
                         legs: recceConfig.legs || [],
                         freeEntries: recceConfig.freeEntries || [],
-                        flights: recceConfig.flights || []
+                        flights: recceConfig.flights || [],
+                        notes: recceConfig.notes || []
                       }
                       
                       console.log('Guardando documento con datos:', dataToSave)
@@ -3904,7 +4108,8 @@ export default function Documents() {
                         attendants: recceConfig.attendants || [],
                         legs: recceConfig.legs || [],
                         freeEntries: recceConfig.freeEntries || [],
-                        flights: recceConfig.flights || []
+                        flights: recceConfig.flights || [],
+                        notes: recceConfig.notes || []
                       }
                       
                       console.log('Guardando y generando PDF con datos:', dataToSave)

@@ -425,6 +425,10 @@ const migrateRecceDocumentsTable = async () => {
           type: sequelize.Sequelize.JSON,
           allowNull: true
         },
+        notes: {
+          type: sequelize.Sequelize.JSON,
+          allowNull: true
+        },
         createdAt: {
           type: sequelize.Sequelize.DATE,
           allowNull: false,
@@ -457,6 +461,14 @@ const migrateRecceDocumentsTable = async () => {
           allowNull: true
         })
         console.log('✅ Campo flights añadido')
+      }
+      if (!tableDescription.notes) {
+        console.log('ℹ️  Añadiendo campo notes a recce_documents...')
+        await queryInterface.addColumn('recce_documents', 'notes', {
+          type: sequelize.Sequelize.JSON,
+          allowNull: true
+        })
+        console.log('✅ Campo notes añadido')
       }
     }
   } catch (error) {
