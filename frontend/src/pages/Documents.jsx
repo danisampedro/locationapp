@@ -141,8 +141,8 @@ export default function Documents() {
       })
     }
 
-    // Crear lista combinada de elementos (entradas libres, vuelos y localizaciones) con orden
-    // NOTA: Las notas (notes) NO se incluyen aquí porque no tienen tiempos
+    // Crear lista combinada de elementos (entradas libres y localizaciones) con orden
+    // NOTA: Las notas (notes) y vuelos (flights) NO se incluyen aquí porque no tienen tiempos
     const combinedItems = []
     
     // Añadir entradas libres
@@ -156,17 +156,6 @@ export default function Documents() {
       })
     }
 
-    // Añadir vuelos
-    if (config.flights && config.flights.length > 0) {
-      config.flights.forEach((flight, index) => {
-        combinedItems.push({
-          type: 'flight',
-          order: flight.order !== undefined ? flight.order : index + (config.freeEntries?.length || 0),
-          data: flight
-        })
-      })
-    }
-
     // Añadir localizaciones incluidas
     const includedLegs = (config.legs || []).filter(
       (leg) => leg.include && leg.locationId
@@ -174,7 +163,7 @@ export default function Documents() {
     includedLegs.forEach((leg, index) => {
       combinedItems.push({
         type: 'location',
-        order: leg.order !== undefined ? leg.order : index + (config.freeEntries?.length || 0) + (config.flights?.length || 0),
+        order: leg.order !== undefined ? leg.order : index + (config.freeEntries?.length || 0),
         data: leg
       })
     })
@@ -217,31 +206,6 @@ export default function Documents() {
 
         // Actualizar para el siguiente elemento
         currentFrom = entry.text || 'ENTRADA LIBRE'
-        if (arrivalMinutes != null) {
-          currentDepartMinutes = arrivalMinutes + timeOnPlaceMinutes
-        }
-      } else if (item.type === 'flight') {
-        // Vuelo
-        const flight = item.data
-        const travelMinutes = parseInt(flight.travelTimeMinutes || '0', 10) || 0
-        const timeOnPlaceMinutes = parseInt(flight.timeOnPlaceMinutes || '0', 10) || 0
-
-        const arrivalMinutes = currentDepartMinutes != null ? currentDepartMinutes + travelMinutes : null
-
-        rows.push({
-          from: currentFrom,
-          to: flight.text || 'VUELO',
-          departTime: formatMinutesToTime(currentDepartMinutes),
-          travelTime: `${travelMinutes} min`,
-          arrivalTime: formatMinutesToTime(arrivalMinutes),
-          timeOnLocation: `${timeOnPlaceMinutes} min`,
-          locationId: null,
-          isFreeEntry: false,
-          isFlight: true
-        })
-
-        // Actualizar para el siguiente elemento
-        currentFrom = flight.text || 'VUELO'
         if (arrivalMinutes != null) {
           currentDepartMinutes = arrivalMinutes + timeOnPlaceMinutes
         }
@@ -2428,6 +2392,12 @@ export default function Documents() {
                             const parsedFlights = parseJsonField(savedDoc.flights)
                             const parsedNotes = parseJsonField(savedDoc.notes)
                             
+                            // Limpiar campos de tiempo de los vuelos (no deben tener tiempos)
+                            const cleanedFlights = parsedFlights.map(flight => ({
+                              text: flight.text || '',
+                              order: flight.order !== undefined ? flight.order : 0
+                            }))
+                            
                             setRecceConfig({
                               documentTitle: savedDoc.documentTitle || 'LOCATION RECCE',
                               recceSchedule: savedDoc.recceSchedule || '',
@@ -2446,7 +2416,7 @@ export default function Documents() {
                               })),
                               legs: parsedLegs,
                               freeEntries: parsedFreeEntries,
-                              flights: parsedFlights,
+                              flights: cleanedFlights,
                               notes: parsedNotes
                             })
                             setShowRecceModal(true)
@@ -2490,6 +2460,12 @@ export default function Documents() {
                             const parsedFlights = parseJsonField(savedDoc.flights)
                             const parsedNotes = parseJsonField(savedDoc.notes)
                             
+                            // Limpiar campos de tiempo de los vuelos (no deben tener tiempos)
+                            const cleanedFlights = parsedFlights.map(flight => ({
+                              text: flight.text || '',
+                              order: flight.order !== undefined ? flight.order : 0
+                            }))
+                            
                             // Crear nuevo documento con datos duplicados
                             const duplicateData = {
                               proyectoId: id,
@@ -2511,7 +2487,7 @@ export default function Documents() {
                               })),
                               legs: parsedLegs,
                               freeEntries: parsedFreeEntries,
-                              flights: parsedFlights,
+                              flights: cleanedFlights,
                               notes: parsedNotes
                             }
                             
@@ -2576,6 +2552,12 @@ export default function Documents() {
                             const parsedFlights = parseJsonField(savedDoc.flights)
                             const parsedNotes = parseJsonField(savedDoc.notes)
                             
+                            // Limpiar campos de tiempo de los vuelos (no deben tener tiempos)
+                            const cleanedFlights = parsedFlights.map(flight => ({
+                              text: flight.text || '',
+                              order: flight.order !== undefined ? flight.order : 0
+                            }))
+                            
                             setRecceConfig({
                               documentTitle: savedDoc.documentTitle || 'LOCATION RECCE',
                               recceSchedule: savedDoc.recceSchedule || '',
@@ -2594,7 +2576,7 @@ export default function Documents() {
                               })),
                               legs: parsedLegs,
                               freeEntries: parsedFreeEntries,
-                              flights: parsedFlights,
+                              flights: cleanedFlights,
                               notes: parsedNotes
                             })
                             await generateLocationReccePDF()
@@ -3604,16 +3586,6 @@ export default function Documents() {
                           currentRowIndex++
                         }
                       }
-                    } else if (item.type === 'flight') {
-                      // Buscar la fila correspondiente a este vuelo
-                      if (currentRowIndex < previewRowsByIndex.length) {
-                        const row = previewRowsByIndex[currentRowIndex]
-                        if (row.isFlight) {
-                          item.previewRow = row
-                          item.previewRowIndex = currentRowIndex
-                          currentRowIndex++
-                        }
-                      }
                     } else if (item.type === 'location' && item.data.include) {
                       const locationRowData = previewRowsByLocation[item.data.locationId?.toString()]
                       if (locationRowData) {
@@ -3622,7 +3594,7 @@ export default function Documents() {
                         currentRowIndex = locationRowData.index + 1
                       }
                     }
-                    // Las notas (item.type === 'note') no tienen tiempos, así que no se procesan aquí
+                    // Las notas (item.type === 'note') y vuelos (item.type === 'flight') no tienen tiempos, así que no se procesan aquí
                   })
 
                   if (combinedItems.length === 0) {
@@ -3794,7 +3766,7 @@ export default function Documents() {
                           return (
                             <div
                               key={`flight-${item.originalIndex}`}
-                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_auto] gap-2 items-center text-xs bg-purple-50/30 p-2 rounded border border-purple-100"
+                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_auto] gap-2 items-center text-xs bg-purple-50/30 p-2 rounded border border-purple-100"
                             >
                               <div className="flex flex-col gap-0.5">
                                 <button
@@ -3833,28 +3805,6 @@ export default function Documents() {
                                 }}
                                 className="px-2 py-1.5 border rounded-lg"
                                 placeholder="Información del vuelo"
-                              />
-                              <input
-                                type="number"
-                                value={item.data.travelTimeMinutes || ''}
-                                onChange={(e) => {
-                                  const updated = [...recceConfig.flights]
-                                  updated[item.originalIndex] = { ...updated[item.originalIndex], travelTimeMinutes: e.target.value }
-                                  setRecceConfig({ ...recceConfig, flights: updated })
-                                }}
-                                className="px-2 py-1.5 border rounded-lg"
-                                placeholder="Travel (min)"
-                              />
-                              <input
-                                type="number"
-                                value={item.data.timeOnPlaceMinutes || ''}
-                                onChange={(e) => {
-                                  const updated = [...recceConfig.flights]
-                                  updated[item.originalIndex] = { ...updated[item.originalIndex], timeOnPlaceMinutes: e.target.value }
-                                  setRecceConfig({ ...recceConfig, flights: updated })
-                                }}
-                                className="px-2 py-1.5 border rounded-lg"
-                                placeholder="Time on place (min)"
                               />
                               <button
                                 type="button"
