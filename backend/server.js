@@ -421,6 +421,10 @@ const migrateRecceDocumentsTable = async () => {
           type: sequelize.Sequelize.JSON,
           allowNull: true
         },
+        flights: {
+          type: sequelize.Sequelize.JSON,
+          allowNull: true
+        },
         createdAt: {
           type: sequelize.Sequelize.DATE,
           allowNull: false,
@@ -435,7 +439,7 @@ const migrateRecceDocumentsTable = async () => {
       console.log('✅ Tabla recce_documents creada')
     } else {
       console.log('ℹ️  Tabla recce_documents ya existe')
-      // Verificar si falta el campo departureTime y añadirlo
+      // Verificar si faltan campos y añadirlos
       const tableDescription = await queryInterface.describeTable('recce_documents')
       if (!tableDescription.departureTime) {
         console.log('ℹ️  Añadiendo campo departureTime a recce_documents...')
@@ -445,6 +449,14 @@ const migrateRecceDocumentsTable = async () => {
           defaultValue: ''
         })
         console.log('✅ Campo departureTime añadido')
+      }
+      if (!tableDescription.flights) {
+        console.log('ℹ️  Añadiendo campo flights a recce_documents...')
+        await queryInterface.addColumn('recce_documents', 'flights', {
+          type: sequelize.Sequelize.JSON,
+          allowNull: true
+        })
+        console.log('✅ Campo flights añadido')
       }
     }
   } catch (error) {

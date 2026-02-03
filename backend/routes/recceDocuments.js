@@ -49,7 +49,8 @@ router.post('/', async (req, res) => {
       weatherForecast,
       attendants,
       legs,
-      freeEntries
+      freeEntries,
+      flights
     } = req.body
 
     if (!proyectoId || !nombre || nombre.trim() === '') {
@@ -72,7 +73,8 @@ router.post('/', async (req, res) => {
       weatherForecast: weatherForecast || '',
       attendants: attendants || [],
       legs: legs || [],
-      freeEntries: freeEntries || []
+      freeEntries: freeEntries || [],
+      flights: flights || []
     })
     res.status(201).json(document)
   } catch (error) {
@@ -104,7 +106,8 @@ router.put('/:id', async (req, res) => {
       weatherForecast,
       attendants,
       legs,
-      freeEntries
+      freeEntries,
+      flights
     } = req.body
 
     if (!nombre || nombre.trim() === '') {
@@ -126,7 +129,8 @@ router.put('/:id', async (req, res) => {
       weatherForecast: weatherForecast || '',
       attendants: attendants || [],
       legs: legs || [],
-      freeEntries: freeEntries || []
+      freeEntries: freeEntries || [],
+      flights: flights || []
     })
     res.json(document)
   } catch (error) {
