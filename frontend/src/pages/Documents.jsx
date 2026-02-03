@@ -2264,6 +2264,27 @@ export default function Documents() {
                             const savedDoc = response.data
                             setEditingRecceDocument(savedDoc)
                             setRecceDocumentName(savedDoc.nombre)
+                            
+                            // Función auxiliar para parsear campos JSON
+                            const parseJsonField = (field) => {
+                              if (!field) return []
+                              if (Array.isArray(field)) return field
+                              if (typeof field === 'string') {
+                                try {
+                                  const parsed = JSON.parse(field)
+                                  return Array.isArray(parsed) ? parsed : (parsed ? [parsed] : [])
+                                } catch (e) {
+                                  console.error('Error parseando JSON:', e)
+                                  return []
+                                }
+                              }
+                              return [field]
+                            }
+                            
+                            const parsedAttendants = parseJsonField(savedDoc.attendants)
+                            const parsedLegs = parseJsonField(savedDoc.legs)
+                            const parsedFreeEntries = parseJsonField(savedDoc.freeEntries)
+                            
                             setRecceConfig({
                               documentTitle: savedDoc.documentTitle || 'LOCATION RECCE',
                               recceSchedule: savedDoc.recceSchedule || '',
@@ -2276,12 +2297,12 @@ export default function Documents() {
                               sunriseTime: savedDoc.sunriseTime || '',
                               sunsetTime: savedDoc.sunsetTime || '',
                               weatherForecast: savedDoc.weatherForecast || '',
-                              attendants: (Array.isArray(savedDoc.attendants) ? savedDoc.attendants : (savedDoc.attendants ? [savedDoc.attendants] : [])).map((att, index) => ({
+                              attendants: parsedAttendants.map((att, index) => ({
                                 ...att,
                                 order: att.order !== undefined ? att.order : index
                               })),
-                              legs: Array.isArray(savedDoc.legs) ? savedDoc.legs : (savedDoc.legs ? [savedDoc.legs] : []),
-                              freeEntries: Array.isArray(savedDoc.freeEntries) ? savedDoc.freeEntries : (savedDoc.freeEntries ? [savedDoc.freeEntries] : [])
+                              legs: parsedLegs,
+                              freeEntries: parsedFreeEntries
                             })
                             setShowRecceModal(true)
                           } catch (error) {
@@ -2319,6 +2340,27 @@ export default function Documents() {
                           try {
                             const response = await axios.get(`${API_URL}/recce-documents/${doc.id}`, { withCredentials: true })
                             const savedDoc = response.data
+                            
+                            // Función auxiliar para parsear campos JSON
+                            const parseJsonField = (field) => {
+                              if (!field) return []
+                              if (Array.isArray(field)) return field
+                              if (typeof field === 'string') {
+                                try {
+                                  const parsed = JSON.parse(field)
+                                  return Array.isArray(parsed) ? parsed : (parsed ? [parsed] : [])
+                                } catch (e) {
+                                  console.error('Error parseando JSON:', e)
+                                  return []
+                                }
+                              }
+                              return [field]
+                            }
+                            
+                            const parsedAttendants = parseJsonField(savedDoc.attendants)
+                            const parsedLegs = parseJsonField(savedDoc.legs)
+                            const parsedFreeEntries = parseJsonField(savedDoc.freeEntries)
+                            
                             setRecceConfig({
                               documentTitle: savedDoc.documentTitle || 'LOCATION RECCE',
                               recceSchedule: savedDoc.recceSchedule || '',
@@ -2331,12 +2373,12 @@ export default function Documents() {
                               sunriseTime: savedDoc.sunriseTime || '',
                               sunsetTime: savedDoc.sunsetTime || '',
                               weatherForecast: savedDoc.weatherForecast || '',
-                              attendants: (Array.isArray(savedDoc.attendants) ? savedDoc.attendants : (savedDoc.attendants ? [savedDoc.attendants] : [])).map((att, index) => ({
+                              attendants: parsedAttendants.map((att, index) => ({
                                 ...att,
                                 order: att.order !== undefined ? att.order : index
                               })),
-                              legs: Array.isArray(savedDoc.legs) ? savedDoc.legs : (savedDoc.legs ? [savedDoc.legs] : []),
-                              freeEntries: Array.isArray(savedDoc.freeEntries) ? savedDoc.freeEntries : (savedDoc.freeEntries ? [savedDoc.freeEntries] : [])
+                              legs: parsedLegs,
+                              freeEntries: parsedFreeEntries
                             })
                             await generateLocationReccePDF()
                           } catch (error) {
@@ -3571,17 +3613,34 @@ export default function Documents() {
                       return
                     }
                     try {
+                      // Asegurar que todos los campos estén presentes
+                      const dataToSave = {
+                        nombre: recceDocumentName.trim(),
+                        documentTitle: recceConfig.documentTitle || 'LOCATION RECCE',
+                        recceSchedule: recceConfig.recceSchedule || '',
+                        meetingPoint: recceConfig.meetingPoint || '',
+                        meetingPointLink: recceConfig.meetingPointLink || '',
+                        departureTime: recceConfig.departureTime || '',
+                        locationManagerName: recceConfig.locationManagerName || '',
+                        locationManagerPhone: recceConfig.locationManagerPhone || '',
+                        locationManagerEmail: recceConfig.locationManagerEmail || '',
+                        sunriseTime: recceConfig.sunriseTime || '',
+                        sunsetTime: recceConfig.sunsetTime || '',
+                        weatherForecast: recceConfig.weatherForecast || '',
+                        attendants: recceConfig.attendants || [],
+                        legs: recceConfig.legs || [],
+                        freeEntries: recceConfig.freeEntries || []
+                      }
+                      
+                      console.log('Guardando documento con datos:', dataToSave)
+                      
                       if (editingRecceDocument) {
-                        await axios.put(`${API_URL}/recce-documents/${editingRecceDocument.id}`, {
-                          nombre: recceDocumentName.trim(),
-                          ...recceConfig
-                        }, { withCredentials: true })
+                        await axios.put(`${API_URL}/recce-documents/${editingRecceDocument.id}`, dataToSave, { withCredentials: true })
                         alert('Documento actualizado correctamente')
                       } else {
                         await axios.post(`${API_URL}/recce-documents`, {
                           proyectoId: id,
-                          nombre: recceDocumentName.trim(),
-                          ...recceConfig
+                          ...dataToSave
                         }, { withCredentials: true })
                         alert('Documento guardado correctamente')
                       }
@@ -3607,16 +3666,33 @@ export default function Documents() {
                       return
                     }
                     try {
+                      // Asegurar que todos los campos estén presentes
+                      const dataToSave = {
+                        nombre: recceDocumentName.trim(),
+                        documentTitle: recceConfig.documentTitle || 'LOCATION RECCE',
+                        recceSchedule: recceConfig.recceSchedule || '',
+                        meetingPoint: recceConfig.meetingPoint || '',
+                        meetingPointLink: recceConfig.meetingPointLink || '',
+                        departureTime: recceConfig.departureTime || '',
+                        locationManagerName: recceConfig.locationManagerName || '',
+                        locationManagerPhone: recceConfig.locationManagerPhone || '',
+                        locationManagerEmail: recceConfig.locationManagerEmail || '',
+                        sunriseTime: recceConfig.sunriseTime || '',
+                        sunsetTime: recceConfig.sunsetTime || '',
+                        weatherForecast: recceConfig.weatherForecast || '',
+                        attendants: recceConfig.attendants || [],
+                        legs: recceConfig.legs || [],
+                        freeEntries: recceConfig.freeEntries || []
+                      }
+                      
+                      console.log('Guardando y generando PDF con datos:', dataToSave)
+                      
                       if (editingRecceDocument) {
-                        await axios.put(`${API_URL}/recce-documents/${editingRecceDocument.id}`, {
-                          nombre: recceDocumentName.trim(),
-                          ...recceConfig
-                        }, { withCredentials: true })
+                        await axios.put(`${API_URL}/recce-documents/${editingRecceDocument.id}`, dataToSave, { withCredentials: true })
                       } else {
                         await axios.post(`${API_URL}/recce-documents`, {
                           proyectoId: id,
-                          nombre: recceDocumentName.trim(),
-                          ...recceConfig
+                          ...dataToSave
                         }, { withCredentials: true })
                       }
                       await loadSavedRecceDocuments()
