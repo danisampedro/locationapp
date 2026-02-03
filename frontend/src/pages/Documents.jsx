@@ -2319,6 +2319,70 @@ export default function Documents() {
                       </button>
                       <button
                         onClick={async () => {
+                          try {
+                            const response = await axios.get(`${API_URL}/recce-documents/${doc.id}`, { withCredentials: true })
+                            const savedDoc = response.data
+                            
+                            // Función auxiliar para parsear campos JSON
+                            const parseJsonField = (field) => {
+                              if (!field) return []
+                              if (Array.isArray(field)) return field
+                              if (typeof field === 'string') {
+                                try {
+                                  const parsed = JSON.parse(field)
+                                  return Array.isArray(parsed) ? parsed : (parsed ? [parsed] : [])
+                                } catch (e) {
+                                  console.error('Error parseando JSON:', e)
+                                  return []
+                                }
+                              }
+                              return [field]
+                            }
+                            
+                            const parsedAttendants = parseJsonField(savedDoc.attendants)
+                            const parsedLegs = parseJsonField(savedDoc.legs)
+                            const parsedFreeEntries = parseJsonField(savedDoc.freeEntries)
+                            
+                            // Crear nuevo documento con datos duplicados
+                            const duplicateData = {
+                              proyectoId: id,
+                              nombre: `${savedDoc.nombre} (copia)`,
+                              documentTitle: savedDoc.documentTitle || 'LOCATION RECCE',
+                              recceSchedule: savedDoc.recceSchedule || '',
+                              meetingPoint: savedDoc.meetingPoint || '',
+                              meetingPointLink: savedDoc.meetingPointLink || '',
+                              departureTime: savedDoc.departureTime || '',
+                              locationManagerName: savedDoc.locationManagerName || '',
+                              locationManagerPhone: savedDoc.locationManagerPhone || '',
+                              locationManagerEmail: savedDoc.locationManagerEmail || '',
+                              sunriseTime: savedDoc.sunriseTime || '',
+                              sunsetTime: savedDoc.sunsetTime || '',
+                              weatherForecast: savedDoc.weatherForecast || '',
+                              attendants: parsedAttendants.map((att, index) => ({
+                                ...att,
+                                order: att.order !== undefined ? att.order : index
+                              })),
+                              legs: parsedLegs,
+                              freeEntries: parsedFreeEntries
+                            }
+                            
+                            await axios.post(`${API_URL}/recce-documents`, duplicateData, { withCredentials: true })
+                            await loadSavedRecceDocuments()
+                            alert('Documento duplicado correctamente')
+                          } catch (error) {
+                            console.error('Error duplicando documento:', error)
+                            alert('Error al duplicar el documento')
+                          }
+                        }}
+                        className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        title="Duplicar"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={async () => {
                           if (!window.confirm(`¿Eliminar "${doc.nombre}"?`)) return
                           try {
                             await axios.delete(`${API_URL}/recce-documents/${doc.id}`, { withCredentials: true })
