@@ -3705,15 +3705,15 @@ export default function Documents() {
                               key={`free-${item.originalIndex}`}
                               className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_100px_100px_auto] gap-2 items-center text-xs bg-blue-50/30 p-2 rounded border border-blue-100"
                             >
-                              <div className="flex flex-col gap-1">
+                              <div className="flex flex-col gap-0.5">
                                 <button
                                   type="button"
                                   onClick={() => moveItem(displayIndex, 'up')}
                                   disabled={displayIndex === 0}
-                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
                                   title="Mover arriba"
                                 >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                                   </svg>
                                 </button>
@@ -3721,10 +3721,10 @@ export default function Documents() {
                                   type="button"
                                   onClick={() => moveItem(displayIndex, 'down')}
                                   disabled={displayIndex === combinedItems.length - 1}
-                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
                                   title="Mover abajo"
                                 >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                   </svg>
                                 </button>
@@ -3775,7 +3775,7 @@ export default function Documents() {
                                   const updated = recceConfig.freeEntries.filter((_, i) => i !== item.originalIndex)
                                   setRecceConfig({ ...recceConfig, freeEntries: updated })
                                 }}
-                                className="text-xs text-red-500 hover:text-red-600"
+                                className="text-[10px] text-red-500 hover:text-red-600 px-1 py-0.5"
                               >
                                 Eliminar
                               </button>
@@ -3787,15 +3787,15 @@ export default function Documents() {
                               key={`flight-${item.originalIndex}`}
                               className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_auto] gap-2 items-center text-xs bg-purple-50/30 p-2 rounded border border-purple-100"
                             >
-                              <div className="flex flex-col gap-1">
+                              <div className="flex flex-col gap-0.5">
                                 <button
                                   type="button"
                                   onClick={() => moveItem(displayIndex, 'up')}
                                   disabled={displayIndex === 0}
-                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
                                   title="Mover arriba"
                                 >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                                   </svg>
                                 </button>
@@ -3803,10 +3803,10 @@ export default function Documents() {
                                   type="button"
                                   onClick={() => moveItem(displayIndex, 'down')}
                                   disabled={displayIndex === combinedItems.length - 1}
-                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
                                   title="Mover abajo"
                                 >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                   </svg>
                                 </button>
@@ -3853,7 +3853,7 @@ export default function Documents() {
                                   const updated = recceConfig.flights.filter((_, i) => i !== item.originalIndex)
                                   setRecceConfig({ ...recceConfig, flights: updated })
                                 }}
-                                className="text-xs text-red-500 hover:text-red-600"
+                                className="text-[10px] text-red-500 hover:text-red-600 px-1 py-0.5"
                               >
                                 Eliminar
                               </button>
@@ -3865,15 +3865,15 @@ export default function Documents() {
                               key={`note-${item.originalIndex}`}
                               className="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] gap-2 items-center text-xs bg-gray-50/30 p-2 rounded border border-gray-200"
                             >
-                              <div className="flex flex-col gap-1">
+                              <div className="flex flex-col gap-0.5">
                                 <button
                                   type="button"
                                   onClick={() => moveItem(displayIndex, 'up')}
                                   disabled={displayIndex === 0}
-                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
                                   title="Mover arriba"
                                 >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                                   </svg>
                                 </button>
@@ -3881,10 +3881,10 @@ export default function Documents() {
                                   type="button"
                                   onClick={() => moveItem(displayIndex, 'down')}
                                   disabled={displayIndex === combinedItems.length - 1}
-                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
                                   title="Mover abajo"
                                 >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                   </svg>
                                 </button>
@@ -3911,7 +3911,7 @@ export default function Documents() {
                                   const updated = recceConfig.notes.filter((_, i) => i !== item.originalIndex)
                                   setRecceConfig({ ...recceConfig, notes: updated })
                                 }}
-                                className="text-xs text-red-500 hover:text-red-600"
+                                className="text-[10px] text-red-500 hover:text-red-600 px-1 py-0.5"
                               >
                                 Eliminar
                               </button>
@@ -3945,15 +3945,15 @@ export default function Documents() {
                               key={`leg-${item.originalIndex}`}
                               className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_100px_100px_auto] gap-2 items-center text-xs bg-green-50/30 p-2 rounded border border-green-100"
                             >
-                              <div className="flex flex-col gap-1">
+                              <div className="flex flex-col gap-0.5">
                                 <button
                                   type="button"
                                   onClick={() => moveItem(displayIndex, 'up')}
                                   disabled={displayIndex === 0}
-                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
                                   title="Mover arriba"
                                 >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                                   </svg>
                                 </button>
@@ -3961,10 +3961,10 @@ export default function Documents() {
                                   type="button"
                                   onClick={() => moveItem(displayIndex, 'down')}
                                   disabled={displayIndex === combinedItems.length - 1}
-                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                  className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
                                   title="Mover abajo"
                                 >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                   </svg>
                                 </button>
@@ -4023,7 +4023,7 @@ export default function Documents() {
                                   const updated = recceConfig.legs.filter((_, i) => i !== item.originalIndex)
                                   setRecceConfig({ ...recceConfig, legs: updated })
                                 }}
-                                className="text-xs text-red-500 hover:text-red-600"
+                                className="text-[10px] text-red-500 hover:text-red-600 px-1 py-0.5"
                               >
                                 Eliminar
                               </button>
