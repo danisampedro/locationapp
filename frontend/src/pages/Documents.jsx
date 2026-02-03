@@ -1249,32 +1249,9 @@ export default function Documents() {
           // Texto del vuelo
           const flightText = item.data.text || 'VUELO'
           
-          // Añadir tiempos si existen
-          let arrivalTime = ''
-          let departTime = ''
-          if (recceRowsByIndex && recceRowsByIndex.length > 0) {
-            const flightRow = recceRowsByIndex.find(r => r.isFlight && r.to === flightText)
-            if (flightRow) {
-              arrivalTime = flightRow.arrivalTime || ''
-              // Calcular depart time (siguiente elemento o arrival + time on place)
-              const flightIndex = recceRowsByIndex.findIndex(r => r === flightRow)
-              if (flightIndex < recceRowsByIndex.length - 1) {
-                departTime = recceRowsByIndex[flightIndex + 1].departTime || ''
-              } else if (arrivalTime && item.data.timeOnPlaceMinutes) {
-                const arrivalMinutes = parseTimeToMinutes(arrivalTime)
-                const timeOnPlaceMinutes = parseInt(item.data.timeOnPlaceMinutes || '0', 10) || 0
-                if (arrivalMinutes != null) {
-                  const departMinutes = arrivalMinutes + timeOnPlaceMinutes
-                  departTime = formatMinutesToTime(departMinutes)
-                }
-              }
-            }
-          }
-          
-          // Calcular ancho disponible para el texto (restando espacio para icono y tiempos)
+          // Calcular ancho disponible para el texto (restando espacio para icono)
           const iconWidth = 8
-          const timesWidth = (arrivalTime || departTime) ? 60 : 0
-          const textMaxWidth = usableWidth - padding * 2 - iconWidth - timesWidth
+          const textMaxWidth = usableWidth - padding * 2 - iconWidth
           
           // Dividir texto en líneas
           doc.setFontSize(10)
@@ -1297,22 +1274,6 @@ export default function Documents() {
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(30, 30, 30)
           doc.text(textLines, marginSides + padding + iconWidth, flightStartY + padding + 3)
-          
-          // Tiempos alineados a la derecha
-          if (arrivalTime || departTime) {
-            doc.setFontSize(8)
-            doc.setFont('helvetica', 'normal')
-            doc.setTextColor(70, 70, 70)
-            const timesText = [
-              arrivalTime ? `Arrival: ${arrivalTime}` : '',
-              departTime ? `Depart: ${departTime}` : ''
-            ]
-              .filter(Boolean)
-              .join('   |   ')
-            if (timesText) {
-              doc.text(timesText, pageWidth - marginSides - padding, flightStartY + padding + 3, { align: 'right' })
-            }
-          }
           
           doc.rect(marginSides, flightStartY, usableWidth, flightHeight, 'S')
           
@@ -3834,24 +3795,10 @@ export default function Documents() {
                             </div>
                           )
                         } else if (item.type === 'flight') {
-                          const row = item.previewRow
-                          let departTime = ''
-                          if (item.previewRowIndex !== undefined && item.previewRowIndex < previewRowsByIndex.length - 1) {
-                            const nextRow = previewRowsByIndex[item.previewRowIndex + 1]
-                            departTime = nextRow.departTime || ''
-                          } else if (row && row.arrivalTime && item.data.timeOnPlaceMinutes) {
-                            const arrivalMinutes = parseTimeToMinutes(row.arrivalTime)
-                            const timeOnPlaceMinutes = parseInt(item.data.timeOnPlaceMinutes || '0', 10) || 0
-                            if (arrivalMinutes != null) {
-                              const departMinutes = arrivalMinutes + timeOnPlaceMinutes
-                              departTime = formatMinutesToTime(departMinutes)
-                            }
-                          }
-                          
                           return (
                             <div
                               key={`flight-${item.originalIndex}`}
-                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_100px_100px_auto] gap-2 items-center text-xs bg-purple-50/30 p-2 rounded border border-purple-100"
+                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_auto] gap-2 items-center text-xs bg-purple-50/30 p-2 rounded border border-purple-100"
                             >
                               <div className="flex flex-col gap-1">
                                 <button
@@ -3916,12 +3863,6 @@ export default function Documents() {
                                 className="px-2 py-1.5 border rounded-lg"
                                 placeholder="Time on place (min)"
                               />
-                              <div className="text-[10px] text-gray-600 font-medium">
-                                {row?.arrivalTime ? `Arrival: ${row.arrivalTime}` : ''}
-                              </div>
-                              <div className="text-[10px] text-gray-600 font-medium">
-                                {departTime ? `Depart: ${departTime}` : ''}
-                              </div>
                               <button
                                 type="button"
                                 onClick={() => {
