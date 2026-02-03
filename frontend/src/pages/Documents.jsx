@@ -3496,17 +3496,26 @@ export default function Documents() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        // Mostrar modal de selección de localizaciones
-                        const availableLocations = (proyecto.Locations || []).filter(
-                          loc => !(recceConfig.legs || []).some(leg => leg.locationId?.toString() === loc.id?.toString())
-                        )
-                        if (availableLocations.length === 0) {
-                          alert('Todas las localizaciones ya están añadidas')
-                          return
+                      onClick={async () => {
+                        // Recargar el proyecto para obtener las localizaciones actualizadas
+                        try {
+                          const response = await axios.get(`${API_URL}/proyectos/${id}`, { withCredentials: true })
+                          setProyecto(response.data)
+                          
+                          // Mostrar modal de selección de localizaciones
+                          const availableLocations = (response.data.Locations || []).filter(
+                            loc => !(recceConfig.legs || []).some(leg => leg.locationId?.toString() === loc.id?.toString())
+                          )
+                          if (availableLocations.length === 0) {
+                            alert('Todas las localizaciones ya están añadidas')
+                            return
+                          }
+                          setLocationSearchText('')
+                          setShowLocationSelectorModal(true)
+                        } catch (error) {
+                          console.error('Error recargando proyecto:', error)
+                          alert('Error al cargar las localizaciones. Por favor, intenta de nuevo.')
                         }
-                        setLocationSearchText('')
-                        setShowLocationSelectorModal(true)
                       }}
                       className="text-xs text-dark-blue hover:text-dark-blue-light px-2 py-1 border border-dark-blue rounded"
                     >
