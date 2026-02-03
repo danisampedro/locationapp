@@ -251,7 +251,7 @@ export default function Documents() {
       
       // Márgenes según especificación
       const marginTop = 25
-      const marginBottom = 20
+      const marginBottom = 10
       const marginSides = 20
       const usableWidth = pageWidth - (2 * marginSides)
       const usableHeight = pageHeight - marginTop - marginBottom
@@ -636,7 +636,7 @@ export default function Documents() {
       const pageHeight = doc.internal.pageSize.getHeight()
 
       const marginTop = 25
-      const marginBottom = 20
+      const marginBottom = 10
       const marginSides = 20
       const usableWidth = pageWidth - marginSides * 2
 
@@ -1081,6 +1081,23 @@ export default function Documents() {
       // Ordenar por el campo order
       combinedItems.sort((a, b) => a.order - b.order)
 
+      // Crear mapa de entradas libres a filas de la tabla
+      const freeEntryToRowMap = new Map()
+      let freeEntryIndex = 0
+      recceRows.forEach((row, idx) => {
+        if (row.isFreeEntry) {
+          // Encontrar la entrada libre correspondiente por orden
+          const freeEntry = recceConfig.freeEntries?.find((entry, i) => {
+            const entryOrder = entry.order !== undefined ? entry.order : i
+            return entryOrder === freeEntryIndex
+          })
+          if (freeEntry) {
+            freeEntryToRowMap.set(freeEntry, { row, index: idx })
+          }
+          freeEntryIndex++
+        }
+      })
+
       // Renderizar elementos en orden combinado
       let locationIndex = 0
       for (const item of combinedItems) {
@@ -1094,20 +1111,64 @@ export default function Documents() {
           const entryStartY = y
           const padding = 3
           
+          // Buscar la fila correspondiente en la tabla para obtener los tiempos
+          let arrivalTime = ''
+          let departTime = ''
+          const rowData = freeEntryToRowMap.get(item.data)
+          
+          if (rowData) {
+            arrivalTime = rowData.row.arrivalTime || ''
+            const rowIndex = rowData.index
+            
+            // Calcular depart: siguiente fila o arrival + timeOnPlace
+            if (rowIndex < recceRows.length - 1) {
+              departTime = recceRows[rowIndex + 1].departTime || ''
+            } else if (arrivalTime && item.data.timeOnPlaceMinutes) {
+              const arrivalMinutes = parseTimeToMinutes(arrivalTime)
+              const timeOnPlaceMinutes = parseInt(item.data.timeOnPlaceMinutes || '0', 10) || 0
+              if (arrivalMinutes != null) {
+                const departMinutes = arrivalMinutes + timeOnPlaceMinutes
+                departTime = formatMinutesToTime(departMinutes)
+              }
+            }
+          }
+          
           doc.setFontSize(8)
           doc.setFont('helvetica', 'normal')
           doc.setTextColor(60, 60, 60)
           
-          const line = item.data.time ? `${item.data.time}  -  ${item.data.text || ''}` : item.data.text
-          const textLines = doc.splitTextToSize(line || '', usableWidth - padding * 2)
-          const entryHeight = textLines.length * 4 + padding * 2
+          // Primera línea: texto de la entrada
+          const line = item.data.text || ''
+          const textLines = doc.splitTextToSize(line || '', usableWidth - padding * 2 - 100)
+          const baseHeight = textLines.length * 4 + padding * 2
+          
+          // Añadir altura para los tiempos si existen
+          const timesHeight = (arrivalTime || departTime) ? 6 : 0
+          const entryHeight = baseHeight + timesHeight
           
           // Marco sutil alrededor de la entrada libre
           doc.setDrawColor(220, 220, 220)
           doc.setLineWidth(0.3)
           doc.rect(marginSides, entryStartY, usableWidth, entryHeight, 'S')
           
+          // Texto de la entrada
           doc.text(textLines, marginSides + padding, entryStartY + padding + 3)
+          
+          // Tiempos (arrival y depart) a la derecha
+          if (arrivalTime || departTime) {
+            doc.setFontSize(7)
+            doc.setTextColor(70, 70, 70)
+            const timesText = [
+              arrivalTime ? `Arrival: ${arrivalTime}` : '',
+              departTime ? `Depart: ${departTime}` : ''
+            ]
+              .filter(Boolean)
+              .join('   |   ')
+            if (timesText) {
+              doc.text(timesText, pageWidth - marginSides - padding, entryStartY + padding + 3 + (textLines.length * 4), { align: 'right' })
+            }
+          }
+          
           y = entryStartY + entryHeight + 4
         } else if (item.type === 'location') {
           // Renderizar bloque de localización
@@ -1298,7 +1359,7 @@ export default function Documents() {
       const pageHeight = doc.internal.pageSize.getHeight()
 
       const marginTop = 25
-      const marginBottom = 20
+      const marginBottom = 10
       const marginSides = 20
 
       let yPosition = marginTop
@@ -1848,7 +1909,7 @@ export default function Documents() {
       const pageHeight = doc.internal.pageSize.getHeight()
 
       const marginTop = 25
-      const marginBottom = 20
+      const marginBottom = 10
       const marginSides = 20
       const usableWidth = pageWidth - marginSides * 2
       const columnWidth = (usableWidth - 10) / 2 // Ancho de cada columna (10mm de espacio entre columnas)
@@ -3078,6 +3139,17 @@ export default function Documents() {
                 </div>
 
                 {(() => {
+                  // Calcular tiempos en tiempo real
+                  const previewRows = computeRecceRows(recceConfig, proyecto)
+                  const previewRowsByLocation = {}
+                  const previewRowsByIndex = []
+                  previewRows.forEach((row, index) => {
+                    previewRowsByIndex.push(row)
+                    if (row.locationId) {
+                      previewRowsByLocation[row.locationId.toString()] = { row, index }
+                    }
+                  })
+
                   // Crear lista combinada ordenada
                   const combinedItems = []
                   
@@ -3107,6 +3179,30 @@ export default function Documents() {
 
                   // Ordenar por order
                   combinedItems.sort((a, b) => a.order - b.order)
+                  
+                  // Añadir información de tiempos a cada elemento
+                  let currentRowIndex = 0
+                  combinedItems.forEach((item) => {
+                    if (item.type === 'freeEntry') {
+                      // Buscar la fila correspondiente a esta entrada libre
+                      // Las entradas libres no tienen locationId, así que las buscamos por orden
+                      if (currentRowIndex < previewRowsByIndex.length) {
+                        const row = previewRowsByIndex[currentRowIndex]
+                        if (row.isFreeEntry) {
+                          item.previewRow = row
+                          item.previewRowIndex = currentRowIndex
+                          currentRowIndex++
+                        }
+                      }
+                    } else if (item.type === 'location' && item.data.include) {
+                      const locationRowData = previewRowsByLocation[item.data.locationId?.toString()]
+                      if (locationRowData) {
+                        item.previewRow = locationRowData.row
+                        item.previewRowIndex = locationRowData.index
+                        currentRowIndex = locationRowData.index + 1
+                      }
+                    }
+                  })
 
                   if (combinedItems.length === 0) {
                     return (
@@ -3161,10 +3257,25 @@ export default function Documents() {
                     <div className="space-y-2">
                       {combinedItems.map((item, displayIndex) => {
                         if (item.type === 'freeEntry') {
+                          // Calcular tiempos para esta entrada libre
+                          const row = item.previewRow
+                          let departTime = ''
+                          if (item.previewRowIndex !== undefined && item.previewRowIndex < previewRowsByIndex.length - 1) {
+                            const nextRow = previewRowsByIndex[item.previewRowIndex + 1]
+                            departTime = nextRow.departTime || ''
+                          } else if (row && row.arrivalTime && item.data.timeOnPlaceMinutes) {
+                            const arrivalMinutes = parseTimeToMinutes(row.arrivalTime)
+                            const timeOnPlaceMinutes = parseInt(item.data.timeOnPlaceMinutes || '0', 10) || 0
+                            if (arrivalMinutes != null) {
+                              const departMinutes = arrivalMinutes + timeOnPlaceMinutes
+                              departTime = formatMinutesToTime(departMinutes)
+                            }
+                          }
+                          
                           return (
                             <div
                               key={`free-${item.originalIndex}`}
-                              className="grid grid-cols-1 md:grid-cols-[auto_auto_80px_1fr_80px_80px_auto] gap-2 items-center text-xs bg-blue-50/30 p-2 rounded border border-blue-100"
+                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_100px_100px_auto] gap-2 items-center text-xs bg-blue-50/30 p-2 rounded border border-blue-100"
                             >
                               <div className="flex flex-col gap-1">
                                 <button
@@ -3224,6 +3335,12 @@ export default function Documents() {
                                 className="px-2 py-1.5 border rounded-lg"
                                 placeholder="Time on place (min)"
                               />
+                              <div className="text-[10px] text-gray-600 font-medium">
+                                {row?.arrivalTime ? `Arrival: ${row.arrivalTime}` : ''}
+                              </div>
+                              <div className="text-[10px] text-gray-600 font-medium">
+                                {departTime ? `Depart: ${departTime}` : ''}
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -3240,10 +3357,29 @@ export default function Documents() {
                           const loc = (proyecto.Locations || []).find(
                             (l) => l.id?.toString() === item.data.locationId?.toString()
                           ) || {}
+                          
+                          // Calcular tiempos para esta localización
+                          const locationRowData = previewRowsByLocation[item.data.locationId?.toString()]
+                          const row = locationRowData ? locationRowData.row : null
+                          const rowIndex = locationRowData ? locationRowData.index : -1
+                          
+                          let departTime = ''
+                          if (rowIndex >= 0 && rowIndex < previewRowsByIndex.length - 1) {
+                            const nextRow = previewRowsByIndex[rowIndex + 1]
+                            departTime = nextRow.departTime || ''
+                          } else if (rowIndex >= 0 && row && row.arrivalTime && item.data.timeOnLocationMinutes) {
+                            const arrivalMinutes = parseTimeToMinutes(row.arrivalTime)
+                            const timeOnLocationMinutes = parseInt(item.data.timeOnLocationMinutes || '0', 10) || 0
+                            if (arrivalMinutes != null) {
+                              const departMinutes = arrivalMinutes + timeOnLocationMinutes
+                              departTime = formatMinutesToTime(departMinutes)
+                            }
+                          }
+                          
                           return (
                             <div
                               key={`leg-${item.originalIndex}`}
-                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_auto] gap-2 items-center text-xs bg-green-50/30 p-2 rounded border border-green-100"
+                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_100px_100px_auto] gap-2 items-center text-xs bg-green-50/30 p-2 rounded border border-green-100"
                             >
                               <div className="flex flex-col gap-1">
                                 <button
@@ -3311,6 +3447,12 @@ export default function Documents() {
                                 className="px-2 py-1.5 border rounded-lg text-[10px]"
                                 placeholder="Time on loc (min)"
                               />
+                              <div className="text-[10px] text-gray-600 font-medium">
+                                {row?.arrivalTime ? `Arrival: ${row.arrivalTime}` : ''}
+                              </div>
+                              <div className="text-[10px] text-gray-600 font-medium">
+                                {departTime ? `Depart: ${departTime}` : ''}
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => {
