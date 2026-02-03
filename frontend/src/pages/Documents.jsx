@@ -1036,9 +1036,11 @@ export default function Documents() {
 
       // ===== SECCIÓN 6: ENTRADAS LIBRES + LOCALIZACIONES (ORDEN COMBINADO) =====
       const recceRowsByLocation = {}
-      recceRows.forEach((row) => {
+      const recceRowsByIndex = []
+      recceRows.forEach((row, index) => {
+        recceRowsByIndex.push(row)
         if (row.locationId) {
-          recceRowsByLocation[row.locationId.toString()] = row
+          recceRowsByLocation[row.locationId.toString()] = { row, index }
         }
       })
 
@@ -1113,7 +1115,9 @@ export default function Documents() {
           const loc = locationsById[leg.locationId.toString()]
           if (!loc) continue
 
-          const row = recceRowsByLocation[leg.locationId.toString()]
+          const locationRowData = recceRowsByLocation[leg.locationId.toString()]
+          const row = locationRowData ? locationRowData.row : null
+          const rowIndex = locationRowData ? locationRowData.index : -1
 
           if (y > pageHeight - marginBottom - 80) {
             doc.addPage()
@@ -1142,9 +1146,27 @@ export default function Documents() {
             doc.setFontSize(8)
             doc.setFont('helvetica', 'normal')
             doc.setTextColor(70, 70, 70)
+            
+            // El arrival es correcto (row.arrivalTime)
+            // El depart es el departTime de la siguiente fila en la tabla
+            let departTime = ''
+            if (rowIndex >= 0 && rowIndex < recceRowsByIndex.length - 1) {
+              // Hay una siguiente fila, usar su departTime
+              const nextRow = recceRowsByIndex[rowIndex + 1]
+              departTime = nextRow.departTime || ''
+            } else if (rowIndex >= 0 && row.arrivalTime && row.timeOnLocation) {
+              // Es la última fila, calcular: arrival + timeOnLocation
+              const arrivalMinutes = parseTimeToMinutes(row.arrivalTime)
+              const timeOnLocationMinutes = parseInt(row.timeOnLocation.replace(' min', '') || '0', 10) || 0
+              if (arrivalMinutes != null) {
+                const departMinutes = arrivalMinutes + timeOnLocationMinutes
+                departTime = formatMinutesToTime(departMinutes)
+              }
+            }
+            
             const timesText = [
               row.arrivalTime ? `Arrival: ${row.arrivalTime}` : '',
-              row.departTime ? `Depart: ${row.departTime}` : ''
+              departTime ? `Depart: ${departTime}` : ''
             ]
               .filter(Boolean)
               .join('   |   ')
