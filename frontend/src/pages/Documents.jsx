@@ -1249,9 +1249,9 @@ export default function Documents() {
           // Texto del vuelo
           const flightText = item.data.text || 'VUELO'
           
-          // Calcular ancho disponible para el texto (restando espacio para icono)
-          const iconWidth = 8
-          const textMaxWidth = usableWidth - padding * 2 - iconWidth
+          // Calcular ancho disponible para el texto (restando espacio para "FLIGHTS")
+          const flightsLabelWidth = 25
+          const textMaxWidth = usableWidth - padding * 2 - flightsLabelWidth
           
           // Dividir texto en líneas
           doc.setFontSize(10)
@@ -1264,17 +1264,17 @@ export default function Documents() {
           const minHeight = 6
           const flightHeight = Math.max(minHeight, textHeight) + padding * 2
           
-          // Icono de avión (texto)
+          // Título FLIGHTS
           doc.setFontSize(10)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(100, 50, 150) // Color púrpura
-          doc.text('AIRPLANE', marginSides + padding, flightStartY + padding + 3)
+          doc.text('FLIGHTS', marginSides + padding, flightStartY + padding + 3)
           
           // Texto del vuelo
           doc.setFontSize(10)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(30, 30, 30)
-          doc.text(textLines, marginSides + padding + iconWidth, flightStartY + padding + 3)
+          doc.text(textLines, marginSides + padding + flightsLabelWidth, flightStartY + padding + 3)
           
           doc.rect(marginSides, flightStartY, usableWidth, flightHeight, 'S')
           
@@ -3825,11 +3825,8 @@ export default function Documents() {
                                   </svg>
                                 </button>
                               </div>
-                              <div className="flex items-center gap-1.5">
-                                <svg className="w-5 h-5 text-purple-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                  <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-                                </svg>
-                                <span className="text-[10px] text-gray-500 font-medium">VUELO</span>
+                              <div className="text-[10px] text-purple-600 font-bold uppercase">
+                                FLIGHTS
                               </div>
                               <input
                                 type="text"
