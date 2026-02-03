@@ -614,7 +614,10 @@ router.put('/admin/capas/:id', async (req, res) => {
       return res.status(403).json({ error: 'Acceso denegado. Se requiere rol de administrador.' })
     }
 
-    const capa = await Capa.findByPk(req.params.id)
+    // Cargar la capa SIN geometría para evitar procesar datos grandes innecesariamente
+    const capa = await Capa.findByPk(req.params.id, {
+      attributes: { exclude: ['geometria'] } // No cargar geometría al buscar
+    })
     if (!capa) {
       return res.status(404).json({ error: 'Capa no encontrada' })
     }
@@ -634,6 +637,8 @@ router.put('/admin/capas/:id', async (req, res) => {
     if (activa !== undefined) updateData.activa = activa === true || activa === 'true'
     if (grupo !== undefined) updateData.grupo = grupo || null
     if (informacionExtra !== undefined) updateData.informacionExtra = informacionExtra || ''
+    
+    // Solo actualizar geometría si se proporciona explícitamente
     if (geometria !== undefined) {
       try {
         updateData.geometria = typeof geometria === 'string' ? JSON.parse(geometria) : geometria
@@ -642,8 +647,17 @@ router.put('/admin/capas/:id', async (req, res) => {
       }
     }
 
-    await capa.update(updateData)
-    res.json(capa)
+    // Actualizar solo los campos especificados, sin tocar la geometría si no se actualiza
+    await capa.update(updateData, {
+      fields: Object.keys(updateData) // Solo actualizar los campos que realmente cambian
+    })
+    
+    // Recargar la capa actualizada SIN la geometría para la respuesta
+    const capaActualizada = await Capa.findByPk(req.params.id, {
+      attributes: { exclude: ['geometria'] } // Excluir geometría de la respuesta
+    })
+    
+    res.json(capaActualizada)
   } catch (error) {
     console.error('Error actualizando capa:', error)
     res.status(500).json({ error: 'Error al actualizar la capa' })
