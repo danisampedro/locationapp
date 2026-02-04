@@ -2246,7 +2246,7 @@ export default function Documents() {
                       Arrastra o usa los botones para reordenar localizaciones, entradas libres, vuelos y notas
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5">
                     <button
                       type="button"
                       onClick={() => {
@@ -2266,7 +2266,7 @@ export default function Documents() {
                           ]
                         })
                       }}
-                      className="text-xs text-dark-blue hover:text-dark-blue-light px-2 py-1 border border-dark-blue rounded"
+                      className="text-[10px] text-dark-blue hover:text-dark-blue-light px-1.5 py-0.5 border border-dark-blue rounded"
                     >
                       + Entrada libre
                     </button>
@@ -2289,9 +2289,9 @@ export default function Documents() {
                           ]
                         })
                       }}
-                      className="text-xs text-dark-blue hover:text-dark-blue-light px-2 py-1 border border-dark-blue rounded flex items-center gap-1"
+                      className="text-[10px] text-dark-blue hover:text-dark-blue-light px-1.5 py-0.5 border border-dark-blue rounded flex items-center gap-0.5"
                     >
-                      <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                      <svg className="w-3 h-3 text-purple-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                         <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
                       </svg>
                       + Vuelo
@@ -2315,9 +2315,9 @@ export default function Documents() {
                           ]
                         })
                       }}
-                      className="text-xs text-dark-blue hover:text-dark-blue-light px-2 py-1 border border-dark-blue rounded flex items-center gap-1"
+                      className="text-[10px] text-dark-blue hover:text-dark-blue-light px-1.5 py-0.5 border border-dark-blue rounded flex items-center gap-0.5"
                     >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                       + Nota
@@ -2345,7 +2345,7 @@ export default function Documents() {
                           alert('Error al cargar las localizaciones. Por favor, intenta de nuevo.')
                         }
                       }}
-                      className="text-xs text-dark-blue hover:text-dark-blue-light px-2 py-1 border border-dark-blue rounded"
+                      className="text-[10px] text-dark-blue hover:text-dark-blue-light px-1.5 py-0.5 border border-dark-blue rounded"
                     >
                       + Localización
                     </button>
