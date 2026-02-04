@@ -653,14 +653,14 @@ export default function Documents() {
       const pageHeight = doc.internal.pageSize.getHeight()
 
       const marginTop = 25
-      const marginBottom = 10
+      const marginBottom = 20 // Aumentado para el pie de página
       const marginSides = 20
       const usableWidth = pageWidth - marginSides * 2
 
       // ===== CABECERA NUEVA LOCATION RECCE =====
-      const headerHeight = 24
+      const headerHeight = 22
       const headerY = 0
-      const logoMaxWidth = 26
+      const logoMaxWidth = 28
       const logoMaxHeight = 14
       const secondaryLogoMaxWidth = 22
       const secondaryLogoMaxHeight = 12
@@ -692,11 +692,10 @@ export default function Documents() {
         }
       }
 
-      // Logo derecho
-      const rightLogoUrl = proyecto.secondaryLogoUrl || proyecto.logoUrl
-      if (rightLogoUrl) {
+      // Logo derecho (solo secondaryLogoUrl, sin fallback)
+      if (proyecto.secondaryLogoUrl) {
         try {
-          const logoImgRight = await loadImage(rightLogoUrl)
+          const logoImgRight = await loadImage(proyecto.secondaryLogoUrl)
           const aspectRight = logoImgRight.width / logoImgRight.height
           let wRight = secondaryLogoMaxWidth
           let hRight = secondaryLogoMaxHeight
@@ -716,19 +715,21 @@ export default function Documents() {
         }
       }
 
-      // Títulos centrados
+      // Nombre del proyecto y "LOCATION RECCE" en el centro
       const projectTitle = (proyecto.nombre || '').toUpperCase()
       const documentTitle = recceConfig.documentTitle || 'LOCATION RECCE'
 
-      doc.setTextColor(255, 255, 255)
+      // Nombre de proyecto (arriba, grande, blanco, centrado)
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(12)
-      doc.text(projectTitle, pageWidth / 2, headerY + 9, { align: 'center' })
+      doc.setFontSize(11)
+      doc.setTextColor(255, 255, 255)
+      doc.text(projectTitle, pageWidth / 2, headerY + 7, { align: 'center' })
 
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(200, 210, 225)
-      doc.text(documentTitle, pageWidth / 2, headerY + 16, { align: 'center' })
+      // Tipo de documento (debajo, pequeño, gris claro, centrado)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(185, 193, 210)
+      doc.text(documentTitle, pageWidth / 2, headerY + 7 + 6, { align: 'center' })
 
       let y = marginTop + 8 // Margen adicional entre cabecera y primera tabla
 
@@ -768,8 +769,8 @@ export default function Documents() {
       // Fila 3: LOCATION MANAGER
       const lmText = [
         recceConfig.locationManagerName || proyecto.locationManager || '',
-        recceConfig.locationManagerPhone || '',
-        recceConfig.locationManagerEmail || ''
+        recceConfig.locationManagerPhone || proyecto.locationManagerPhone || '',
+        recceConfig.locationManagerEmail || proyecto.locationManagerEmail || ''
       ]
         .filter(Boolean)
         .join('  |  ')
@@ -1450,6 +1451,45 @@ export default function Documents() {
           // Separación entre bloques
           y += 6
           locationIndex++
+        }
+      }
+
+      // ===== PIE DE PÁGINA (FOOTER) =====
+      // Añadir información de empresa en el pie de página de todas las páginas
+      const totalPages = doc.internal.pages.length - 1
+      const footerY = pageHeight - marginBottom
+      
+      for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        doc.setPage(pageNum)
+        
+        // Línea superior del pie de página (con más separación)
+        doc.setDrawColor(220, 220, 220)
+        doc.setLineWidth(0.3)
+        doc.line(marginSides, footerY - 12, pageWidth - marginSides, footerY - 12)
+        
+        // Información de empresa (company, address, CIF) centrada
+        doc.setFontSize(7)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(100, 100, 100)
+        
+        const footerInfo = []
+        if (proyecto.company) {
+          footerInfo.push(proyecto.company)
+        }
+        if (proyecto.address) {
+          footerInfo.push(proyecto.address)
+        }
+        if (proyecto.cif) {
+          footerInfo.push(`CIF: ${proyecto.cif}`)
+        }
+        
+        if (footerInfo.length > 0) {
+          const footerText = footerInfo.join(' | ')
+          const centerX = pageWidth / 2
+          const footerLines = doc.splitTextToSize(footerText, usableWidth)
+          footerLines.forEach((line, index) => {
+            doc.text(line, centerX, footerY - 8 + (index * 3), { align: 'center' })
+          })
         }
       }
 
