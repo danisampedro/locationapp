@@ -32,12 +32,21 @@ export default function ProyectoDetail() {
   const [availableLocations, setAvailableLocations] = useState([])
   const [availableCrew, setAvailableCrew] = useState([])
   const [availableVendors, setAvailableVendors] = useState([])
+  const [availablePermits, setAvailablePermits] = useState([])
+  const [projectPermits, setProjectPermits] = useState([])
+  const [loadingPermits, setLoadingPermits] = useState(true)
+  const [newPermitSelection, setNewPermitSelection] = useState({
+    permitId: '',
+    locationId: ''
+  })
+  const [isCreatingPermit, setIsCreatingPermit] = useState(false)
   const [isQuickSaving, setIsQuickSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('info')
 
   useEffect(() => {
     loadProyecto()
     loadAvailableData()
+    loadProjectPermits()
   }, [id])
 
   const loadProyecto = async () => {
@@ -85,16 +94,101 @@ export default function ProyectoDetail() {
 
   const loadAvailableData = async () => {
     try {
-      const [locationsRes, crewRes, vendorsRes] = await Promise.all([
+      const [locationsRes, crewRes, vendorsRes, permitsRes] = await Promise.all([
         axios.get(`${API_URL}/locations`, { withCredentials: true }),
         axios.get(`${API_URL}/crew`, { withCredentials: true }),
-        axios.get(`${API_URL}/vendors`, { withCredentials: true })
+        axios.get(`${API_URL}/vendors`, { withCredentials: true }),
+        axios.get(`${API_URL}/permits`, { withCredentials: true })
       ])
       setAvailableLocations(locationsRes.data)
       setAvailableCrew(crewRes.data)
       setAvailableVendors(vendorsRes.data)
+      setAvailablePermits(permitsRes.data)
     } catch (error) {
       console.error('Error cargando datos:', error)
+    }
+  }
+
+  const loadProjectPermits = async () => {
+    try {
+      setLoadingPermits(true)
+      const res = await axios.get(`${API_URL}/proyectos/${id}/permits`, {
+        withCredentials: true
+      })
+      setProjectPermits(res.data || [])
+    } catch (error) {
+      console.error('Error cargando permits del proyecto:', error)
+      setProjectPermits([])
+    } finally {
+      setLoadingPermits(false)
+    }
+  }
+
+  const handleCreateProjectPermit = async () => {
+    if (!newPermitSelection.permitId || !newPermitSelection.locationId) {
+      alert('Selecciona un permit y una localización del proyecto')
+      return
+    }
+
+    try {
+      setIsCreatingPermit(true)
+      const body = {
+        permitId: parseInt(newPermitSelection.permitId),
+        locationId: parseInt(newPermitSelection.locationId)
+      }
+      const res = await axios.post(`${API_URL}/proyectos/${id}/permits`, body, {
+        withCredentials: true
+      })
+      setProjectPermits((prev) => [...prev, res.data])
+      setNewPermitSelection({ permitId: '', locationId: '' })
+    } catch (error) {
+      console.error('Error creando permit del proyecto:', error)
+      alert(
+        error.response?.data?.error ||
+          'Error al añadir el permit al proyecto'
+      )
+    } finally {
+      setIsCreatingPermit(false)
+    }
+  }
+
+  const handleTogglePermitStatus = async (assignmentId, field, value) => {
+    try {
+      setProjectPermits((prev) =>
+        prev.map((a) =>
+          a.id === assignmentId ? { ...a, [field]: value } : a
+        )
+      )
+
+      await axios.put(
+        `${API_URL}/proyectos/${id}/permits/${assignmentId}`,
+        { [field]: value },
+        { withCredentials: true }
+      )
+    } catch (error) {
+      console.error('Error actualizando estado de permit:', error)
+      alert(
+        error.response?.data?.error ||
+          'Error al actualizar el estado del permiso'
+      )
+      // Re-cargar desde servidor para no dejar el estado inconsistente
+      await loadProjectPermits()
+    }
+  }
+
+  const handleDeleteProjectPermit = async (assignmentId) => {
+    if (!window.confirm('¿Seguro que quieres eliminar esta asignación de permit?')) return
+    try {
+      await axios.delete(`${API_URL}/proyectos/${id}/permits/${assignmentId}`, {
+        withCredentials: true
+      })
+      setProjectPermits((prev) => prev.filter((a) => a.id !== assignmentId))
+    } catch (error) {
+      console.error('Error eliminando asignación de permit:', error)
+      alert(
+        error.response?.data?.error ||
+          'Error al eliminar la asignación de permiso'
+      )
     }
   }
 
@@ -393,6 +487,17 @@ export default function ProyectoDetail() {
               }`}
             >
               Vendors ({proyecto.Vendors?.length || 0})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('permits')}
+              className={`pb-2 px-1 text-sm font-medium border-b-2 ${
+                activeTab === 'permits'
+                  ? 'border-dark-blue text-dark-blue'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Permits
             </button>
           </nav>
         </div>
@@ -997,6 +1102,203 @@ export default function ProyectoDetail() {
                 <p className="text-gray-500 italic">
                   No hay vendors asignados a este proyecto
                 </p>
+              )}
+            </div>
+          )}
+
+          {/* Permits Tab */}
+          {activeTab === 'permits' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Permits asignados al proyecto ({projectPermits.length})
+                </h3>
+              </div>
+
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+                  Añadir permit a una localización del proyecto
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">
+                      Permit
+                    </label>
+                    <select
+                      value={newPermitSelection.permitId}
+                      onChange={(e) =>
+                        setNewPermitSelection((prev) => ({
+                          ...prev,
+                          permitId: e.target.value
+                        }))
+                      }
+                      className="w-full px-2 py-1.5 border rounded-lg text-sm bg-white"
+                    >
+                      <option value="">Selecciona un permit</option>
+                      {availablePermits.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.administracion}
+                          {p.area ? ` - ${p.area}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">
+                      Localización del proyecto
+                    </label>
+                    <select
+                      value={newPermitSelection.locationId}
+                      onChange={(e) =>
+                        setNewPermitSelection((prev) => ({
+                          ...prev,
+                          locationId: e.target.value
+                        }))
+                      }
+                      className="w-full px-2 py-1.5 border rounded-lg text-sm bg-white"
+                    >
+                      <option value="">Selecciona una localización</option>
+                      {proyecto.Locations?.map((loc) => (
+                        <option key={loc.id} value={loc.id}>
+                          {loc.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleCreateProjectPermit}
+                      disabled={isCreatingPermit}
+                      className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-dark-blue text-white hover:bg-dark-blue-light disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isCreatingPermit ? 'Añadiendo...' : 'Añadir permit'}
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-2">
+                  Puedes añadir el mismo permit varias veces, asignándolo a diferentes localizaciones.
+                </p>
+              </div>
+
+              {loadingPermits ? (
+                <p className="text-gray-500 text-sm">Cargando permits del proyecto...</p>
+              ) : projectPermits.length === 0 ? (
+                <p className="text-gray-500 italic">
+                  No hay permits asignados todavía a este proyecto.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {projectPermits.map((assignment) => (
+                    <div
+                      key={assignment.id}
+                      className="bg-white rounded-lg border border-gray-200 px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-semibold text-gray-800">
+                            {assignment.Permit?.administracion || 'Permit'}
+                          </p>
+                          {assignment.Permit?.categoria && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-700">
+                              {assignment.Permit.categoria}
+                            </span>
+                          )}
+                        </div>
+                        {assignment.Permit?.area && (
+                          <p className="text-xs text-gray-500 mb-1">
+                            {assignment.Permit.area}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-600">
+                          <span className="font-medium">Localización:</span>{' '}
+                          {assignment.Location?.nombre || '—'}
+                        </p>
+                      </div>
+                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-700">
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={!!assignment.solicitado}
+                              onChange={(e) =>
+                                handleTogglePermitStatus(
+                                  assignment.id,
+                                  'solicitado',
+                                  e.target.checked
+                                )
+                              }
+                            />
+                            <span>Solicitado</span>
+                          </label>
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={!!assignment.pendienteRespuesta}
+                              onChange={(e) =>
+                                handleTogglePermitStatus(
+                                  assignment.id,
+                                  'pendienteRespuesta',
+                                  e.target.checked
+                                )
+                              }
+                            />
+                            <span>Pendiente respuesta</span>
+                          </label>
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={!!assignment.recibido}
+                              onChange={(e) =>
+                                handleTogglePermitStatus(
+                                  assignment.id,
+                                  'recibido',
+                                  e.target.checked
+                                )
+                              }
+                            />
+                            <span>Recibido</span>
+                          </label>
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={!!assignment.pagado}
+                              onChange={(e) =>
+                                handleTogglePermitStatus(
+                                  assignment.id,
+                                  'pagado',
+                                  e.target.checked
+                                )
+                              }
+                            />
+                            <span>Pagado</span>
+                          </label>
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={!!assignment.resuelto}
+                              onChange={(e) =>
+                                handleTogglePermitStatus(
+                                  assignment.id,
+                                  'resuelto',
+                                  e.target.checked
+                                )
+                              }
+                            />
+                            <span>Resuelto</span>
+                          </label>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteProjectPermit(assignment.id)}
+                          className="self-start md:self-auto px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           )}

@@ -11,6 +11,7 @@ import locationRoutes from './routes/locations.js'
 import crewRoutes from './routes/crew.js'
 import vendorRoutes from './routes/vendors.js'
 import permitRoutes from './routes/permits.js'
+import proyectoPermitsRoutes from './routes/proyectoPermits.js'
 import recceDocumentRoutes from './routes/recceDocuments.js'
 import contractDocumentRoutes from './routes/contractDocuments.js'
 import mapRoutes from './routes/maps.js'
@@ -58,6 +59,7 @@ app.use('/api/locations', authMiddleware, locationRoutes)
 app.use('/api/crew', authMiddleware, crewRoutes)
 app.use('/api/vendors', authMiddleware, vendorRoutes)
 app.use('/api/permits', authMiddleware, permitRoutes)
+app.use('/api', authMiddleware, proyectoPermitsRoutes)
 app.use('/api/recce-documents', authMiddleware, recceDocumentRoutes)
 app.use('/api/contract-documents', authMiddleware, contractDocumentRoutes)
 app.use('/api/maps', authMiddleware, mapRoutes)
@@ -329,6 +331,77 @@ const migratePermitsTable = async () => {
     }
   } catch (error) {
     console.error('⚠️  Error en migración de permits:', error.message)
+  }
+}
+
+// Migración: Crear tabla ProyectoPermits si no existe
+const migrateProyectoPermitsTable = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface()
+    const tableExists = await queryInterface.tableExists('ProyectoPermits')
+
+    if (!tableExists) {
+      console.log('ℹ️  Tabla ProyectoPermits no existe, creando...')
+      await queryInterface.createTable('ProyectoPermits', {
+        id: {
+          type: sequelize.Sequelize.INTEGER,
+          primaryKey: true,
+          autoIncrement: true
+        },
+        proyectoId: {
+          type: sequelize.Sequelize.INTEGER,
+          allowNull: false
+        },
+        permitId: {
+          type: sequelize.Sequelize.INTEGER,
+          allowNull: false
+        },
+        locationId: {
+          type: sequelize.Sequelize.INTEGER,
+          allowNull: false
+        },
+        solicitado: {
+          type: sequelize.Sequelize.BOOLEAN,
+          allowNull: false,
+          defaultValue: false
+        },
+        pendienteRespuesta: {
+          type: sequelize.Sequelize.BOOLEAN,
+          allowNull: false,
+          defaultValue: false
+        },
+        recibido: {
+          type: sequelize.Sequelize.BOOLEAN,
+          allowNull: false,
+          defaultValue: false
+        },
+        pagado: {
+          type: sequelize.Sequelize.BOOLEAN,
+          allowNull: false,
+          defaultValue: false
+        },
+        resuelto: {
+          type: sequelize.Sequelize.BOOLEAN,
+          allowNull: false,
+          defaultValue: false
+        },
+        createdAt: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        },
+        updatedAt: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        }
+      })
+      console.log('✅ Tabla ProyectoPermits creada')
+    } else {
+      console.log('ℹ️  Tabla ProyectoPermits ya existe')
+    }
+  } catch (error) {
+    console.error('⚠️  Error en migración de ProyectoPermits:', error.message)
   }
 }
 
@@ -870,6 +943,7 @@ const connectDB = async () => {
     await migrateProyectoCrewTable()
     await migrateVendorTable()
     await migratePermitsTable()
+    await migrateProyectoPermitsTable()
     await migrateRecceDocumentsTable()
     await migrateContractDocumentsTable()
     await migrateCapasTable()
