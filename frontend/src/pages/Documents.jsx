@@ -251,7 +251,7 @@ export default function Documents() {
       
       // Márgenes según especificación
       const marginTop = 25
-      const marginBottom = 10
+      const marginBottom = 20 // Aumentado para el pie de página
       const marginSides = 20
       const usableWidth = pageWidth - (2 * marginSides)
       const usableHeight = pageHeight - marginTop - marginBottom
@@ -259,8 +259,7 @@ export default function Documents() {
       let yPosition = marginTop
 
       // ===== CABECERA (HEADER) MODERNA =====
-      // Banda superior de color con logo + productora a la izquierda
-      // y nombre de proyecto + tipo de documento a la derecha
+      // Logo a la izquierda, segundo logo a la derecha, nombre del proyecto y "LOCATION LIST" en el centro
       const headerHeight = 22
       const headerY = 0
       const logoMaxWidth = 28
@@ -273,7 +272,6 @@ export default function Documents() {
       doc.rect(0, headerY, pageWidth, headerHeight, 'F')
 
       // Logo a la izquierda
-      let logoBlockWidth = 0
       if (proyecto.logoUrl) {
         try {
           const logoImg = await loadImage(proyecto.logoUrl)
@@ -293,17 +291,15 @@ export default function Documents() {
           const isPng = logoImg.src.toLowerCase().includes('.png') || logoImg.src.toLowerCase().includes('data:image/png')
           const imageFormat = isPng ? 'PNG' : 'JPEG'
           doc.addImage(logoImg, imageFormat, logoX, logoY, w, h)
-          logoBlockWidth = w + 4
         } catch (e) {
           console.error('Error cargando logo:', e)
         }
       }
 
-      // Segundo logo a la derecha (usar secondaryLogoUrl si existe, si no, logo principal)
-      const rightLogoUrl = proyecto.secondaryLogoUrl || proyecto.logoUrl
-      if (rightLogoUrl) {
+      // Segundo logo a la derecha
+      if (proyecto.secondaryLogoUrl) {
         try {
-          const logoImgRight = await loadImage(rightLogoUrl)
+          const logoImgRight = await loadImage(proyecto.secondaryLogoUrl)
           const aspectRight = logoImgRight.width / logoImgRight.height
           let wRight = secondaryLogoMaxWidth
           let hRight = secondaryLogoMaxHeight
@@ -325,38 +321,26 @@ export default function Documents() {
         }
       }
 
-      // Nombre de la productora cerca del logo
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8)
-      doc.setTextColor(230, 236, 245)
-      const companyText = proyecto.company || 'Productions'
-      doc.text(
-        companyText,
-        marginSides + logoBlockWidth,
-        headerY + headerHeight / 2 + 2
-      )
-
-      // Proyecto + tipo de documento a la derecha
+      // Nombre del proyecto y "LOCATION LIST" en el centro
       const docTypeText = 'LOCATION LIST'
       const projectName = (proyecto.nombre || '').toUpperCase()
 
+      // Calcular posición central
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(11)
-      doc.setTextColor(255, 255, 255)
-
       const projectNameWidth = doc.getTextWidth(projectName)
+      doc.setFontSize(8)
+      const docTypeWidth = doc.getTextWidth(docTypeText)
+      const centerX = pageWidth / 2
+      const textStartX = centerX - Math.max(projectNameWidth, docTypeWidth) / 2
+
+      // Tipo de documento (arriba, pequeño, gris claro)
       doc.setFontSize(8)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(185, 193, 210)
-      const docTypeWidth = doc.getTextWidth(docTypeText)
-
-      const rightPadding = marginSides + secondaryLogoMaxWidth + 4
-      const textRightX = pageWidth - rightPadding
-
-      // Tipo de documento (arriba, pequeño, gris claro)
       doc.text(
         docTypeText,
-        textRightX - docTypeWidth,
+        textStartX,
         headerY + 7
       )
 
@@ -366,7 +350,7 @@ export default function Documents() {
       doc.setTextColor(255, 255, 255)
       doc.text(
         projectName,
-        textRightX - projectNameWidth,
+        textStartX,
         headerY + 7 + 6
       )
 
@@ -385,9 +369,6 @@ export default function Documents() {
       
       // Calcular el ancho máximo de las etiquetas para alinear mejor
       const labels = [
-        'PRODUCTION COMPANY: ',
-        'ADDRESS: ',
-        'CIF: ',
         'LOCATION MANAGER: ',
         'LOCATION COORDINATOR: ',
         'ASSISTANT LOCATION MANAGER: ',
@@ -398,33 +379,6 @@ export default function Documents() {
       const labelX = marginSides
       const valueX = marginSides + maxLabelWidth + 2
       
-      // Production Company
-      if (proyecto.company) {
-        doc.setFont('helvetica', 'bold')
-        doc.text('PRODUCTION COMPANY: ', labelX, yPosition)
-        doc.setFont('helvetica', 'normal')
-        doc.text(proyecto.company, valueX, yPosition)
-        yPosition += 6
-      }
-
-      // Dirección de la compañía
-      if (proyecto.address) {
-        doc.setFont('helvetica', 'bold')
-        doc.text('ADDRESS: ', labelX, yPosition)
-        doc.setFont('helvetica', 'normal')
-        doc.text(proyecto.address, valueX, yPosition)
-        yPosition += 6
-      }
-
-      // CIF de la compañía
-      if (proyecto.cif) {
-        doc.setFont('helvetica', 'bold')
-        doc.text('CIF: ', labelX, yPosition)
-        doc.setFont('helvetica', 'normal')
-        doc.text(proyecto.cif, valueX, yPosition)
-        yPosition += 6
-      }
-
       // Location Manager
       if (proyecto.locationManager) {
         doc.setFont('helvetica', 'bold')
@@ -612,6 +566,46 @@ export default function Documents() {
           doc.setDrawColor(229, 229, 229) // #e5e5e5
           doc.setLineWidth(0.3)
           doc.line(marginSides, yPosition - 12, pageWidth - marginSides, yPosition - 12)
+        }
+      }
+
+      // ===== PIE DE PÁGINA (FOOTER) =====
+      // Añadir información de empresa en el pie de página de todas las páginas
+      const totalPages = doc.internal.pages.length - 1
+      const footerY = pageHeight - marginBottom
+      
+      for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        doc.setPage(pageNum)
+        
+        // Línea superior del pie de página
+        doc.setDrawColor(220, 220, 220)
+        doc.setLineWidth(0.3)
+        doc.line(marginSides, footerY - 8, pageWidth - marginSides, footerY - 8)
+        
+        // Información de empresa (company, address, CIF)
+        doc.setFontSize(7)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(100, 100, 100)
+        
+        let footerYPos = footerY - 6
+        const footerInfo = []
+        
+        if (proyecto.company) {
+          footerInfo.push(proyecto.company)
+        }
+        if (proyecto.address) {
+          footerInfo.push(proyecto.address)
+        }
+        if (proyecto.cif) {
+          footerInfo.push(`CIF: ${proyecto.cif}`)
+        }
+        
+        if (footerInfo.length > 0) {
+          const footerText = footerInfo.join(' | ')
+          const footerLines = doc.splitTextToSize(footerText, usableWidth)
+          footerLines.forEach((line, index) => {
+            doc.text(line, marginSides, footerYPos + (index * 3))
+          })
         }
       }
 
