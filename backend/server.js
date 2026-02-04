@@ -234,7 +234,11 @@ const migrateProyectoTable = async () => {
       basecampManager: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
       secondaryLogoUrl: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
       fechaInicio: { type: 'DATE', allowNull: true, defaultValue: null },
-      fechaFin: { type: 'DATE', allowNull: true, defaultValue: null }
+      fechaFin: { type: 'DATE', allowNull: true, defaultValue: null },
+      locationManagerPhone: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+      locationManagerEmail: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+      locationCoordinatorPhone: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' },
+      locationCoordinatorEmail: { type: 'VARCHAR(255)', allowNull: true, defaultValue: '' }
     }
 
     for (const [columnName, columnDefinition] of Object.entries(newColumns)) {

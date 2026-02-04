@@ -50,7 +50,27 @@ const Proyecto = sequelize.define('Proyecto', {
     allowNull: true,
     defaultValue: ''
   },
+  locationManagerPhone: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  locationManagerEmail: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
   locationCoordinator: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  locationCoordinatorPhone: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: ''
+  },
+  locationCoordinatorEmail: {
     type: DataTypes.STRING,
     allowNull: true,
     defaultValue: ''

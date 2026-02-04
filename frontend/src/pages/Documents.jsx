@@ -326,32 +326,28 @@ export default function Documents() {
       const projectName = (proyecto.nombre || '').toUpperCase()
 
       // Calcular posición central
+      const centerX = pageWidth / 2
+      
+      // Nombre de proyecto (arriba, grande, blanco, centrado)
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(11)
-      const projectNameWidth = doc.getTextWidth(projectName)
-      doc.setFontSize(8)
-      const docTypeWidth = doc.getTextWidth(docTypeText)
-      const centerX = pageWidth / 2
-      const textStartX = centerX - Math.max(projectNameWidth, docTypeWidth) / 2
+      doc.setTextColor(255, 255, 255)
+      doc.text(
+        projectName,
+        centerX,
+        headerY + 7,
+        { align: 'center' }
+      )
 
-      // Tipo de documento (arriba, pequeño, gris claro)
+      // Tipo de documento (debajo, pequeño, gris claro, centrado)
       doc.setFontSize(8)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(185, 193, 210)
       doc.text(
         docTypeText,
-        textStartX,
-        headerY + 7
-      )
-
-      // Nombre de proyecto (debajo, grande, blanco)
-      doc.setFontSize(11)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(255, 255, 255)
-      doc.text(
-        projectName,
-        textStartX,
-        headerY + 7 + 6
+        centerX,
+        headerY + 7 + 6,
+        { align: 'center' }
       )
 
       // Línea inferior suave para separar encabezado del contenido
@@ -384,7 +380,18 @@ export default function Documents() {
         doc.setFont('helvetica', 'bold')
         doc.text('LOCATION MANAGER: ', labelX, yPosition)
         doc.setFont('helvetica', 'normal')
-        doc.text(proyecto.locationManager, valueX, yPosition)
+        let managerInfo = proyecto.locationManager
+        if (proyecto.locationManagerPhone || proyecto.locationManagerEmail) {
+          const contactParts = []
+          if (proyecto.locationManagerPhone) {
+            contactParts.push(`Tel: ${proyecto.locationManagerPhone}`)
+          }
+          if (proyecto.locationManagerEmail) {
+            contactParts.push(`Email: ${proyecto.locationManagerEmail}`)
+          }
+          managerInfo += ` (${contactParts.join(' | ')})`
+        }
+        doc.text(managerInfo, valueX, yPosition)
         yPosition += 6
       }
 
@@ -393,7 +400,18 @@ export default function Documents() {
         doc.setFont('helvetica', 'bold')
         doc.text('LOCATION COORDINATOR: ', labelX, yPosition)
         doc.setFont('helvetica', 'normal')
-        doc.text(proyecto.locationCoordinator, valueX, yPosition)
+        let coordinatorInfo = proyecto.locationCoordinator
+        if (proyecto.locationCoordinatorPhone || proyecto.locationCoordinatorEmail) {
+          const contactParts = []
+          if (proyecto.locationCoordinatorPhone) {
+            contactParts.push(`Tel: ${proyecto.locationCoordinatorPhone}`)
+          }
+          if (proyecto.locationCoordinatorEmail) {
+            contactParts.push(`Email: ${proyecto.locationCoordinatorEmail}`)
+          }
+          coordinatorInfo += ` (${contactParts.join(' | ')})`
+        }
+        doc.text(coordinatorInfo, valueX, yPosition)
         yPosition += 6
       }
 
@@ -577,19 +595,17 @@ export default function Documents() {
       for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
         doc.setPage(pageNum)
         
-        // Línea superior del pie de página
+        // Línea superior del pie de página (con más separación)
         doc.setDrawColor(220, 220, 220)
         doc.setLineWidth(0.3)
-        doc.line(marginSides, footerY - 8, pageWidth - marginSides, footerY - 8)
+        doc.line(marginSides, footerY - 12, pageWidth - marginSides, footerY - 12)
         
-        // Información de empresa (company, address, CIF)
+        // Información de empresa (company, address, CIF) centrada
         doc.setFontSize(7)
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(100, 100, 100)
         
-        let footerYPos = footerY - 6
         const footerInfo = []
-        
         if (proyecto.company) {
           footerInfo.push(proyecto.company)
         }
@@ -602,9 +618,10 @@ export default function Documents() {
         
         if (footerInfo.length > 0) {
           const footerText = footerInfo.join(' | ')
+          const centerX = pageWidth / 2
           const footerLines = doc.splitTextToSize(footerText, usableWidth)
           footerLines.forEach((line, index) => {
-            doc.text(line, marginSides, footerYPos + (index * 3))
+            doc.text(line, centerX, footerY - 8 + (index * 3), { align: 'center' })
           })
         }
       }

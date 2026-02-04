@@ -19,7 +19,11 @@ export default function ProyectoDetail() {
     cif: '',
     address: '',
     locationManager: '',
+    locationManagerPhone: '',
+    locationManagerEmail: '',
     locationCoordinator: '',
+    locationCoordinatorPhone: '',
+    locationCoordinatorEmail: '',
     assistantLocationManager: '',
     basecampManager: '',
     projectDate: '',
@@ -63,7 +67,11 @@ export default function ProyectoDetail() {
         cif: response.data.cif || '',
         address: response.data.address || '',
         locationManager: response.data.locationManager || '',
+        locationManagerPhone: response.data.locationManagerPhone || '',
+        locationManagerEmail: response.data.locationManagerEmail || '',
         locationCoordinator: response.data.locationCoordinator || '',
+        locationCoordinatorPhone: response.data.locationCoordinatorPhone || '',
+        locationCoordinatorEmail: response.data.locationCoordinatorEmail || '',
         assistantLocationManager: response.data.assistantLocationManager || '',
         basecampManager: response.data.basecampManager || '',
         projectDate: response.data.projectDate ? response.data.projectDate.slice(0, 10) : '',
@@ -244,7 +252,11 @@ export default function ProyectoDetail() {
       data.append('cif', formData.cif)
       data.append('address', formData.address)
       data.append('locationManager', formData.locationManager)
+      data.append('locationManagerPhone', formData.locationManagerPhone)
+      data.append('locationManagerEmail', formData.locationManagerEmail)
       data.append('locationCoordinator', formData.locationCoordinator)
+      data.append('locationCoordinatorPhone', formData.locationCoordinatorPhone)
+      data.append('locationCoordinatorEmail', formData.locationCoordinatorEmail)
       data.append('assistantLocationManager', formData.assistantLocationManager)
       data.append('basecampManager', formData.basecampManager)
       if (formData.projectDate) {
@@ -302,7 +314,11 @@ export default function ProyectoDetail() {
       data.append('cif', proyecto.cif || '')
       data.append('address', proyecto.address || '')
       data.append('locationManager', proyecto.locationManager || '')
+      data.append('locationManagerPhone', proyecto.locationManagerPhone || '')
+      data.append('locationManagerEmail', proyecto.locationManagerEmail || '')
       data.append('locationCoordinator', proyecto.locationCoordinator || '')
+      data.append('locationCoordinatorPhone', proyecto.locationCoordinatorPhone || '')
+      data.append('locationCoordinatorEmail', proyecto.locationCoordinatorEmail || '')
       data.append('assistantLocationManager', proyecto.assistantLocationManager || '')
       data.append('basecampManager', proyecto.basecampManager || '')
       if (proyecto.projectDate) {
@@ -1487,11 +1503,47 @@ export default function ProyectoDetail() {
                 />
               </div>
               <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Location Manager Teléfono</label>
+                <input
+                  type="text"
+                  value={formData.locationManagerPhone}
+                  onChange={(e) => setFormData({ ...formData, locationManagerPhone: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Location Manager Email</label>
+                <input
+                  type="email"
+                  value={formData.locationManagerEmail}
+                  onChange={(e) => setFormData({ ...formData, locationManagerEmail: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Location Coordinator</label>
                 <input
                   type="text"
                   value={formData.locationCoordinator}
                   onChange={(e) => setFormData({ ...formData, locationCoordinator: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Location Coordinator Teléfono</label>
+                <input
+                  type="text"
+                  value={formData.locationCoordinatorPhone}
+                  onChange={(e) => setFormData({ ...formData, locationCoordinatorPhone: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-gray-700 mb-2">Location Coordinator Email</label>
+                <input
+                  type="email"
+                  value={formData.locationCoordinatorEmail}
+                  onChange={(e) => setFormData({ ...formData, locationCoordinatorEmail: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg"
                 />
               </div>

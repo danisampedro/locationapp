@@ -447,7 +447,7 @@ router.post('/', uploadProyectoLogos, async (req, res) => {
     console.log('Creating proyecto...')
     console.log('Body:', req.body)
     console.log('File:', req.file)
-    const { nombre, descripcion, company, cif, address, locationManager, locationCoordinator, assistantLocationManager, basecampManager, projectDate, fechaInicio, fechaFin, locations, crew, vendors } = req.body
+    const { nombre, descripcion, company, cif, address, locationManager, locationManagerPhone, locationManagerEmail, locationCoordinator, locationCoordinatorPhone, locationCoordinatorEmail, assistantLocationManager, basecampManager, projectDate, fechaInicio, fechaFin, locations, crew, vendors } = req.body
     
     const proyectoData = {
       nombre,
@@ -456,7 +456,11 @@ router.post('/', uploadProyectoLogos, async (req, res) => {
       cif: cif || '',
       address: address || '',
       locationManager: locationManager || '',
+      locationManagerPhone: locationManagerPhone || '',
+      locationManagerEmail: locationManagerEmail || '',
       locationCoordinator: locationCoordinator || '',
+      locationCoordinatorPhone: locationCoordinatorPhone || '',
+      locationCoordinatorEmail: locationCoordinatorEmail || '',
       assistantLocationManager: assistantLocationManager || '',
       basecampManager: basecampManager || '',
       projectDate: projectDate || null,
@@ -628,7 +632,7 @@ router.post('/', uploadProyectoLogos, async (req, res) => {
 // PUT update proyecto
 router.put('/:id', uploadProyectoLogos, async (req, res) => {
   try {
-    const { nombre, descripcion, company, cif, address, locationManager, locationCoordinator, assistantLocationManager, basecampManager, projectDate, fechaInicio, fechaFin, locations, crew, vendors } = req.body
+    const { nombre, descripcion, company, cif, address, locationManager, locationManagerPhone, locationManagerEmail, locationCoordinator, locationCoordinatorPhone, locationCoordinatorEmail, assistantLocationManager, basecampManager, projectDate, fechaInicio, fechaFin, locations, crew, vendors } = req.body
     
     const proyecto = await Proyecto.findByPk(req.params.id)
     if (!proyecto) {
@@ -642,7 +646,11 @@ router.put('/:id', uploadProyectoLogos, async (req, res) => {
     if (cif !== undefined) updateData.cif = cif
     if (address !== undefined) updateData.address = address
     if (locationManager !== undefined) updateData.locationManager = locationManager
+    if (locationManagerPhone !== undefined) updateData.locationManagerPhone = locationManagerPhone
+    if (locationManagerEmail !== undefined) updateData.locationManagerEmail = locationManagerEmail
     if (locationCoordinator !== undefined) updateData.locationCoordinator = locationCoordinator
+    if (locationCoordinatorPhone !== undefined) updateData.locationCoordinatorPhone = locationCoordinatorPhone
+    if (locationCoordinatorEmail !== undefined) updateData.locationCoordinatorEmail = locationCoordinatorEmail
     if (assistantLocationManager !== undefined) updateData.assistantLocationManager = assistantLocationManager
     if (basecampManager !== undefined) updateData.basecampManager = basecampManager
     if (projectDate !== undefined) updateData.projectDate = projectDate || null
