@@ -2419,25 +2419,39 @@ export default function Documents() {
                   combinedItems.sort((a, b) => a.order - b.order)
                   
                   // Añadir información de tiempos a cada elemento
-                  let currentRowIndex = 0
+                  // Crear un mapa de entradas libres a filas de la tabla
+                  const freeEntryToRowMap = new Map()
+                  let freeEntryIndex = 0
+                  previewRowsByIndex.forEach((row, idx) => {
+                    if (row.isFreeEntry) {
+                      // Buscar la entrada libre correspondiente por orden
+                      const entryOrder = recceConfig.freeEntries?.[freeEntryIndex]?.order !== undefined
+                        ? recceConfig.freeEntries[freeEntryIndex].order
+                        : freeEntryIndex
+                      const freeEntry = recceConfig.freeEntries?.find((entry, i) => {
+                        const entryOrderCheck = entry.order !== undefined ? entry.order : i
+                        return entryOrderCheck === entryOrder
+                      })
+                      if (freeEntry) {
+                        freeEntryToRowMap.set(freeEntry, { row, index: idx })
+                      }
+                      freeEntryIndex++
+                    }
+                  })
+
                   combinedItems.forEach((item) => {
                     if (item.type === 'freeEntry') {
-                      // Buscar la fila correspondiente a esta entrada libre
-                      // Las entradas libres no tienen locationId, así que las buscamos por orden
-                      if (currentRowIndex < previewRowsByIndex.length) {
-                        const row = previewRowsByIndex[currentRowIndex]
-                        if (row.isFreeEntry) {
-                          item.previewRow = row
-                          item.previewRowIndex = currentRowIndex
-                          currentRowIndex++
-                        }
+                      // Buscar la fila correspondiente a esta entrada libre usando el mapa
+                      const rowData = freeEntryToRowMap.get(item.data)
+                      if (rowData) {
+                        item.previewRow = rowData.row
+                        item.previewRowIndex = rowData.index
                       }
                     } else if (item.type === 'location' && item.data.include) {
                       const locationRowData = previewRowsByLocation[item.data.locationId?.toString()]
                       if (locationRowData) {
                         item.previewRow = locationRowData.row
                         item.previewRowIndex = locationRowData.index
-                        currentRowIndex = locationRowData.index + 1
                       }
                     }
                     // Las notas (item.type === 'note') y vuelos (item.type === 'flight') no tienen tiempos, así que no se procesan aquí
@@ -2514,16 +2528,23 @@ export default function Documents() {
                         if (item.type === 'freeEntry') {
                           // Calcular tiempos para esta entrada libre
                           const row = item.previewRow
+                          let arrivalTime = ''
                           let departTime = ''
-                          if (item.previewRowIndex !== undefined && item.previewRowIndex < previewRowsByIndex.length - 1) {
-                            const nextRow = previewRowsByIndex[item.previewRowIndex + 1]
-                            departTime = nextRow.departTime || ''
-                          } else if (row && row.arrivalTime && item.data.timeOnPlaceMinutes) {
-                            const arrivalMinutes = parseTimeToMinutes(row.arrivalTime)
-                            const timeOnPlaceMinutes = parseInt(item.data.timeOnPlaceMinutes || '0', 10) || 0
-                            if (arrivalMinutes != null) {
-                              const departMinutes = arrivalMinutes + timeOnPlaceMinutes
-                              departTime = formatMinutesToTime(departMinutes)
+                          
+                          if (row) {
+                            arrivalTime = row.arrivalTime || ''
+                            
+                            // Calcular departTime: siguiente fila o arrival + timeOnPlace
+                            if (item.previewRowIndex !== undefined && item.previewRowIndex < previewRowsByIndex.length - 1) {
+                              const nextRow = previewRowsByIndex[item.previewRowIndex + 1]
+                              departTime = nextRow.departTime || ''
+                            } else if (arrivalTime && item.data.timeOnPlaceMinutes) {
+                              const arrivalMinutes = parseTimeToMinutes(arrivalTime)
+                              const timeOnPlaceMinutes = parseInt(item.data.timeOnPlaceMinutes || '0', 10) || 0
+                              if (arrivalMinutes != null) {
+                                const departMinutes = arrivalMinutes + timeOnPlaceMinutes
+                                departTime = formatMinutesToTime(departMinutes)
+                              }
                             }
                           }
                           
@@ -2591,7 +2612,7 @@ export default function Documents() {
                                 placeholder="Time on place (min)"
                               />
                               <div className="text-[10px] text-gray-600 font-medium">
-                                {row?.arrivalTime ? `Arrival: ${row.arrivalTime}` : ''}
+                                {arrivalTime ? `Arrival: ${arrivalTime}` : ''}
                               </div>
                               <div className="text-[10px] text-gray-600 font-medium">
                                 {departTime ? `Depart: ${departTime}` : ''}
