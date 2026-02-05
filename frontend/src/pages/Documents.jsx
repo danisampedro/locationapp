@@ -29,7 +29,7 @@ export default function Documents() {
     weatherForecast: '',
     attendants: [],
     legs: [],
-    freeEntries: [], // { time: '08:00', text: 'Nota...', travelTimeMinutes: '', timeOnPlaceMinutes: '', order: 0 }
+    freeEntries: [], // { text: '...', notes: '...', travelTimeMinutes: '', timeOnPlaceMinutes: '', order: 0 } — text en tabla de tiempos; notes solo en elementos/PDF
     flights: [], // { text: 'Información del vuelo...', order: 0 }
     notes: [] // { text: 'Texto libre sin horario...', order: 0 }
   })
@@ -1185,10 +1185,23 @@ export default function Documents() {
             }
           }
           
-          // Marco sutil alrededor de la entrada libre
+          // Calcular altura total (texto principal + notas si hay)
+          let entryHeight = 6 + padding * 2
+          const entryNotes = (item.data.notes || '').trim()
+          let noteLines = []
+          if (entryNotes) {
+            doc.setFontSize(9)
+            doc.setFont('helvetica', 'normal')
+            noteLines = doc.splitTextToSize(entryNotes, usableWidth - padding * 2)
+            const lineHeight = 4
+            entryHeight += padding * 2 + noteLines.length * lineHeight
+          }
+
+          // Marco alrededor de la entrada libre
           doc.setDrawColor(220, 220, 220)
           doc.setLineWidth(0.3)
-          
+          doc.rect(marginSides, entryStartY, usableWidth, entryHeight, 'S')
+
           // Primera fila: texto de la entrada + arrival/depart (dentro del marco)
           doc.setFontSize(10)
           doc.setFont('helvetica', 'bold')
@@ -1210,10 +1223,18 @@ export default function Documents() {
               doc.text(timesText, pageWidth - marginSides - padding, entryStartY + padding + 3, { align: 'right' })
             }
           }
-          
-          const entryHeight = 6 + padding * 2
-          doc.rect(marginSides, entryStartY, usableWidth, entryHeight, 'S')
-          
+
+          if (noteLines.length > 0) {
+            doc.setFontSize(9)
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(60, 60, 60)
+            const lineHeight = 4
+            const notesStartY = entryStartY + 6 + padding * 2
+            noteLines.forEach((line, i) => {
+              doc.text(line, marginSides + padding, notesStartY + padding + (i * lineHeight))
+            })
+          }
+
           y = entryStartY + entryHeight + 4
         } else if (item.type === 'flight') {
           // Renderizar vuelo
@@ -2313,7 +2334,7 @@ export default function Documents() {
                           ...recceConfig,
                           freeEntries: [
                             ...(recceConfig.freeEntries || []),
-                            { text: '', travelTimeMinutes: '', timeOnPlaceMinutes: '', order: maxOrder + 1 }
+                            { text: '', notes: '', travelTimeMinutes: '', timeOnPlaceMinutes: '', order: maxOrder + 1 }
                           ]
                         })
                       }}
@@ -2602,82 +2623,98 @@ export default function Documents() {
                           return (
                             <div
                               key={`free-${item.originalIndex}`}
-                              className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_100px_100px_auto] gap-2 items-center text-xs bg-blue-50/30 p-2 rounded border border-blue-100"
+                              className="flex flex-col gap-2 text-xs bg-blue-50/30 p-2 rounded border border-blue-100"
                             >
-                              <div className="flex flex-col gap-0.5">
+                              <div className="grid grid-cols-1 md:grid-cols-[auto_auto_1fr_80px_80px_100px_100px_auto] gap-2 items-center">
+                                <div className="flex flex-col gap-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => moveItem(displayIndex, 'up')}
+                                    disabled={displayIndex === 0}
+                                    className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title="Mover arriba"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => moveItem(displayIndex, 'down')}
+                                    disabled={displayIndex === combinedItems.length - 1}
+                                    className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title="Mover abajo"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </button>
+                                </div>
+                                <div className="text-[10px] text-gray-500 font-medium">ENTRADA</div>
+                                <input
+                                  type="text"
+                                  value={item.data.text || ''}
+                                  onChange={(e) => {
+                                    const updated = [...recceConfig.freeEntries]
+                                    updated[item.originalIndex] = { ...updated[item.originalIndex], text: e.target.value }
+                                    setRecceConfig({ ...recceConfig, freeEntries: updated })
+                                  }}
+                                  className="px-2 py-1.5 border rounded-lg"
+                                  placeholder="Texto (aparece en tabla de tiempos)"
+                                />
+                                <input
+                                  type="number"
+                                  value={item.data.travelTimeMinutes || ''}
+                                  onChange={(e) => {
+                                    const updated = [...recceConfig.freeEntries]
+                                    updated[item.originalIndex] = { ...updated[item.originalIndex], travelTimeMinutes: e.target.value }
+                                    setRecceConfig({ ...recceConfig, freeEntries: updated })
+                                  }}
+                                  className="px-2 py-1.5 border rounded-lg"
+                                  placeholder="Travel (min)"
+                                />
+                                <input
+                                  type="number"
+                                  value={item.data.timeOnPlaceMinutes || ''}
+                                  onChange={(e) => {
+                                    const updated = [...recceConfig.freeEntries]
+                                    updated[item.originalIndex] = { ...updated[item.originalIndex], timeOnPlaceMinutes: e.target.value }
+                                    setRecceConfig({ ...recceConfig, freeEntries: updated })
+                                  }}
+                                  className="px-2 py-1.5 border rounded-lg"
+                                  placeholder="Time on place (min)"
+                                />
+                                <div className="text-[10px] text-gray-600 font-medium">
+                                  {arrivalTime ? `Arrival: ${arrivalTime}` : ''}
+                                </div>
+                                <div className="text-[10px] text-gray-600 font-medium">
+                                  {departTime ? `Depart: ${departTime}` : ''}
+                                </div>
                                 <button
                                   type="button"
-                                  onClick={() => moveItem(displayIndex, 'up')}
-                                  disabled={displayIndex === 0}
-                                  className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                                  title="Mover arriba"
+                                  onClick={() => {
+                                    const updated = recceConfig.freeEntries.filter((_, i) => i !== item.originalIndex)
+                                    setRecceConfig({ ...recceConfig, freeEntries: updated })
+                                  }}
+                                  className="text-[10px] text-red-500 hover:text-red-600 px-1 py-0.5"
                                 >
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                  </svg>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => moveItem(displayIndex, 'down')}
-                                  disabled={displayIndex === combinedItems.length - 1}
-                                  className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                                  title="Mover abajo"
-                                >
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                  </svg>
+                                  Eliminar
                                 </button>
                               </div>
-                              <div className="text-[10px] text-gray-500 font-medium">ENTRADA</div>
-                              <input
-                                type="text"
-                                value={item.data.text || ''}
-                                onChange={(e) => {
-                                  const updated = [...recceConfig.freeEntries]
-                                  updated[item.originalIndex] = { ...updated[item.originalIndex], text: e.target.value }
-                                  setRecceConfig({ ...recceConfig, freeEntries: updated })
-                                }}
-                                className="px-2 py-1.5 border rounded-lg"
-                                placeholder="Texto de la entrada"
-                              />
-                              <input
-                                type="number"
-                                value={item.data.travelTimeMinutes || ''}
-                                onChange={(e) => {
-                                  const updated = [...recceConfig.freeEntries]
-                                  updated[item.originalIndex] = { ...updated[item.originalIndex], travelTimeMinutes: e.target.value }
-                                  setRecceConfig({ ...recceConfig, freeEntries: updated })
-                                }}
-                                className="px-2 py-1.5 border rounded-lg"
-                                placeholder="Travel (min)"
-                              />
-                              <input
-                                type="number"
-                                value={item.data.timeOnPlaceMinutes || ''}
-                                onChange={(e) => {
-                                  const updated = [...recceConfig.freeEntries]
-                                  updated[item.originalIndex] = { ...updated[item.originalIndex], timeOnPlaceMinutes: e.target.value }
-                                  setRecceConfig({ ...recceConfig, freeEntries: updated })
-                                }}
-                                className="px-2 py-1.5 border rounded-lg"
-                                placeholder="Time on place (min)"
-                              />
-                              <div className="text-[10px] text-gray-600 font-medium">
-                                {arrivalTime ? `Arrival: ${arrivalTime}` : ''}
+                              <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-2 items-start">
+                                <span className="text-[10px] text-gray-500 font-medium">Notas (solo en documento)</span>
+                                <textarea
+                                  value={item.data.notes || ''}
+                                  onChange={(e) => {
+                                    const updated = [...recceConfig.freeEntries]
+                                    updated[item.originalIndex] = { ...updated[item.originalIndex], notes: e.target.value }
+                                    setRecceConfig({ ...recceConfig, freeEntries: updated })
+                                  }}
+                                  className="px-2 py-1.5 border rounded-lg min-h-[44px] resize-y"
+                                  placeholder="Notas que aparecen en el documento pero no en la tabla de tiempos"
+                                  rows={2}
+                                />
                               </div>
-                              <div className="text-[10px] text-gray-600 font-medium">
-                                {departTime ? `Depart: ${departTime}` : ''}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const updated = recceConfig.freeEntries.filter((_, i) => i !== item.originalIndex)
-                                  setRecceConfig({ ...recceConfig, freeEntries: updated })
-                                }}
-                                className="text-[10px] text-red-500 hover:text-red-600 px-1 py-0.5"
-                              >
-                                Eliminar
-                              </button>
                             </div>
                           )
                         } else if (item.type === 'flight') {
@@ -2710,19 +2747,19 @@ export default function Documents() {
                                   </svg>
                                 </button>
                               </div>
-                              <div className="text-[10px] text-purple-600 font-bold uppercase">
+                              <div className="text-[10px] text-purple-600 font-bold uppercase md:pt-1">
                                 FLIGHTS
                               </div>
-                              <input
-                                type="text"
+                              <textarea
                                 value={item.data.text || ''}
                                 onChange={(e) => {
                                   const updated = [...recceConfig.flights]
                                   updated[item.originalIndex] = { ...updated[item.originalIndex], text: e.target.value }
                                   setRecceConfig({ ...recceConfig, flights: updated })
                                 }}
-                                className="px-2 py-1.5 border rounded-lg"
-                                placeholder="Información del vuelo"
+                                className="px-2 py-1.5 border rounded-lg min-h-[44px] resize-y"
+                                placeholder="Información del vuelo (varias líneas)"
+                                rows={2}
                               />
                               <button
                                 type="button"
