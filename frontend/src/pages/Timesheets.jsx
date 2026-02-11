@@ -221,11 +221,35 @@ function parseFreeTextWeek(text) {
   return { days: daysArray, totalHours: +totalHours.toFixed(2), warnings }
 }
 
+// Dado un día cualquiera (YYYY-MM-DD), devuelve el lunes de esa semana
+function getMondayOfWeek(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00')
+  const dow = (d.getDay() + 6) % 7 // 0 = lunes
+  d.setDate(d.getDate() - dow)
+  return d.toISOString().slice(0, 10)
+}
+
+// Dado el lunes (YYYY-MM-DD), devuelve año y número de semana ISO
+function getYearWeekFromMonday(mondayStr) {
+  const monday = new Date(mondayStr + 'T12:00:00')
+  const thursday = new Date(monday)
+  thursday.setDate(monday.getDate() + 3)
+  const year = thursday.getFullYear()
+  const jan4 = new Date(year, 0, 4)
+  const dow = (jan4.getDay() + 6) % 7
+  const mondayWeek1 = new Date(year, 0, 4 - dow)
+  const weekNumber = 1 + Math.floor((monday - mondayWeek1) / (7 * 86400000))
+  return { year, weekNumber }
+}
+
 export default function Timesheets() {
   const [proyectos, setProyectos] = useState([])
   const [crew, setCrew] = useState([])
   const [selectedProyectoId, setSelectedProyectoId] = useState('')
   const [selectedCrewId, setSelectedCrewId] = useState('')
+  const [selectedWeekStart, setSelectedWeekStart] = useState(() =>
+    getMondayOfWeek(new Date().toISOString().slice(0, 10))
+  )
   const [freeText, setFreeText] = useState('')
   const [days, setDays] = useState(() =>
     DAYS.map(d => ({
@@ -282,32 +306,18 @@ export default function Timesheets() {
     alert('Función "Igual que la semana pasada" pendiente de conectar con el backend.')
   }
 
-  // Calcular año ISO y número de semana a partir de la fecha actual
-  const getCurrentIsoYearAndWeek = () => {
-    const now = new Date()
-    const date = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
-    const dayNum = date.getUTCDay() || 7
-    date.setUTCDate(date.getUTCDate() + 4 - dayNum)
-    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
-    const weekNo = Math.ceil(((date - yearStart) / 86400000 + 1) / 7)
-    return { year: date.getUTCFullYear(), weekNumber: weekNo }
-  }
+  // Rango de la semana seleccionada (ej. "Lunes 3 feb - Domingo 9 feb 2026")
+  const weekRangeLabel = (() => {
+    const start = new Date(selectedWeekStart + 'T12:00:00')
+    const end = new Date(start)
+    end.setDate(start.getDate() + 6)
+    return start.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' }) +
+      ' - ' + end.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })
+  })()
 
-  // Lunes de la semana ISO (year, weekNumber) como YYYY-MM-DD
-  const getWeekStartDate = (year, weekNumber) => {
-    const jan4 = new Date(year, 0, 4)
-    const dow = (jan4.getDay() + 6) % 7 // 0 = Lunes
-    const mondayWeek1 = new Date(year, 0, 4 - dow)
-    const weekStart = new Date(mondayWeek1)
-    weekStart.setDate(mondayWeek1.getDate() + (weekNumber - 1) * 7)
-    return weekStart.toISOString().slice(0, 10)
-  }
-
-  // Fecha del día (0=lunes, 6=domingo) para la semana actual
+  // Fecha del día (0=lunes, 6=domingo) para la semana seleccionada
   const getDayDateFormatted = (dayIndex) => {
-    const { year, weekNumber } = getCurrentIsoYearAndWeek()
-    const startStr = getWeekStartDate(year, weekNumber)
-    const d = new Date(startStr + 'T12:00:00')
+    const d = new Date(selectedWeekStart + 'T12:00:00')
     d.setDate(d.getDate() + dayIndex)
     return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
   }
@@ -316,14 +326,14 @@ export default function Timesheets() {
     try {
       if (!selectedProyectoId || !selectedCrewId) return
 
-      const { year, weekNumber } = getCurrentIsoYearAndWeek()
+      const { year, weekNumber } = getYearWeekFromMonday(selectedWeekStart)
 
       const payload = {
         proyectoId: selectedProyectoId,
         crewId: selectedCrewId,
         year,
         weekNumber,
-        weekStartDate: getWeekStartDate(year, weekNumber),
+        weekStartDate: selectedWeekStart,
         projectTitle: '',
         projectCompany: '',
         department: '',
@@ -417,41 +427,57 @@ export default function Timesheets() {
         </p>
       </div>
 
-      {/* Selección de proyecto y trabajador */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 flex flex-col md:flex-row gap-4">
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Proyecto
-          </label>
-          <select
-            value={selectedProyectoId}
-            onChange={e => setSelectedProyectoId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-          >
-            <option value="">Selecciona un proyecto</option>
-            {proyectos.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Trabajador
-          </label>
-          <select
-            value={selectedCrewId}
-            onChange={e => setSelectedCrewId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-          >
-            <option value="">Selecciona un miembro del crew</option>
-            {crew.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.nombre} {c.rol ? `(${c.rol})` : ''}
-              </option>
-            ))}
-          </select>
+      {/* Selección de semana, proyecto y trabajador */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Semana a cumplimentar
+            </label>
+            <input
+              type="date"
+              value={selectedWeekStart}
+              onChange={e => setSelectedWeekStart(getMondayOfWeek(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              {weekRangeLabel}
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Proyecto
+            </label>
+            <select
+              value={selectedProyectoId}
+              onChange={e => setSelectedProyectoId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            >
+              <option value="">Selecciona un proyecto</option>
+              {proyectos.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Trabajador
+            </label>
+            <select
+              value={selectedCrewId}
+              onChange={e => setSelectedCrewId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            >
+              <option value="">Selecciona un miembro del crew</option>
+              {crew.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre} {c.rol ? `(${c.rol})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -499,8 +525,11 @@ export default function Timesheets() {
 
       {/* Tabla semanal */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-800">Resumen semanal</h2>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">Resumen semanal</h2>
+            <p className="text-sm text-gray-500">{weekRangeLabel}</p>
+          </div>
           <div className="text-sm">
             <span className="font-semibold text-gray-700 mr-1">Total horas:</span>
             <span className="text-dark-blue font-bold">{totalHours.toFixed(2)}</span>
