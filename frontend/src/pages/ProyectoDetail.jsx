@@ -45,12 +45,16 @@ export default function ProyectoDetail() {
   })
   const [isCreatingPermit, setIsCreatingPermit] = useState(false)
   const [isQuickSaving, setIsQuickSaving] = useState(false)
+  const [projectTimesheets, setProjectTimesheets] = useState([])
+  const [loadingTimesheets, setLoadingTimesheets] = useState(true)
+  const [timesheetsError, setTimesheetsError] = useState(null)
   const [activeTab, setActiveTab] = useState('info')
 
   useEffect(() => {
     loadProyecto()
     loadAvailableData()
     loadProjectPermits()
+    loadProjectTimesheets()
   }, [id])
 
   const loadProyecto = async () => {
@@ -129,6 +133,25 @@ export default function ProyectoDetail() {
       setProjectPermits([])
     } finally {
       setLoadingPermits(false)
+    }
+  }
+
+  const loadProjectTimesheets = async () => {
+    try {
+      setLoadingTimesheets(true)
+      setTimesheetsError(null)
+      const res = await axios.get(`${API_URL}/timesheets/project/${id}`, {
+        withCredentials: true
+      })
+      setProjectTimesheets(res.data || [])
+    } catch (error) {
+      console.error('Error cargando timesheets del proyecto:', error)
+      setTimesheetsError(
+        error.response?.data?.error || 'Error al cargar los timesheets del proyecto'
+      )
+      setProjectTimesheets([])
+    } finally {
+      setLoadingTimesheets(false)
     }
   }
 
@@ -514,6 +537,17 @@ export default function ProyectoDetail() {
               }`}
             >
               Permits
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('timesheets')}
+              className={`pb-2 px-1 text-sm font-medium border-b-2 ${
+                activeTab === 'timesheets'
+                  ? 'border-dark-blue text-dark-blue'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Timesheets ({projectTimesheets.length})
             </button>
           </nav>
         </div>
@@ -1314,6 +1348,114 @@ export default function ProyectoDetail() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Timesheets Tab */}
+          {activeTab === 'timesheets' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Timesheets semanales ({projectTimesheets.length})
+                </h3>
+                <button
+                  type="button"
+                  onClick={loadProjectTimesheets}
+                  className="px-3 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  disabled={loadingTimesheets}
+                >
+                  {loadingTimesheets ? 'Actualizando…' : 'Recargar'}
+                </button>
+              </div>
+
+              {timesheetsError && (
+                <p className="text-sm text-red-600">{timesheetsError}</p>
+              )}
+
+              {loadingTimesheets ? (
+                <p className="text-sm text-gray-500">Cargando timesheets del proyecto…</p>
+              ) : projectTimesheets.length === 0 ? (
+                <p className="text-gray-500 italic">
+                  No hay timesheets guardados todavía para este proyecto.
+                </p>
+              ) : (
+                <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                  <table className="min-w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="border border-gray-200 px-3 py-2 text-left">
+                          Semana
+                        </th>
+                        <th className="border border-gray-200 px-3 py-2 text-left">
+                          Trabajador
+                        </th>
+                        <th className="border border-gray-200 px-3 py-2 text-center">
+                          Horas
+                        </th>
+                        <th className="border border-gray-200 px-3 py-2 text-center">
+                          Horas extra
+                        </th>
+                        <th className="border border-gray-200 px-3 py-2 text-left">
+                          Última actualización
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {projectTimesheets.map((ts) => {
+                        const crewMember = availableCrew.find(
+                          (c) => c.id === ts.crewId
+                        )
+                        const workerLabel =
+                          ts.workerName ||
+                          crewMember?.nombre ||
+                          `Crew #${ts.crewId}`
+                        const workerRole =
+                          ts.workerRole || crewMember?.rol || ''
+
+                        const updatedAt = ts.updatedAt
+                          ? new Date(ts.updatedAt).toLocaleString('es-ES')
+                          : ''
+
+                        return (
+                          <tr key={ts.id} className="hover:bg-gray-50">
+                            <td className="border border-gray-200 px-3 py-2">
+                              <span className="font-medium text-gray-800">
+                                Semana {ts.weekNumber}
+                              </span>
+                              <span className="text-gray-500 text-xs ml-2">
+                                ({ts.year})
+                              </span>
+                            </td>
+                            <td className="border border-gray-200 px-3 py-2">
+                              <div className="flex flex-col">
+                                <span className="text-gray-800">{workerLabel}</span>
+                                {workerRole && (
+                                  <span className="text-xs text-gray-500">
+                                    {workerRole}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="border border-gray-200 px-3 py-2 text-center">
+                              {typeof ts.totalHoras === 'number'
+                                ? ts.totalHoras.toFixed(2)
+                                : '0.00'}
+                            </td>
+                            <td className="border border-gray-200 px-3 py-2 text-center">
+                              {typeof ts.totalHorasExtra === 'number'
+                                ? ts.totalHorasExtra.toFixed(2)
+                                : '0.00'}
+                            </td>
+                            <td className="border border-gray-200 px-3 py-2 text-left text-xs text-gray-500">
+                              {updatedAt}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>

@@ -13,7 +13,8 @@ import Sheet from './Sheet.js'
 import Capa from './Capa.js'
 import Evento from './Evento.js'
 import ProyectoPermit from './ProyectoPermit.js'
+import Timesheet from './Timesheet.js'
 
 // Exportar todos los modelos
-export { Proyecto, Location, Crew, Vendor, User, ProyectoCrew, Permit, RecceDocument, ContractDocument, Map, Sheet, Capa, Evento, ProyectoPermit }
+export { Proyecto, Location, Crew, Vendor, User, ProyectoCrew, Permit, RecceDocument, ContractDocument, Map, Sheet, Capa, Evento, ProyectoPermit, Timesheet }
 

@@ -78,7 +78,8 @@ function parseFreeTextWeek(text) {
     fin: '',
     horas: 0,
     horasExtra: 0,
-    modeloId: '',
+    // Por defecto aplicamos Jornada normal
+    modeloId: 'normal',
     shortRest: false,
     catering: false,
     lugar: '',
@@ -234,7 +235,8 @@ export default function Timesheets() {
       fin: '',
       horas: 0,
       horasExtra: 0,
-      modeloId: '',
+      // Por defecto aplicamos Jornada normal
+      modeloId: 'normal',
       shortRest: false,
       catering: false,
       notas: '',
@@ -245,6 +247,10 @@ export default function Timesheets() {
 
   const totalHours = useMemo(
     () => days.reduce((acc, d) => acc + (d.horas || 0), 0),
+    [days]
+  )
+  const totalExtraHours = useMemo(
+    () => days.reduce((acc, d) => acc + (d.horasExtra || 0), 0),
     [days]
   )
 
@@ -274,6 +280,53 @@ export default function Timesheets() {
     // De momento simplemente reutilizamos lo que haya en pantalla
     // (más adelante se conectará con el backend para traer la semana anterior real)
     alert('Función "Igual que la semana pasada" pendiente de conectar con el backend.')
+  }
+
+  // Calcular año ISO y número de semana a partir de la fecha actual
+  const getCurrentIsoYearAndWeek = () => {
+    const now = new Date()
+    const date = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
+    const dayNum = date.getUTCDay() || 7
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum)
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+    const weekNo = Math.ceil(((date - yearStart) / 86400000 + 1) / 7)
+    return { year: date.getUTCFullYear(), weekNumber: weekNo }
+  }
+
+  const handleSave = async () => {
+    try {
+      if (!selectedProyectoId || !selectedCrewId) return
+
+      const { year, weekNumber } = getCurrentIsoYearAndWeek()
+
+      const payload = {
+        proyectoId: selectedProyectoId,
+        crewId: selectedCrewId,
+        year,
+        weekNumber,
+        weekStartDate: null,
+        projectTitle: '',
+        projectCompany: '',
+        department: '',
+        workerName: '',
+        workerRole: '',
+        days,
+        totalHoras: totalHours,
+        totalHorasExtra: totalExtraHours
+      }
+
+      await axios.post(`${API_URL}/timesheets`, payload, {
+        withCredentials: true
+      })
+
+      alert('Timesheet semanal guardado correctamente.')
+    } catch (error) {
+      console.error('Error guardando timesheet:', error)
+      alert(
+        error.response?.data?.error ||
+          'Error al guardar el timesheet. Revisa la consola para más detalles.'
+      )
+    }
   }
 
   const updateDayField = (dayKey, field, value) => {
@@ -432,6 +485,11 @@ export default function Timesheets() {
           <div className="text-sm">
             <span className="font-semibold text-gray-700 mr-1">Total horas:</span>
             <span className="text-dark-blue font-bold">{totalHours.toFixed(2)}</span>
+            <span className="mx-2 text-gray-400">|</span>
+            <span className="font-semibold text-gray-700 mr-1">Horas extra:</span>
+            <span className="text-red-600 font-bold">
+              {totalExtraHours.toFixed(2)}
+            </span>
           </div>
         </div>
 
@@ -554,10 +612,11 @@ export default function Timesheets() {
         <div className="mt-4 flex justify-end">
           <button
             type="button"
+            onClick={handleSave}
             className="px-4 py-2 bg-accent-green text-white rounded-lg text-sm hover:bg-accent-green-dark disabled:opacity-50"
             disabled={!selectedProyectoId || !selectedCrewId}
           >
-            Guardar (pendiente de backend)
+            Guardar semana
           </button>
         </div>
       </div>

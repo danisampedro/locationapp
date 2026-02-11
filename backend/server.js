@@ -14,6 +14,7 @@ import permitRoutes from './routes/permits.js'
 import proyectoPermitsRoutes from './routes/proyectoPermits.js'
 import recceDocumentRoutes from './routes/recceDocuments.js'
 import contractDocumentRoutes from './routes/contractDocuments.js'
+import timesheetRoutes from './routes/timesheets.js'
 import mapRoutes from './routes/maps.js'
 import sheetRoutes from './routes/sheets.js'
 import authRoutes from './routes/auth.js'
@@ -62,6 +63,7 @@ app.use('/api/permits', authMiddleware, permitRoutes)
 app.use('/api', authMiddleware, proyectoPermitsRoutes)
 app.use('/api/recce-documents', authMiddleware, recceDocumentRoutes)
 app.use('/api/contract-documents', authMiddleware, contractDocumentRoutes)
+app.use('/api/timesheets', authMiddleware, timesheetRoutes)
 app.use('/api/maps', authMiddleware, mapRoutes)
 app.use('/api/sheets', authMiddleware, sheetRoutes)
 app.use('/api/users', userRoutes)
@@ -745,6 +747,100 @@ const migrateEventosTable = async () => {
   }
 }
 
+// Migración: Crear tabla timesheets si no existe
+const migrateTimesheetsTable = async () => {
+  try {
+    const queryInterface = sequelize.getQueryInterface()
+    const tableExists = await queryInterface.tableExists('timesheets')
+
+    if (!tableExists) {
+      console.log('ℹ️  Tabla timesheets no existe, creando...')
+      await queryInterface.createTable('timesheets', {
+        id: {
+          type: sequelize.Sequelize.INTEGER,
+          primaryKey: true,
+          autoIncrement: true
+        },
+        proyectoId: {
+          type: sequelize.Sequelize.INTEGER,
+          allowNull: false
+        },
+        crewId: {
+          type: sequelize.Sequelize.INTEGER,
+          allowNull: false
+        },
+        year: {
+          type: sequelize.Sequelize.INTEGER,
+          allowNull: false
+        },
+        weekNumber: {
+          type: sequelize.Sequelize.INTEGER,
+          allowNull: false
+        },
+        weekStartDate: {
+          type: sequelize.Sequelize.DATEONLY,
+          allowNull: true,
+          defaultValue: null
+        },
+        projectTitle: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        projectCompany: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        department: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        workerName: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        workerRole: {
+          type: sequelize.Sequelize.STRING,
+          allowNull: true,
+          defaultValue: ''
+        },
+        days: {
+          type: sequelize.Sequelize.JSON,
+          allowNull: false
+        },
+        totalHoras: {
+          type: sequelize.Sequelize.FLOAT,
+          allowNull: false,
+          defaultValue: 0
+        },
+        totalHorasExtra: {
+          type: sequelize.Sequelize.FLOAT,
+          allowNull: false,
+          defaultValue: 0
+        },
+        createdAt: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        },
+        updatedAt: {
+          type: sequelize.Sequelize.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        }
+      })
+      console.log('✅ Tabla timesheets creada')
+    } else {
+      console.log('ℹ️  Tabla timesheets ya existe')
+    }
+  } catch (error) {
+    console.error('⚠️  Error en migración de timesheets:', error.message)
+  }
+}
+
 // Migración: Crear tabla capas si no existe
 const migrateCapasTable = async () => {
   try {
@@ -952,6 +1048,7 @@ const connectDB = async () => {
     await migrateContractDocumentsTable()
     await migrateCapasTable()
     await migrateEventosTable()
+    await migrateTimesheetsTable()
     
     await seedAdminUser()
     console.log('✅ Database models synchronized')
