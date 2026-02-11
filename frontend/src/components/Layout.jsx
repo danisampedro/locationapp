@@ -71,6 +71,13 @@ const CalendarIcon = () => (
   </svg>
 )
 
+const TimesheetIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8M8 11h5m-5 4h3" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z" />
+  </svg>
+)
+
 const menuItems = [
   { path: '/proyectos', label: 'Proyectos', icon: FolderIcon },
   { path: '/locations', label: 'Locations', icon: LocationIcon },
@@ -79,7 +86,8 @@ const menuItems = [
   { path: '/permits', label: 'Permits', icon: PermitIcon },
   { path: '/mapas', label: 'Mapas', icon: MapIcon },
   { path: '/visor', label: 'Visor', icon: VisorIcon },
-  { path: '/calendar', label: 'Calendario', icon: CalendarIcon }
+  { path: '/calendar', label: 'Calendario', icon: CalendarIcon },
+  { path: '/timesheets', label: 'Timesheets', icon: TimesheetIcon }
 ]
 
 const adminMenuItems = [
