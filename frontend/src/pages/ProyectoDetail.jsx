@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
 import axios, { API_URL } from '../config/axios.js'
 
 export default function ProyectoDetail() {
@@ -48,7 +50,101 @@ export default function ProyectoDetail() {
   const [projectTimesheets, setProjectTimesheets] = useState([])
   const [loadingTimesheets, setLoadingTimesheets] = useState(true)
   const [timesheetsError, setTimesheetsError] = useState(null)
+  const [expandedTimesheetId, setExpandedTimesheetId] = useState(null)
   const [activeTab, setActiveTab] = useState('info')
+
+  // Rango de fechas de la semana (para timesheets)
+  const getWeekRangeString = (ts) => {
+    let start
+    if (ts.weekStartDate) {
+      start = new Date(ts.weekStartDate + 'T12:00:00')
+    } else {
+      const year = ts.year || new Date().getFullYear()
+      const weekNo = ts.weekNumber || 1
+      const jan4 = new Date(year, 0, 4)
+      const dow = (jan4.getDay() + 6) % 7
+      const mondayWeek1 = new Date(year, 0, 4 - dow)
+      start = new Date(mondayWeek1)
+      start.setDate(mondayWeek1.getDate() + (weekNo - 1) * 7)
+    }
+    const end = new Date(start)
+    end.setDate(start.getDate() + 6)
+    return start.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) +
+      ' - ' + end.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
+
+  const getDayDateForTimesheet = (ts, dayIndex) => {
+    let start
+    if (ts.weekStartDate) {
+      start = new Date(ts.weekStartDate + 'T12:00:00')
+    } else {
+      const year = ts.year || new Date().getFullYear()
+      const weekNo = ts.weekNumber || 1
+      const jan4 = new Date(year, 0, 4)
+      const dow = (jan4.getDay() + 6) % 7
+      const mondayWeek1 = new Date(year, 0, 4 - dow)
+      start = new Date(mondayWeek1)
+      start.setDate(mondayWeek1.getDate() + (weekNo - 1) * 7)
+    }
+    const d = new Date(start)
+    d.setDate(start.getDate() + dayIndex)
+    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+  }
+
+  const getModeloLabel = (modeloId) => {
+    const map = { '': 'Sin modelo', normal: 'Jornada normal', continua: 'Jornada continua', semi: 'Jornada semi' }
+    return map[modeloId] || modeloId || 'Sin modelo'
+  }
+
+  const exportTimesheetToPdf = (ts) => {
+    const crewMember = availableCrew.find((c) => c.id === ts.crewId)
+    const workerLabel = ts.workerName || crewMember?.nombre || `Crew #${ts.crewId}`
+    const workerRole = ts.workerRole || crewMember?.rol || ''
+    const projectName = proyecto?.nombre || ts.projectTitle || 'Proyecto'
+    const weekRange = getWeekRangeString(ts)
+
+    const doc = new jsPDF('p', 'mm', 'a4')
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Timesheet', 14, 16)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.text(`Proyecto: ${projectName}`, 14, 24)
+    doc.text(`Trabajador: ${workerLabel}${workerRole ? ` (${workerRole})` : ''}`, 14, 30)
+    doc.text(`Semana: ${ts.weekNumber} / ${ts.year} — ${weekRange}`, 14, 36)
+
+    const days = Array.isArray(ts.days) ? ts.days : []
+    const head = [['Día', 'Fecha', 'Modelo', 'Inicio', 'Fin', 'Horas', 'H. extra', 'Catering', 'Notas']]
+    const body = days.map((d, i) => [
+      d.label || '',
+      getDayDateForTimesheet(ts, i),
+      getModeloLabel(d.modeloId),
+      d.inicio || '',
+      d.fin || '',
+      typeof d.horas === 'number' ? d.horas.toFixed(2) : '0.00',
+      typeof d.horasExtra === 'number' ? d.horasExtra.toFixed(2) : '0.00',
+      d.catering ? 'Sí' : '',
+      (d.notas || '').slice(0, 30)
+    ])
+
+    doc.autoTable({
+      startY: 44,
+      head,
+      body,
+      theme: 'grid',
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [66, 66, 66] }
+    })
+
+    const finalY = doc.lastAutoTable.finalY || 44
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Total horas: ${typeof ts.totalHoras === 'number' ? ts.totalHoras.toFixed(2) : '0.00'}`, 14, finalY + 10)
+    doc.text(`Total horas extra: ${typeof ts.totalHorasExtra === 'number' ? ts.totalHorasExtra.toFixed(2) : '0.00'}`, 14, finalY + 16)
+
+    const fileName = `timesheet-${projectName.replace(/\s+/g, '-')}-S${ts.weekNumber}-${ts.year}-${workerLabel.replace(/\s+/g, '-')}.pdf`
+    doc.save(fileName)
+  }
 
   useEffect(() => {
     loadProyecto()
@@ -1400,6 +1496,9 @@ export default function ProyectoDetail() {
                         <th className="border border-gray-200 px-3 py-2 text-left">
                           Última actualización
                         </th>
+                        <th className="border border-gray-200 px-3 py-2 text-left">
+                          Acciones
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1417,41 +1516,113 @@ export default function ProyectoDetail() {
                         const updatedAt = ts.updatedAt
                           ? new Date(ts.updatedAt).toLocaleString('es-ES')
                           : ''
+                        const weekRange = getWeekRangeString(ts)
+                        const isExpanded = expandedTimesheetId === ts.id
+                        const days = Array.isArray(ts.days) ? ts.days : []
 
                         return (
-                          <tr key={ts.id} className="hover:bg-gray-50">
-                            <td className="border border-gray-200 px-3 py-2">
-                              <span className="font-medium text-gray-800">
-                                Semana {ts.weekNumber}
-                              </span>
-                              <span className="text-gray-500 text-xs ml-2">
-                                ({ts.year})
-                              </span>
-                            </td>
-                            <td className="border border-gray-200 px-3 py-2">
-                              <div className="flex flex-col">
-                                <span className="text-gray-800">{workerLabel}</span>
-                                {workerRole && (
-                                  <span className="text-xs text-gray-500">
-                                    {workerRole}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="border border-gray-200 px-3 py-2 text-center">
-                              {typeof ts.totalHoras === 'number'
-                                ? ts.totalHoras.toFixed(2)
-                                : '0.00'}
-                            </td>
-                            <td className="border border-gray-200 px-3 py-2 text-center">
-                              {typeof ts.totalHorasExtra === 'number'
-                                ? ts.totalHorasExtra.toFixed(2)
-                                : '0.00'}
-                            </td>
-                            <td className="border border-gray-200 px-3 py-2 text-left text-xs text-gray-500">
-                              {updatedAt}
-                            </td>
-                          </tr>
+                          <React.Fragment key={ts.id}>
+                            <tr className="hover:bg-gray-50">
+                              <td className="border border-gray-200 px-3 py-2">
+                                <span className="font-medium text-gray-800">
+                                  Semana {ts.weekNumber}
+                                </span>
+                                <span className="text-gray-500 text-xs ml-2">
+                                  ({ts.year})
+                                </span>
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  {weekRange}
+                                </div>
+                              </td>
+                              <td className="border border-gray-200 px-3 py-2">
+                                <div className="flex flex-col">
+                                  <span className="text-gray-800">{workerLabel}</span>
+                                  {workerRole && (
+                                    <span className="text-xs text-gray-500">
+                                      {workerRole}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="border border-gray-200 px-3 py-2 text-center">
+                                {typeof ts.totalHoras === 'number'
+                                  ? ts.totalHoras.toFixed(2)
+                                  : '0.00'}
+                              </td>
+                              <td className="border border-gray-200 px-3 py-2 text-center">
+                                {typeof ts.totalHorasExtra === 'number'
+                                  ? ts.totalHorasExtra.toFixed(2)
+                                  : '0.00'}
+                              </td>
+                              <td className="border border-gray-200 px-3 py-2 text-left text-xs text-gray-500">
+                                {updatedAt}
+                              </td>
+                              <td className="border border-gray-200 px-3 py-2">
+                                <div className="flex flex-wrap gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedTimesheetId(isExpanded ? null : ts.id)}
+                                    className="px-2 py-1 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+                                  >
+                                    {isExpanded ? 'Ocultar detalle' : 'Ver detalle'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => exportTimesheetToPdf(ts)}
+                                    className="px-2 py-1 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+                                  >
+                                    Exportar PDF
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                            {isExpanded && (
+                              <tr>
+                                <td colSpan={6} className="border border-gray-200 bg-gray-50 p-4">
+                                  <div className="text-sm font-medium text-gray-700 mb-2">
+                                    Detalle de horas — {workerLabel} — Semana {ts.weekNumber} ({weekRange})
+                                  </div>
+                                  <div className="overflow-x-auto border border-gray-200 rounded bg-white">
+                                    <table className="min-w-full text-sm border-collapse">
+                                      <thead>
+                                        <tr className="bg-gray-100">
+                                          <th className="border border-gray-200 px-2 py-1 text-left">Día</th>
+                                          <th className="border border-gray-200 px-2 py-1 text-left">Fecha</th>
+                                          <th className="border border-gray-200 px-2 py-1 text-left">Modelo</th>
+                                          <th className="border border-gray-200 px-2 py-1 text-left">Inicio</th>
+                                          <th className="border border-gray-200 px-2 py-1 text-left">Fin</th>
+                                          <th className="border border-gray-200 px-2 py-1 text-center">Horas</th>
+                                          <th className="border border-gray-200 px-2 py-1 text-center">Horas extra</th>
+                                          <th className="border border-gray-200 px-2 py-1 text-center">Catering</th>
+                                          <th className="border border-gray-200 px-2 py-1 text-left">Notas</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {days.map((d, dayIndex) => (
+                                          <tr key={d.dayKey || dayIndex} className="bg-white">
+                                            <td className="border border-gray-200 px-2 py-1">{d.label || ''}</td>
+                                            <td className="border border-gray-200 px-2 py-1 text-gray-600">{getDayDateForTimesheet(ts, dayIndex)}</td>
+                                            <td className="border border-gray-200 px-2 py-1">{getModeloLabel(d.modeloId)}</td>
+                                            <td className="border border-gray-200 px-2 py-1">{d.inicio || '—'}</td>
+                                            <td className="border border-gray-200 px-2 py-1">{d.fin || '—'}</td>
+                                            <td className="border border-gray-200 px-2 py-1 text-center">{typeof d.horas === 'number' ? d.horas.toFixed(2) : '0.00'}</td>
+                                            <td className="border border-gray-200 px-2 py-1 text-center">{typeof d.horasExtra === 'number' ? d.horasExtra.toFixed(2) : '0.00'}</td>
+                                            <td className="border border-gray-200 px-2 py-1 text-center">{d.catering ? 'Sí' : '—'}</td>
+                                            <td className="border border-gray-200 px-2 py-1 max-w-[200px] truncate" title={d.notas}>{d.notas || '—'}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                  <div className="mt-2 text-xs text-gray-600">
+                                    <span className="font-semibold">Total horas: {typeof ts.totalHoras === 'number' ? ts.totalHoras.toFixed(2) : '0.00'}</span>
+                                    <span className="mx-2">|</span>
+                                    <span className="font-semibold">Total horas extra: {typeof ts.totalHorasExtra === 'number' ? ts.totalHorasExtra.toFixed(2) : '0.00'}</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         )
                       })}
                     </tbody>

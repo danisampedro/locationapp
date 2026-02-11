@@ -293,6 +293,25 @@ export default function Timesheets() {
     return { year: date.getUTCFullYear(), weekNumber: weekNo }
   }
 
+  // Lunes de la semana ISO (year, weekNumber) como YYYY-MM-DD
+  const getWeekStartDate = (year, weekNumber) => {
+    const jan4 = new Date(year, 0, 4)
+    const dow = (jan4.getDay() + 6) % 7 // 0 = Lunes
+    const mondayWeek1 = new Date(year, 0, 4 - dow)
+    const weekStart = new Date(mondayWeek1)
+    weekStart.setDate(mondayWeek1.getDate() + (weekNumber - 1) * 7)
+    return weekStart.toISOString().slice(0, 10)
+  }
+
+  // Fecha del día (0=lunes, 6=domingo) para la semana actual
+  const getDayDateFormatted = (dayIndex) => {
+    const { year, weekNumber } = getCurrentIsoYearAndWeek()
+    const startStr = getWeekStartDate(year, weekNumber)
+    const d = new Date(startStr + 'T12:00:00')
+    d.setDate(d.getDate() + dayIndex)
+    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+  }
+
   const handleSave = async () => {
     try {
       if (!selectedProyectoId || !selectedCrewId) return
@@ -304,7 +323,7 @@ export default function Timesheets() {
         crewId: selectedCrewId,
         year,
         weekNumber,
-        weekStartDate: null,
+        weekStartDate: getWeekStartDate(year, weekNumber),
         projectTitle: '',
         projectCompany: '',
         department: '',
@@ -498,6 +517,7 @@ export default function Timesheets() {
             <thead>
               <tr className="bg-gray-50">
                 <th className="border border-gray-200 px-2 py-1 text-left">Día</th>
+                <th className="border border-gray-200 px-2 py-1 text-left">Fecha</th>
                 <th className="border border-gray-200 px-2 py-1 text-left">Modelo</th>
                 <th className="border border-gray-200 px-2 py-1 text-left">Inicio</th>
                 <th className="border border-gray-200 px-2 py-1 text-left">Fin</th>
@@ -512,7 +532,7 @@ export default function Timesheets() {
               </tr>
             </thead>
             <tbody>
-              {days.map(d => (
+              {days.map((d, dayIndex) => (
                 <tr
                   key={d.dayKey}
                   className={
@@ -538,6 +558,9 @@ export default function Timesheets() {
                         </span>
                       )}
                     </div>
+                  </td>
+                  <td className="border border-gray-200 px-2 py-1 text-gray-600 text-xs whitespace-nowrap">
+                    {getDayDateFormatted(dayIndex)}
                   </td>
                   <td className="border border-gray-200 px-2 py-1">
                     <select
