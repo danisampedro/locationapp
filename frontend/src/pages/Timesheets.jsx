@@ -11,7 +11,38 @@ const DAYS = [
   { key: 'domingo', label: 'Domingo' }
 ]
 
+// Modelos de jornada disponibles
+const MODELOS_JORNADA = [
+  {
+    id: '',
+    label: 'Sin modelo',
+    horasTrabajo: null
+  },
+  {
+    id: 'normal',
+    label: 'Jornada normal (10h trabajo + 1h comida)',
+    horasTrabajo: 10
+  },
+  {
+    id: 'continua',
+    label: 'Jornada continua (9h trabajo)',
+    horasTrabajo: 9
+  },
+  {
+    id: 'semi',
+    label: 'Jornada semi continua (9h trabajo + 0,5h comida)',
+    horasTrabajo: 9
+  }
+]
+
 const VACATION_WORDS = ['vacaciones', 'fiesta', 'libre', 'descanso']
+
+function computeHorasExtra(horas, modeloId) {
+  const modelo = MODELOS_JORNADA.find(m => m.id === modeloId)
+  if (!modelo || modelo.horasTrabajo == null || !horas) return 0
+  const extra = horas - modelo.horasTrabajo
+  return extra > 0 ? +extra.toFixed(2) : 0
+}
 
 // Convierte "9", "9h", "9:00" -> minutos desde medianoche
 function parseHourToMinutes(raw) {
@@ -43,6 +74,8 @@ function parseFreeTextWeek(text) {
     inicio: '',
     fin: '',
     horas: 0,
+    horasExtra: 0,
+    modeloId: '',
     catering: false,
     lugar: '',
     hotel: false,
@@ -173,6 +206,11 @@ function parseFreeTextWeek(text) {
 
   const totalHours = daysArray.reduce((acc, d) => acc + (d.horas || 0), 0)
 
+  // Inicialmente las horas extra son 0 hasta que el usuario seleccione un modelo
+  daysArray.forEach(d => {
+    d.horasExtra = computeHorasExtra(d.horas, d.modeloId)
+  })
+
   return { days: daysArray, totalHours: +totalHours.toFixed(2), warnings }
 }
 
@@ -189,9 +227,9 @@ export default function Timesheets() {
       inicio: '',
       fin: '',
       horas: 0,
+      horasExtra: 0,
+      modeloId: '',
       catering: false,
-      lugar: '',
-      hotel: false,
       notas: '',
       tipoDia: 'libre'
     }))
@@ -249,10 +287,20 @@ export default function Timesheets() {
                     )
                     if (startM != null && endM != null && endM > startM) {
                       const h = (endM - startM) / 60
-                      return { horas: +h.toFixed(2), tipoDia: 'normal' }
+                      const horas = +h.toFixed(2)
+                      return {
+                        horas,
+                        tipoDia: 'normal',
+                        horasExtra: computeHorasExtra(horas, d.modeloId)
+                      }
                     }
-                    return { horas: 0 }
+                    return { horas: 0, horasExtra: 0 }
                   })()
+                : {}),
+              ...(field === 'modeloId'
+                ? {
+                    horasExtra: computeHorasExtra(d.horas, value)
+                  }
                 : {})
             }
           : d
@@ -364,14 +412,16 @@ export default function Timesheets() {
             <thead>
               <tr className="bg-gray-50">
                 <th className="border border-gray-200 px-2 py-1 text-left">Día</th>
+                <th className="border border-gray-200 px-2 py-1 text-left">Modelo</th>
                 <th className="border border-gray-200 px-2 py-1 text-left">Inicio</th>
                 <th className="border border-gray-200 px-2 py-1 text-left">Fin</th>
                 <th className="border border-gray-200 px-2 py-1 text-center">Horas</th>
                 <th className="border border-gray-200 px-2 py-1 text-center">
+                  Horas extra
+                </th>
+                <th className="border border-gray-200 px-2 py-1 text-center">
                   Catering
                 </th>
-                <th className="border border-gray-200 px-2 py-1 text-left">Lugar</th>
-                <th className="border border-gray-200 px-2 py-1 text-center">Hotel</th>
                 <th className="border border-gray-200 px-2 py-1 text-left">Notas</th>
               </tr>
             </thead>
@@ -403,6 +453,21 @@ export default function Timesheets() {
                     </div>
                   </td>
                   <td className="border border-gray-200 px-2 py-1">
+                    <select
+                      value={d.modeloId}
+                      onChange={e =>
+                        updateDayField(d.dayKey, 'modeloId', e.target.value)
+                      }
+                      className="w-full border border-gray-300 rounded px-1 py-0.5 text-xs"
+                    >
+                      {MODELOS_JORNADA.map(m => (
+                        <option key={m.id || 'none'} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="border border-gray-200 px-2 py-1">
                     <input
                       type="time"
                       value={d.inicio}
@@ -424,31 +489,14 @@ export default function Timesheets() {
                     {d.horas ? d.horas.toFixed(2) : '0.00'}
                   </td>
                   <td className="border border-gray-200 px-2 py-1 text-center">
+                    {d.horasExtra ? d.horasExtra.toFixed(2) : '0.00'}
+                  </td>
+                  <td className="border border-gray-200 px-2 py-1 text-center">
                     <input
                       type="checkbox"
                       checked={d.catering}
                       onChange={e =>
                         updateDayField(d.dayKey, 'catering', e.target.checked)
-                      }
-                    />
-                  </td>
-                  <td className="border border-gray-200 px-2 py-1">
-                    <input
-                      type="text"
-                      value={d.lugar}
-                      onChange={e =>
-                        updateDayField(d.dayKey, 'lugar', e.target.value)
-                      }
-                      className="w-full border border-gray-300 rounded px-1 py-0.5 text-xs"
-                      placeholder="Lugar de trabajo"
-                    />
-                  </td>
-                  <td className="border border-gray-200 px-2 py-1 text-center">
-                    <input
-                      type="checkbox"
-                      checked={d.hotel}
-                      onChange={e =>
-                        updateDayField(d.dayKey, 'hotel', e.target.checked)
                       }
                     />
                   </td>
