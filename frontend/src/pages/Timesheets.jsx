@@ -21,17 +21,20 @@ const MODELOS_JORNADA = [
   {
     id: 'normal',
     label: 'Jornada normal (10h trabajo + 1h comida)',
-    horasTrabajo: 10
+    // Extras a partir de 11h totales
+    horasTrabajo: 11
   },
   {
     id: 'continua',
     label: 'Jornada continua (9h trabajo)',
+    // Extras a partir de 9h
     horasTrabajo: 9
   },
   {
     id: 'semi',
     label: 'Jornada semi continua (9h trabajo + 0,5h comida)',
-    horasTrabajo: 9
+    // Extras a partir de 9,5h totales
+    horasTrabajo: 9.5
   }
 ]
 
@@ -76,6 +79,7 @@ function parseFreeTextWeek(text) {
     horas: 0,
     horasExtra: 0,
     modeloId: '',
+    shortRest: false,
     catering: false,
     lugar: '',
     hotel: false,
@@ -190,12 +194,14 @@ function parseFreeTextWeek(text) {
   for (let i = 0; i < daysArray.length - 1; i++) {
     const d1 = daysArray[i]
     const d2 = daysArray[i + 1]
+    d2.shortRest = false
     if (d1.horas > 0 && d2.horas > 0 && d1.fin && d2.inicio) {
       const end1 = parseHourToMinutes(d1.fin)
       const start2 = parseHourToMinutes(d2.inicio)
       if (end1 != null && start2 != null) {
         const rest = (24 * 60 - end1) + start2
         if (rest < 12 * 60) {
+          d2.shortRest = true
           warnings.push(
             `El descanso entre ${d1.label} y ${d2.label} es inferior a 12 horas.`
           )
@@ -229,6 +235,7 @@ export default function Timesheets() {
       horas: 0,
       horasExtra: 0,
       modeloId: '',
+      shortRest: false,
       catering: false,
       notas: '',
       tipoDia: 'libre'
@@ -270,8 +277,8 @@ export default function Timesheets() {
   }
 
   const updateDayField = (dayKey, field, value) => {
-    setDays(prev =>
-      prev.map(d =>
+    setDays(prev => {
+      const updated = prev.map(d =>
         d.dayKey === dayKey
           ? {
               ...d,
@@ -305,7 +312,28 @@ export default function Timesheets() {
             }
           : d
       )
-    )
+
+      // Recalcular marcas de descanso corto (12h) después de cualquier cambio
+      for (let i = 0; i < updated.length; i++) {
+        updated[i].shortRest = false
+      }
+      for (let i = 0; i < updated.length - 1; i++) {
+        const d1 = updated[i]
+        const d2 = updated[i + 1]
+        if (d1.horas > 0 && d2.horas > 0 && d1.fin && d2.inicio) {
+          const end1 = parseHourToMinutes(d1.fin)
+          const start2 = parseHourToMinutes(d2.inicio)
+          if (end1 != null && start2 != null) {
+            const rest = (24 * 60 - end1) + start2
+            if (rest < 12 * 60) {
+              d2.shortRest = true
+            }
+          }
+        }
+      }
+
+      return [...updated]
+    })
   }
 
   return (
@@ -430,11 +458,12 @@ export default function Timesheets() {
                 <tr
                   key={d.dayKey}
                   className={
-                    d.tipoDia === 'libre'
+                    (d.tipoDia === 'libre'
                       ? 'bg-gray-50'
                       : d.tipoDia === 'especial'
                       ? 'bg-blue-50'
-                      : ''
+                      : 'bg-white') +
+                    (d.shortRest ? ' border-l-4 border-red-500' : '')
                   }
                 >
                   <td className="border border-gray-200 px-2 py-1 whitespace-nowrap">
@@ -474,7 +503,12 @@ export default function Timesheets() {
                       onChange={e =>
                         updateDayField(d.dayKey, 'inicio', e.target.value)
                       }
-                      className="w-full border border-gray-300 rounded px-1 py-0.5 text-xs"
+                      className={
+                        'w-full border rounded px-1 py-0.5 text-xs ' +
+                        (d.shortRest
+                          ? 'border-red-400 bg-red-50 text-red-700'
+                          : 'border-gray-300')
+                      }
                     />
                   </td>
                   <td className="border border-gray-200 px-2 py-1">
