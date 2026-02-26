@@ -1121,10 +1121,21 @@ export default function Documents() {
         })
       }
 
-      // Crear lista combinada de elementos (entradas libres, vuelos, notas y localizaciones) con orden
+      // Crear lista combinada de elementos (cabeceras de día, entradas libres, vuelos, notas y localizaciones) con orden
       // Usar el índice como orden por defecto si no hay campo order
       const combinedItems = []
       
+      // Añadir cabeceras de día
+      if (cfg.dayHeaders && cfg.dayHeaders.length > 0) {
+        cfg.dayHeaders.forEach((day, index) => {
+          combinedItems.push({
+            type: 'dayHeader',
+            order: day.order !== undefined ? day.order : index,
+            data: day
+          })
+        })
+      }
+
       // Añadir entradas libres
       if (cfg.freeEntries && cfg.freeEntries.length > 0) {
         cfg.freeEntries.forEach((entry, index) => {
@@ -1159,13 +1170,13 @@ export default function Documents() {
       }
 
       // Añadir localizaciones incluidas
-      const includedLegs = (cfg.legs || []).filter(
+        const includedLegs = (cfg.legs || []).filter(
         (leg) => leg.include && leg.locationId
       )
       includedLegs.forEach((leg, index) => {
         combinedItems.push({
           type: 'location',
-          order: leg.order !== undefined ? leg.order : index + (recceConfig.freeEntries?.length || 0) + (recceConfig.flights?.length || 0) + (recceConfig.notes?.length || 0),
+          order: leg.order !== undefined ? leg.order : index + (cfg.freeEntries?.length || 0) + (cfg.flights?.length || 0) + (cfg.notes?.length || 0) + (cfg.dayHeaders?.length || 0),
           data: leg
         })
       })
@@ -1193,7 +1204,45 @@ export default function Documents() {
       // Renderizar elementos en orden combinado
       let locationIndex = 0
       for (const item of combinedItems) {
-        if (item.type === 'freeEntry') {
+        if (item.type === 'dayHeader') {
+          // Tabla de cabecera de día (similar a la tabla superior, pero solo schedule + meeting point)
+          if (y > pageHeight - marginBottom - 25) {
+            doc.addPage()
+            y = marginTop
+          }
+
+          const tableX = marginSides
+          const col1Width = usableWidth * 0.3
+          const col2Width = usableWidth - col1Width
+          const localRowHeight = 8
+
+          doc.setFontSize(9)
+          doc.setTextColor(40, 40, 40)
+          doc.setFont('helvetica', 'bold')
+
+          // Fila 1: RECCE SCHEDULE
+          doc.rect(tableX, y, col1Width, localRowHeight, 'S')
+          doc.rect(tableX + col1Width, y, col2Width, localRowHeight, 'S')
+          doc.text('RECCE SCHEDULE', tableX + 2, y + 5)
+          doc.setFont('helvetica', 'normal')
+          doc.text(item.data.recceSchedule || '', tableX + col1Width + 2, y + 5)
+          y += localRowHeight
+
+          // Fila 2: MEETING POINT (texto + link opcional y hora de salida si existe)
+          doc.setFont('helvetica', 'bold')
+          doc.rect(tableX, y, col1Width, localRowHeight, 'S')
+          doc.rect(tableX + col1Width, y, col2Width, localRowHeight, 'S')
+          doc.text('MEETING POINT', tableX + 2, y + 5)
+          doc.setFont('helvetica', 'normal')
+          const mpParts = [
+            item.data.meetingPoint || '',
+            item.data.meetingPointLink || '',
+            item.data.departureTime ? `Departure: ${item.data.departureTime}` : ''
+          ].filter(Boolean)
+          const mpText = mpParts.join('  |  ')
+          doc.text(mpText, tableX + col1Width + 2, y + 5)
+          y += localRowHeight + 4
+        } else if (item.type === 'freeEntry') {
           // Renderizar entrada libre
           if (y > pageHeight - marginBottom - 30) {
             doc.addPage()
@@ -2363,7 +2412,7 @@ export default function Documents() {
                       Arrastra o usa los botones para reordenar localizaciones, entradas libres, vuelos y notas
                     </p>
                   </div>
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 flex-wrap">
                     <button
                       type="button"
                       onClick={() => {
@@ -2373,6 +2422,7 @@ export default function Documents() {
                           ...(recceConfig.legs || []).map(l => l.order !== undefined ? l.order : -1),
                           ...(recceConfig.flights || []).map(f => f.order !== undefined ? f.order : -1),
                           ...(recceConfig.notes || []).map(n => n.order !== undefined ? n.order : -1),
+                          ...(recceConfig.dayHeaders || []).map(d => d.order !== undefined ? d.order : -1),
                           -1
                         )
                         setRecceConfig({
@@ -2396,6 +2446,7 @@ export default function Documents() {
                           ...(recceConfig.legs || []).map(l => l.order !== undefined ? l.order : -1),
                           ...(recceConfig.flights || []).map(f => f.order !== undefined ? f.order : -1),
                           ...(recceConfig.notes || []).map(n => n.order !== undefined ? n.order : -1),
+                          ...(recceConfig.dayHeaders || []).map(d => d.order !== undefined ? d.order : -1),
                           -1
                         )
                         setRecceConfig({
@@ -2422,6 +2473,7 @@ export default function Documents() {
                           ...(recceConfig.legs || []).map(l => l.order !== undefined ? l.order : -1),
                           ...(recceConfig.flights || []).map(f => f.order !== undefined ? f.order : -1),
                           ...(recceConfig.notes || []).map(n => n.order !== undefined ? n.order : -1),
+                          ...(recceConfig.dayHeaders || []).map(d => d.order !== undefined ? d.order : -1),
                           -1
                         )
                         setRecceConfig({
@@ -2465,6 +2517,36 @@ export default function Documents() {
                       className="text-[10px] text-dark-blue hover:text-dark-blue-light px-1.5 py-0.5 border border-dark-blue rounded"
                     >
                       + Localización
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Añadir nueva cabecera de día al final
+                        const maxOrder = Math.max(
+                          ...(recceConfig.freeEntries || []).map(e => e.order !== undefined ? e.order : -1),
+                          ...(recceConfig.legs || []).map(l => l.order !== undefined ? l.order : -1),
+                          ...(recceConfig.flights || []).map(f => f.order !== undefined ? f.order : -1),
+                          ...(recceConfig.notes || []).map(n => n.order !== undefined ? n.order : -1),
+                          ...(recceConfig.dayHeaders || []).map(d => d.order !== undefined ? d.order : -1),
+                          -1
+                        )
+                        setRecceConfig({
+                          ...recceConfig,
+                          dayHeaders: [
+                            ...(recceConfig.dayHeaders || []),
+                            {
+                              recceSchedule: '',
+                              meetingPoint: '',
+                              meetingPointLink: '',
+                              departureTime: '',
+                              order: maxOrder + 1
+                            }
+                          ]
+                        })
+                      }}
+                      className="text-[10px] text-dark-blue hover:text-dark-blue-light px-1.5 py-0.5 border border-dark-blue rounded"
+                    >
+                      + Día / cabecera
                     </button>
                   </div>
                 </div>
@@ -2515,6 +2597,18 @@ export default function Documents() {
                         type: 'note',
                         order: note.order !== undefined ? note.order : index + (recceConfig.freeEntries?.length || 0) + (recceConfig.flights?.length || 0),
                         data: note,
+                        originalIndex: index
+                      })
+                    })
+                  }
+
+                  // Añadir cabeceras de día
+                  if (recceConfig.dayHeaders && recceConfig.dayHeaders.length > 0) {
+                    recceConfig.dayHeaders.forEach((day, index) => {
+                      combinedItems.push({
+                        type: 'dayHeader',
+                        order: day.order !== undefined ? day.order : index,
+                        data: day,
                         originalIndex: index
                       })
                     })
@@ -2611,6 +2705,10 @@ export default function Documents() {
                         const updated = [...newConfig.notes]
                         updated[item.originalIndex] = { ...updated[item.originalIndex], order: newOrder }
                         newConfig.notes = updated
+                      } else if (item.type === 'dayHeader') {
+                        const updated = [...(newConfig.dayHeaders || [])]
+                        updated[item.originalIndex] = { ...updated[item.originalIndex], order: newOrder }
+                        newConfig.dayHeaders = updated
                       } else {
                         const updated = [...newConfig.legs]
                         updated[item.originalIndex] = { ...updated[item.originalIndex], order: newOrder }
@@ -2629,6 +2727,10 @@ export default function Documents() {
                         const updated = [...newConfig.notes]
                         updated[targetItem.originalIndex] = { ...updated[targetItem.originalIndex], order: targetNewOrder }
                         newConfig.notes = updated
+                      } else if (targetItem.type === 'dayHeader') {
+                        const updated = [...(newConfig.dayHeaders || [])]
+                        updated[targetItem.originalIndex] = { ...updated[targetItem.originalIndex], order: targetNewOrder }
+                        newConfig.dayHeaders = updated
                       } else {
                         const updated = [...newConfig.legs]
                         updated[targetItem.originalIndex] = { ...updated[targetItem.originalIndex], order: targetNewOrder }
@@ -2642,7 +2744,109 @@ export default function Documents() {
                   return (
                     <div className="space-y-2">
                       {combinedItems.map((item, displayIndex) => {
-                        if (item.type === 'freeEntry') {
+                        if (item.type === 'dayHeader') {
+                          return (
+                            <div
+                              key={`day-${item.originalIndex}`}
+                              className="flex flex-col gap-2 text-xs bg-yellow-50/60 p-2 rounded border border-yellow-200"
+                            >
+                              <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_80px] gap-2 items-center">
+                                <div className="flex flex-col gap-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => moveItem(displayIndex, 'up')}
+                                    disabled={displayIndex === 0}
+                                    className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title="Mover arriba"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => moveItem(displayIndex, 'down')}
+                                    disabled={displayIndex === combinedItems.length - 1}
+                                    className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title="Mover abajo"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </button>
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[10px] text-gray-600 font-semibold uppercase">
+                                      Cabecera de día
+                                    </span>
+                                    <span className="text-[10px] text-gray-500">
+                                      Recce schedule / Meeting point / Salida
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+                                    <input
+                                      type="text"
+                                      value={item.data.recceSchedule || ''}
+                                      onChange={(e) => {
+                                        const updated = [...(recceConfig.dayHeaders || [])]
+                                        updated[item.originalIndex] = { ...updated[item.originalIndex], recceSchedule: e.target.value }
+                                        setRecceConfig({ ...recceConfig, dayHeaders: updated })
+                                      }}
+                                      className="px-2 py-1.5 border rounded-lg"
+                                      placeholder="Recce schedule (texto libre)"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={item.data.departureTime || ''}
+                                      onChange={(e) => {
+                                        const updated = [...(recceConfig.dayHeaders || [])]
+                                        updated[item.originalIndex] = { ...updated[item.originalIndex], departureTime: e.target.value }
+                                        setRecceConfig({ ...recceConfig, dayHeaders: updated })
+                                      }}
+                                      className="px-2 py-1.5 border rounded-lg"
+                                      placeholder="Hora de salida (ej: 08:00)"
+                                    />
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+                                    <input
+                                      type="text"
+                                      value={item.data.meetingPoint || ''}
+                                      onChange={(e) => {
+                                        const updated = [...(recceConfig.dayHeaders || [])]
+                                        updated[item.originalIndex] = { ...updated[item.originalIndex], meetingPoint: e.target.value }
+                                        setRecceConfig({ ...recceConfig, dayHeaders: updated })
+                                      }}
+                                      className="px-2 py-1.5 border rounded-lg"
+                                      placeholder="Meeting point"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={item.data.meetingPointLink || ''}
+                                      onChange={(e) => {
+                                        const updated = [...(recceConfig.dayHeaders || [])]
+                                        updated[item.originalIndex] = { ...updated[item.originalIndex], meetingPointLink: e.target.value }
+                                        setRecceConfig({ ...recceConfig, dayHeaders: updated })
+                                      }}
+                                      className="px-2 py-1.5 border rounded-lg"
+                                      placeholder="Link Google Maps (opcional)"
+                                    />
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = (recceConfig.dayHeaders || []).filter((_, i) => i !== item.originalIndex)
+                                    setRecceConfig({ ...recceConfig, dayHeaders: updated })
+                                  }}
+                                  className="text-[10px] text-red-500 hover:text-red-600 px-1 py-0.5 self-start"
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        } else if (item.type === 'freeEntry') {
                           // Calcular tiempos para esta entrada libre
                           const row = item.previewRow
                           let arrivalTime = ''
