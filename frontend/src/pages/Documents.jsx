@@ -739,19 +739,9 @@ export default function Documents() {
       doc.setTextColor(80, 80, 80)
       doc.text(documentTitle, centerMidX, titleY + 6, { align: 'center' })
 
-      // --- Derecha: texto libre + Location Manager / Coordinator ---
+      // --- Derecha: Location Manager / Coordinator ---
       const rightContentWidth = rightWidth - sectionPadding * 2
       let currentYRight = headerY + sectionPadding + 1
-
-      // Campo de texto libre (puede reutilizarse sunriseTime o notes cortas; si quieres otro lo podemos añadir a recceConfig)
-      const freeHeaderText = recceConfig.weatherForecast || ''
-      if (freeHeaderText) {
-        doc.setFontSize(7)
-        doc.setFont('helvetica', 'italic')
-        const freeLines = doc.splitTextToSize(freeHeaderText, rightContentWidth)
-        doc.text(freeLines, rightX + sectionPadding, currentYRight)
-        currentYRight += freeLines.length * 3.5 + 2
-      }
 
       // Bloque contactos: posición, nombre y teléfono de LM y LC
       const lmName = recceConfig.locationManagerName || proyecto.locationManager || ''
@@ -863,8 +853,8 @@ export default function Documents() {
         const colAttMail = usableWidth * 0.25
 
         const headerY = y
-        // Fondo azul para la cabecera
-        doc.setFillColor(10, 25, 47)
+        // Fondo amarillo para la cabecera
+        doc.setFillColor(242, 183, 25) // f2b719
         doc.rect(marginSides, headerY, colAttName, rowHeight, 'F')
         doc.rect(marginSides + colAttName, headerY, colAttPos, rowHeight, 'F')
         doc.rect(
@@ -882,7 +872,7 @@ export default function Documents() {
           'F'
         )
         // Bordes más finos
-        doc.setDrawColor(10, 25, 47)
+        doc.setDrawColor(242, 183, 25)
         doc.setLineWidth(0.2)
         doc.rect(marginSides, headerY, colAttName, rowHeight, 'S')
         doc.rect(marginSides + colAttName, headerY, colAttPos, rowHeight, 'S')
@@ -900,9 +890,9 @@ export default function Documents() {
           rowHeight,
           'S'
         )
-        // Texto blanco, alineado a la izquierda
+        // Texto negro, alineado a la izquierda
         doc.setFontSize(8)
-        doc.setTextColor(255, 255, 255)
+        doc.setTextColor(0, 0, 0)
         doc.setFont('helvetica', 'bold')
         doc.text('Name', marginSides + 2, headerY + 4)
         doc.text('Position', marginSides + colAttName + 2, headerY + 4)
@@ -978,8 +968,8 @@ export default function Documents() {
 
         const headerY2 = y
         const baseX = marginSides
-        // Fondo azul para la cabecera
-        doc.setFillColor(10, 25, 47)
+        // Fondo amarillo para la cabecera
+        doc.setFillColor(242, 183, 25) // f2b719
         doc.rect(baseX, headerY2, colDepart, rowHeight, 'F')
         doc.rect(baseX + colDepart, headerY2, colFrom, rowHeight, 'F')
         doc.rect(baseX + colDepart + colFrom, headerY2, colTo, rowHeight, 'F')
@@ -1005,7 +995,7 @@ export default function Documents() {
           'F'
         )
         // Bordes más finos
-        doc.setDrawColor(10, 25, 47)
+        doc.setDrawColor(242, 183, 25)
         doc.setLineWidth(0.2)
         doc.rect(baseX, headerY2, colDepart, rowHeight, 'S')
         doc.rect(baseX + colDepart, headerY2, colFrom, rowHeight, 'S')
@@ -1031,9 +1021,9 @@ export default function Documents() {
           rowHeight,
           'S'
         )
-        // Texto blanco, alineado a la izquierda
+        // Texto negro, alineado a la izquierda
         doc.setFontSize(7)
-        doc.setTextColor(255, 255, 255)
+        doc.setTextColor(0, 0, 0)
         doc.setFont('helvetica', 'bold')
         doc.text('Depart', baseX + 2, headerY2 + 4)
         doc.text('From', baseX + colDepart + 2, headerY2 + 4)
