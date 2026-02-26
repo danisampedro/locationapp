@@ -639,11 +639,13 @@ export default function Documents() {
     }
   }
 
-  const generateLocationReccePDF = async () => {
+  const generateLocationReccePDF = async (configOverride) => {
     if (!proyecto || !proyecto.Locations || proyecto.Locations.length === 0) {
       alert('Este proyecto no tiene locations asignadas')
       return
     }
+
+    const cfg = configOverride || recceConfig
 
     setGenerating(true)
 
@@ -722,7 +724,7 @@ export default function Documents() {
 
       // --- Centro: título de proyecto y título del documento ---
       const projectTitle = (proyecto.nombre || '').toUpperCase()
-      const documentTitle = recceConfig.documentTitle || 'LOCATION RECCE'
+      const documentTitle = cfg.documentTitle || 'LOCATION RECCE'
 
       const centerMidX = centerX + centerWidth / 2
       const titleY = headerY + 12
@@ -744,10 +746,10 @@ export default function Documents() {
       let currentYRight = headerY + sectionPadding + 1
 
       // Bloque contactos: posición, nombre y teléfono de LM y LC
-      const lmName = recceConfig.locationManagerName || proyecto.locationManager || ''
-      const lmPhone = recceConfig.locationManagerPhone || proyecto.locationManagerPhone || ''
-      const lcName = recceConfig.locationCoordinatorName || proyecto.locationCoordinator || ''
-      const lcPhone = recceConfig.locationCoordinatorPhone || proyecto.locationCoordinatorPhone || ''
+      const lmName = cfg.locationManagerName || proyecto.locationManager || ''
+      const lmPhone = cfg.locationManagerPhone || proyecto.locationManagerPhone || ''
+      const lcName = cfg.locationCoordinatorName || proyecto.locationCoordinator || ''
+      const lcPhone = cfg.locationCoordinatorPhone || proyecto.locationCoordinatorPhone || ''
 
       doc.setFontSize(7)
       doc.setFont('helvetica', 'bold')
@@ -785,7 +787,7 @@ export default function Documents() {
       doc.rect(tableX + col1Width, y, col2Width, rowHeight, 'S')
       doc.text('RECCE SCHEDULE', tableX + 2, y + 5)
       doc.setFont('helvetica', 'normal')
-      doc.text(recceConfig.recceSchedule || '', tableX + col1Width + 2, y + 5)
+      doc.text(cfg.recceSchedule || '', tableX + col1Width + 2, y + 5)
       y += rowHeight
 
       // Fila 2: MEETING POINT
@@ -795,8 +797,8 @@ export default function Documents() {
       doc.text('MEETING POINT', tableX + 2, y + 5)
       doc.setFont('helvetica', 'normal')
       const meetingPointText = [
-        recceConfig.meetingPoint || '',
-        recceConfig.meetingPointLink || ''
+        cfg.meetingPoint || '',
+        cfg.meetingPointLink || ''
       ]
         .filter(Boolean)
         .join('  |  ')
@@ -805,9 +807,9 @@ export default function Documents() {
 
       // Fila 3: LOCATION MANAGER
       const lmText = [
-        recceConfig.locationManagerName || proyecto.locationManager || '',
-        recceConfig.locationManagerPhone || proyecto.locationManagerPhone || '',
-        recceConfig.locationManagerEmail || proyecto.locationManagerEmail || ''
+        cfg.locationManagerName || proyecto.locationManager || '',
+        cfg.locationManagerPhone || proyecto.locationManagerPhone || '',
+        cfg.locationManagerEmail || proyecto.locationManagerEmail || ''
       ]
         .filter(Boolean)
         .join('  |  ')
@@ -825,10 +827,10 @@ export default function Documents() {
       doc.setTextColor(80, 80, 80)
 
       const miniText = [
-        recceConfig.sunriseTime ? `Sunrise: ${recceConfig.sunriseTime}` : '',
-        recceConfig.sunsetTime ? `Sunset: ${recceConfig.sunsetTime}` : '',
-        recceConfig.weatherForecast
-          ? `Weather: ${recceConfig.weatherForecast}`
+        cfg.sunriseTime ? `Sunrise: ${cfg.sunriseTime}` : '',
+        cfg.sunsetTime ? `Sunset: ${cfg.sunsetTime}` : '',
+        cfg.weatherForecast
+          ? `Weather: ${cfg.weatherForecast}`
           : ''
       ]
         .filter(Boolean)
@@ -840,7 +842,7 @@ export default function Documents() {
       }
 
       // ===== SECCIÓN 4: ATTENDANTS =====
-      if (recceConfig.attendants && recceConfig.attendants.length > 0) {
+      if (cfg.attendants && cfg.attendants.length > 0) {
         doc.setFontSize(10)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(30, 30, 30)
@@ -908,7 +910,7 @@ export default function Documents() {
         doc.setTextColor(50, 50, 50)
 
         // Ordenar attendants por order antes de mostrar
-        const sortedAttendants = [...recceConfig.attendants].map((att, index) => ({
+        const sortedAttendants = [...cfg.attendants].map((att, index) => ({
           ...att,
           order: att.order !== undefined ? att.order : index
         })).sort((a, b) => a.order - b.order)
@@ -951,7 +953,7 @@ export default function Documents() {
       }
 
       // ===== SECCIÓN 5: RECCE TIMES =====
-      const recceRows = computeRecceRows(recceConfig, proyecto)
+      const recceRows = computeRecceRows(cfg, proyecto)
       if (recceRows.length > 0) {
         doc.setFontSize(10)
         doc.setFont('helvetica', 'bold')
@@ -959,12 +961,12 @@ export default function Documents() {
         doc.text('RECCE TIMES', marginSides, y)
         y += 4
 
-        const colDepart = usableWidth * 0.16
-        const colFrom = usableWidth * 0.2
-        const colTo = usableWidth * 0.2
-        const colTravel = usableWidth * 0.16
-        const colArrival = usableWidth * 0.16
-        const colTimeLoc = usableWidth * 0.12
+        const colDepart = usableWidth * 0.12
+        const colFrom = usableWidth * 0.24
+        const colTo = usableWidth * 0.24
+        const colTravel = usableWidth * 0.12
+        const colArrival = usableWidth * 0.12
+        const colTimeLoc = usableWidth * 0.16
 
         const headerY2 = y
         const baseX = marginSides
