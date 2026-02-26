@@ -51,7 +51,8 @@ router.post('/', async (req, res) => {
       legs,
       freeEntries,
       flights,
-      notes
+      notes,
+      dayHeaders
     } = req.body
 
     if (!proyectoId || !nombre || nombre.trim() === '') {
@@ -76,7 +77,8 @@ router.post('/', async (req, res) => {
       legs: legs || [],
       freeEntries: freeEntries || [],
       flights: flights || [],
-      notes: notes || []
+      notes: notes || [],
+      dayHeaders: dayHeaders || []
     })
     res.status(201).json(document)
   } catch (error) {
@@ -110,7 +112,8 @@ router.put('/:id', async (req, res) => {
       legs,
       freeEntries,
       flights,
-      notes
+      notes,
+      dayHeaders
     } = req.body
 
     if (!nombre || nombre.trim() === '') {
@@ -134,7 +137,8 @@ router.put('/:id', async (req, res) => {
       legs: legs || [],
       freeEntries: freeEntries || [],
       flights: flights || [],
-      notes: notes || []
+      notes: notes || [],
+      dayHeaders: dayHeaders || []
     })
     res.json(document)
   } catch (error) {

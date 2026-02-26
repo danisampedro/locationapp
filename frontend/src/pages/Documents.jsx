@@ -237,6 +237,97 @@ export default function Documents() {
     return rows
   }
 
+  // Construye segmentos de tiempos (por día) a partir de dayHeaders, freeEntries y legs
+  const buildRecceTimeSegments = (config, proyecto) => {
+    const segments = []
+
+    // Combinar dayHeaders, freeEntries y legs según order
+    const items = []
+    if (config.dayHeaders && config.dayHeaders.length > 0) {
+      config.dayHeaders.forEach((day, index) => {
+        items.push({
+          type: 'dayHeader',
+          order: day.order !== undefined ? day.order : index,
+          data: day
+        })
+      })
+    }
+    if (config.freeEntries && config.freeEntries.length > 0) {
+      config.freeEntries.forEach((entry, index) => {
+        items.push({
+          type: 'freeEntry',
+          order: entry.order !== undefined ? entry.order : index,
+          data: entry
+        })
+      })
+    }
+    const includedLegsRT = (config.legs || []).filter(
+      (leg) => leg.include && leg.locationId
+    )
+    includedLegsRT.forEach((leg, index) => {
+      items.push({
+        type: 'location',
+        order: leg.order !== undefined
+          ? leg.order
+          : index + (config.freeEntries?.length || 0),
+        data: leg
+      })
+    })
+
+    if (items.length === 0) return []
+
+    items.sort((a, b) => a.order - b.order)
+
+    let currentSegment = {
+      header: null,
+      freeEntries: [],
+      legs: []
+    }
+
+    const pushIfHasItems = () => {
+      if (currentSegment.freeEntries.length || currentSegment.legs.length) {
+        segments.push(currentSegment)
+      }
+    }
+
+    items.forEach((item) => {
+      if (item.type === 'dayHeader') {
+        // Cerrar segmento anterior y empezar uno nuevo para el nuevo día
+        pushIfHasItems()
+        currentSegment = {
+          header: item.data,
+          freeEntries: [],
+          legs: []
+        }
+      } else if (item.type === 'freeEntry') {
+        currentSegment.freeEntries.push(item.data)
+      } else if (item.type === 'location') {
+        currentSegment.legs.push(item.data)
+      }
+    })
+
+    pushIfHasItems()
+
+    // Convertir segmentos a filas de Recce Times usando computeRecceRows
+    const result = segments.map((segment) => {
+      const segmentConfig = {
+        ...config,
+        departureTime: segment.header?.departureTime || config.departureTime,
+        meetingPoint:
+          segment.header?.meetingPoint || config.meetingPoint || 'MEETING POINT',
+        freeEntries: segment.freeEntries,
+        legs: segment.legs
+      }
+      const rows = computeRecceRows(segmentConfig, proyecto)
+      return {
+        header: segment.header,
+        rows
+      }
+    })
+
+    return result.filter((s) => s.rows.length > 0)
+  }
+
   const generateLocationListPDF = async () => {
     if (!proyecto || !proyecto.Locations || proyecto.Locations.length === 0) {
       alert('Este proyecto no tiene locations asignadas')
@@ -954,97 +1045,7 @@ export default function Documents() {
       }
 
       // ===== SECCIÓN 5: RECCE TIMES =====
-      const buildRecceTimeSegments = () => {
-        const segments = []
-
-        // Combinar dayHeaders, freeEntries y legs según order
-        const items = []
-        if (cfg.dayHeaders && cfg.dayHeaders.length > 0) {
-          cfg.dayHeaders.forEach((day, index) => {
-            items.push({
-              type: 'dayHeader',
-              order: day.order !== undefined ? day.order : index,
-              data: day
-            })
-          })
-        }
-        if (cfg.freeEntries && cfg.freeEntries.length > 0) {
-          cfg.freeEntries.forEach((entry, index) => {
-            items.push({
-              type: 'freeEntry',
-              order: entry.order !== undefined ? entry.order : index,
-              data: entry
-            })
-          })
-        }
-        const includedLegsRT = (cfg.legs || []).filter(
-          (leg) => leg.include && leg.locationId
-        )
-        includedLegsRT.forEach((leg, index) => {
-          items.push({
-            type: 'location',
-            order: leg.order !== undefined
-              ? leg.order
-              : index + (cfg.freeEntries?.length || 0),
-            data: leg
-          })
-        })
-
-        if (items.length === 0) return []
-
-        items.sort((a, b) => a.order - b.order)
-
-        let currentSegment = {
-          header: null,
-          freeEntries: [],
-          legs: []
-        }
-
-        const pushIfHasItems = () => {
-          if (currentSegment.freeEntries.length || currentSegment.legs.length) {
-            segments.push(currentSegment)
-          }
-        }
-
-        items.forEach((item) => {
-          if (item.type === 'dayHeader') {
-            // Cerrar segmento anterior y empezar uno nuevo para el nuevo día
-            pushIfHasItems()
-            currentSegment = {
-              header: item.data,
-              freeEntries: [],
-              legs: []
-            }
-          } else if (item.type === 'freeEntry') {
-            currentSegment.freeEntries.push(item.data)
-          } else if (item.type === 'location') {
-            currentSegment.legs.push(item.data)
-          }
-        })
-
-        pushIfHasItems()
-
-        // Convertir segmentos a filas de Recce Times usando computeRecceRows
-        const result = segments.map((segment) => {
-          const segmentConfig = {
-            ...cfg,
-            departureTime: segment.header?.departureTime || cfg.departureTime,
-            meetingPoint:
-              segment.header?.meetingPoint || cfg.meetingPoint || 'MEETING POINT',
-            freeEntries: segment.freeEntries,
-            legs: segment.legs
-          }
-          const rows = computeRecceRows(segmentConfig, proyecto)
-          return {
-            header: segment.header,
-            rows
-          }
-        })
-
-        return result.filter((s) => s.rows.length > 0)
-      }
-
-      const recceSegments = buildRecceTimeSegments()
+      const recceSegments = buildRecceTimeSegments(cfg, proyecto)
       const recceRows = recceSegments.flatMap((s) => s.rows)
       const totalRows = recceRows.length
 
@@ -2655,8 +2656,9 @@ export default function Documents() {
                 </div>
 
                 {(() => {
-                  // Calcular tiempos en tiempo real
-                  const previewRows = computeRecceRows(recceConfig, proyecto)
+                  // Calcular tiempos en tiempo real (respetando cabeceras de día)
+                  const previewSegments = buildRecceTimeSegments(recceConfig, proyecto)
+                  const previewRows = previewSegments.flatMap((s) => s.rows)
                   const previewRowsByLocation = {}
                   const previewRowsByIndex = []
                   previewRows.forEach((row, index) => {
