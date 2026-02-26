@@ -679,6 +679,7 @@ export default function Documents() {
 
       // --- Izquierda: logo secundario + datos empresa del proyecto ---
       const leftContentWidth = leftWidth - sectionPadding * 2
+      const leftCenterX = leftX + leftContentWidth / 2
       const logoMaxWidth = leftContentWidth
       const logoMaxHeight = 10
       let currentYLeft = headerY + sectionPadding
@@ -694,12 +695,12 @@ export default function Documents() {
           } else {
             w = h * aspect
           }
-          const logoX = leftX + (leftContentWidth - w) / 2
+          const logoX = leftCenterX - w / 2
           const logoY = currentYLeft
           const isPng = logoImg.src.toLowerCase().includes('.png') || logoImg.src.toLowerCase().includes('data:image/png')
           const imageFormat = isPng ? 'PNG' : 'JPEG'
           doc.addImage(logoImg, imageFormat, logoX, logoY, w, h)
-          currentYLeft += h + 2
+          currentYLeft += h + 4
         } catch (e) {
           console.error('Error cargando logo secundario en Location Recce:', e)
         }
@@ -716,7 +717,7 @@ export default function Documents() {
       ].filter(Boolean)
       if (companyLines.length > 0) {
         const text = doc.splitTextToSize(companyLines.join(' · '), leftContentWidth)
-        doc.text(text, leftX, currentYLeft)
+        doc.text(text, leftCenterX, currentYLeft, { align: 'center' })
       }
 
       // --- Centro: título de proyecto y título del documento ---
@@ -777,7 +778,7 @@ export default function Documents() {
       drawContact('Location Manager', lmName, lmPhone)
       drawContact('Location Coordinator', lcName, lcPhone)
 
-      let y = marginTop + 12 // Margen adicional entre cabecera y primera tabla
+      let y = marginTop + 16 // Más espacio visual entre cabecera y primera tabla
 
       // ===== SECCIÓN 2: TABLA DATOS GENERALES =====
       const rowHeight = 8
