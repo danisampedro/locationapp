@@ -549,6 +549,14 @@ const migrateRecceDocumentsTable = async () => {
         })
         console.log('✅ Campo notes añadido')
       }
+      if (!tableDescription.dayHeaders) {
+        console.log('ℹ️  Añadiendo campo dayHeaders a recce_documents...')
+        await queryInterface.addColumn('recce_documents', 'dayHeaders', {
+          type: sequelize.Sequelize.JSON,
+          allowNull: true
+        })
+        console.log('✅ Campo dayHeaders añadido')
+      }
     }
   } catch (error) {
     console.error('⚠️  Error en migración de recce_documents:', error.message)

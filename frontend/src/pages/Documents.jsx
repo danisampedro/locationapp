@@ -31,7 +31,8 @@ export default function Documents() {
     legs: [],
     freeEntries: [], // { text: '...', notes: '...', travelTimeMinutes: '', timeOnPlaceMinutes: '', order: 0 } — text en tabla de tiempos; notes solo en elementos/PDF
     flights: [], // { text: 'Información del vuelo...', order: 0 }
-    notes: [] // { text: 'Texto libre sin horario...', order: 0 }
+    notes: [], // { text: 'Texto libre sin horario...', order: 0 }
+    dayHeaders: [] // { locationRecceText: '', meetingPointText: '', meetingPointLink: '', order: 0 }
   })
 
   useEffect(() => {
@@ -1120,13 +1121,13 @@ export default function Documents() {
         })
       }
 
-      // Crear lista combinada de elementos (entradas libres, vuelos y localizaciones) con orden
+      // Crear lista combinada de elementos (entradas libres, vuelos, notas y localizaciones) con orden
       // Usar el índice como orden por defecto si no hay campo order
       const combinedItems = []
       
       // Añadir entradas libres
-      if (recceConfig.freeEntries && recceConfig.freeEntries.length > 0) {
-        recceConfig.freeEntries.forEach((entry, index) => {
+      if (cfg.freeEntries && cfg.freeEntries.length > 0) {
+        cfg.freeEntries.forEach((entry, index) => {
           combinedItems.push({
             type: 'freeEntry',
             order: entry.order !== undefined ? entry.order : index,
@@ -1136,29 +1137,29 @@ export default function Documents() {
       }
 
       // Añadir vuelos
-      if (recceConfig.flights && recceConfig.flights.length > 0) {
-        recceConfig.flights.forEach((flight, index) => {
+      if (cfg.flights && cfg.flights.length > 0) {
+        cfg.flights.forEach((flight, index) => {
           combinedItems.push({
             type: 'flight',
-            order: flight.order !== undefined ? flight.order : index + (recceConfig.freeEntries?.length || 0),
+            order: flight.order !== undefined ? flight.order : index + (cfg.freeEntries?.length || 0),
             data: flight
           })
         })
       }
 
       // Añadir notas (texto libre sin horario)
-      if (recceConfig.notes && recceConfig.notes.length > 0) {
-        recceConfig.notes.forEach((note, index) => {
+      if (cfg.notes && cfg.notes.length > 0) {
+        cfg.notes.forEach((note, index) => {
           combinedItems.push({
             type: 'note',
-            order: note.order !== undefined ? note.order : index + (recceConfig.freeEntries?.length || 0) + (recceConfig.flights?.length || 0),
+            order: note.order !== undefined ? note.order : index + (cfg.freeEntries?.length || 0) + (cfg.flights?.length || 0),
             data: note
           })
         })
       }
 
       // Añadir localizaciones incluidas
-      const includedLegs = (recceConfig.legs || []).filter(
+      const includedLegs = (cfg.legs || []).filter(
         (leg) => leg.include && leg.locationId
       )
       includedLegs.forEach((leg, index) => {
@@ -1178,7 +1179,7 @@ export default function Documents() {
       recceRows.forEach((row, idx) => {
         if (row.isFreeEntry) {
           // Encontrar la entrada libre correspondiente por orden
-          const freeEntry = recceConfig.freeEntries?.find((entry, i) => {
+          const freeEntry = cfg.freeEntries?.find((entry, i) => {
             const entryOrder = entry.order !== undefined ? entry.order : i
             return entryOrder === freeEntryIndex
           })
@@ -1762,6 +1763,7 @@ export default function Documents() {
                             const parsedFreeEntries = parseJsonField(savedDoc.freeEntries)
                             const parsedFlights = parseJsonField(savedDoc.flights)
                             const parsedNotes = parseJsonField(savedDoc.notes)
+                            const parsedDayHeaders = parseJsonField(savedDoc.dayHeaders)
                             
                             // Limpiar campos de tiempo de los vuelos (no deben tener tiempos)
                             const cleanedFlights = parsedFlights.map(flight => ({
@@ -1788,7 +1790,8 @@ export default function Documents() {
                               legs: parsedLegs,
                               freeEntries: parsedFreeEntries,
                               flights: cleanedFlights,
-                              notes: parsedNotes
+                              notes: parsedNotes,
+                              dayHeaders: parsedDayHeaders
                             })
                             setShowRecceModal(true)
                           } catch (error) {
@@ -1830,6 +1833,7 @@ export default function Documents() {
                             const parsedFreeEntries = parseJsonField(savedDoc.freeEntries)
                             const parsedFlights = parseJsonField(savedDoc.flights)
                             const parsedNotes = parseJsonField(savedDoc.notes)
+                            const parsedDayHeaders = parseJsonField(savedDoc.dayHeaders)
                             
                             // Limpiar campos de tiempo de los vuelos (no deben tener tiempos)
                             const cleanedFlights = parsedFlights.map(flight => ({
@@ -1859,7 +1863,8 @@ export default function Documents() {
                               legs: parsedLegs,
                               freeEntries: parsedFreeEntries,
                               flights: cleanedFlights,
-                              notes: parsedNotes
+                              notes: parsedNotes,
+                              dayHeaders: parsedDayHeaders
                             }
                             
                             await axios.post(`${API_URL}/recce-documents`, duplicateData, { withCredentials: true })
@@ -1948,7 +1953,8 @@ export default function Documents() {
                               legs: parsedLegs,
                               freeEntries: parsedFreeEntries,
                               flights: cleanedFlights,
-                              notes: parsedNotes
+                              notes: parsedNotes,
+                              dayHeaders: parsedDayHeaders
                             })
                             await generateLocationReccePDF()
                           } catch (error) {
@@ -3028,7 +3034,8 @@ export default function Documents() {
                         legs: recceConfig.legs || [],
                         freeEntries: recceConfig.freeEntries || [],
                         flights: recceConfig.flights || [],
-                        notes: recceConfig.notes || []
+                        notes: recceConfig.notes || [],
+                        dayHeaders: recceConfig.dayHeaders || []
                       }
                       
                       console.log('Guardando documento con datos:', dataToSave)
@@ -3083,7 +3090,8 @@ export default function Documents() {
                         legs: recceConfig.legs || [],
                         freeEntries: recceConfig.freeEntries || [],
                         flights: recceConfig.flights || [],
-                        notes: recceConfig.notes || []
+                        notes: recceConfig.notes || [],
+                        dayHeaders: recceConfig.dayHeaders || []
                       }
                       
                       console.log('Guardando y generando PDF con datos:', dataToSave)

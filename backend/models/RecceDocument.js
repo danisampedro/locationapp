@@ -98,6 +98,11 @@ const RecceDocument = sequelize.define('RecceDocument', {
     type: DataTypes.JSON,
     allowNull: true,
     defaultValue: []
+  },
+  dayHeaders: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: []
   }
 }, {
   tableName: 'recce_documents',
