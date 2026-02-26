@@ -954,8 +954,101 @@ export default function Documents() {
       }
 
       // ===== SECCIÓN 5: RECCE TIMES =====
-      const recceRows = computeRecceRows(cfg, proyecto)
-      if (recceRows.length > 0) {
+      const buildRecceTimeSegments = () => {
+        const segments = []
+
+        // Combinar dayHeaders, freeEntries y legs según order
+        const items = []
+        if (cfg.dayHeaders && cfg.dayHeaders.length > 0) {
+          cfg.dayHeaders.forEach((day, index) => {
+            items.push({
+              type: 'dayHeader',
+              order: day.order !== undefined ? day.order : index,
+              data: day
+            })
+          })
+        }
+        if (cfg.freeEntries && cfg.freeEntries.length > 0) {
+          cfg.freeEntries.forEach((entry, index) => {
+            items.push({
+              type: 'freeEntry',
+              order: entry.order !== undefined ? entry.order : index,
+              data: entry
+            })
+          })
+        }
+        const includedLegsRT = (cfg.legs || []).filter(
+          (leg) => leg.include && leg.locationId
+        )
+        includedLegsRT.forEach((leg, index) => {
+          items.push({
+            type: 'location',
+            order: leg.order !== undefined
+              ? leg.order
+              : index + (cfg.freeEntries?.length || 0),
+            data: leg
+          })
+        })
+
+        if (items.length === 0) return []
+
+        items.sort((a, b) => a.order - b.order)
+
+        let currentSegment = {
+          header: null,
+          freeEntries: [],
+          legs: []
+        }
+
+        const pushIfHasItems = () => {
+          if (currentSegment.freeEntries.length || currentSegment.legs.length) {
+            segments.push(currentSegment)
+          }
+        }
+
+        items.forEach((item) => {
+          if (item.type === 'dayHeader') {
+            // Cerrar segmento anterior y empezar uno nuevo para el nuevo día
+            pushIfHasItems()
+            currentSegment = {
+              header: item.data,
+              freeEntries: [],
+              legs: []
+            }
+          } else if (item.type === 'freeEntry') {
+            currentSegment.freeEntries.push(item.data)
+          } else if (item.type === 'location') {
+            currentSegment.legs.push(item.data)
+          }
+        })
+
+        pushIfHasItems()
+
+        // Convertir segmentos a filas de Recce Times usando computeRecceRows
+        const result = segments.map((segment) => {
+          const segmentConfig = {
+            ...cfg,
+            departureTime: segment.header?.departureTime || cfg.departureTime,
+            meetingPoint:
+              segment.header?.meetingPoint || cfg.meetingPoint || 'MEETING POINT',
+            freeEntries: segment.freeEntries,
+            legs: segment.legs
+          }
+          const rows = computeRecceRows(segmentConfig, proyecto)
+          return {
+            header: segment.header,
+            rows
+          }
+        })
+
+        return result.filter((s) => s.rows.length > 0)
+      }
+
+      const recceSegments = buildRecceTimeSegments()
+      const recceRows = recceSegments.flatMap((s) => s.rows)
+      const totalRows = recceRows.length
+
+      if (totalRows > 0) {
         doc.setFontSize(10)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(30, 30, 30)
@@ -968,137 +1061,147 @@ export default function Documents() {
         const colTravel = usableWidth * 0.12
         const colArrival = usableWidth * 0.12
         const colTimeLoc = usableWidth * 0.16
-
-        const headerY2 = y
         const baseX = marginSides
-        // Fondo amarillo para la cabecera
-        doc.setFillColor(242, 183, 25) // f2b719
-        doc.rect(baseX, headerY2, colDepart, rowHeight, 'F')
-        doc.rect(baseX + colDepart, headerY2, colFrom, rowHeight, 'F')
-        doc.rect(baseX + colDepart + colFrom, headerY2, colTo, rowHeight, 'F')
-        doc.rect(
-          baseX + colDepart + colFrom + colTo,
-          headerY2,
-          colTravel,
-          rowHeight,
-          'F'
-        )
-        doc.rect(
-          baseX + colDepart + colFrom + colTo + colTravel,
-          headerY2,
-          colArrival,
-          rowHeight,
-          'F'
-        )
-        doc.rect(
-          baseX + colDepart + colFrom + colTo + colTravel + colArrival,
-          headerY2,
-          colTimeLoc,
-          rowHeight,
-          'F'
-        )
-        // Bordes más finos
-        doc.setDrawColor(242, 183, 25)
-        doc.setLineWidth(0.2)
-        doc.rect(baseX, headerY2, colDepart, rowHeight, 'S')
-        doc.rect(baseX + colDepart, headerY2, colFrom, rowHeight, 'S')
-        doc.rect(baseX + colDepart + colFrom, headerY2, colTo, rowHeight, 'S')
-        doc.rect(
-          baseX + colDepart + colFrom + colTo,
-          headerY2,
-          colTravel,
-          rowHeight,
-          'S'
-        )
-        doc.rect(
-          baseX + colDepart + colFrom + colTo + colTravel,
-          headerY2,
-          colArrival,
-          rowHeight,
-          'S'
-        )
-        doc.rect(
-          baseX + colDepart + colFrom + colTo + colTravel + colArrival,
-          headerY2,
-          colTimeLoc,
-          rowHeight,
-          'S'
-        )
-        // Texto negro, alineado a la izquierda
-        doc.setFontSize(7)
-        doc.setTextColor(0, 0, 0)
-        doc.setFont('helvetica', 'bold')
-        doc.text('Depart', baseX + 2, headerY2 + 4)
-        doc.text('From', baseX + colDepart + 2, headerY2 + 4)
-        doc.text('To', baseX + colDepart + colFrom + 2, headerY2 + 4)
-        doc.text('Travel', baseX + colDepart + colFrom + colTo + 2, headerY2 + 4)
-        doc.text(
-          'Arrival',
-          baseX + colDepart + colFrom + colTo + colTravel + 2,
-          headerY2 + 4
-        )
-        doc.text(
-          'Time on loc.',
-          baseX + colDepart + colFrom + colTo + colTravel + colArrival + 2,
-          headerY2 + 4
-        )
-        // Restaurar color y grosor de línea
-        doc.setDrawColor(0, 0, 0)
-        doc.setLineWidth(0.5)
 
-        y += rowHeight
-
-        doc.setFontSize(8)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(50, 50, 50)
-
-        recceRows.forEach((row) => {
-          if (y > pageHeight - marginBottom - 20) {
-            doc.addPage()
-            y = marginTop
+        recceSegments.forEach((segment, idx) => {
+          if (idx > 0) {
+            y += 4
           }
 
-          doc.rect(baseX, y, colDepart, rowHeight, 'S')
-          doc.rect(baseX + colDepart, y, colFrom, rowHeight, 'S')
-          doc.rect(baseX + colDepart + colFrom, y, colTo, rowHeight, 'S')
+          const headerY2 = y
+          // Fondo amarillo para la cabecera
+          doc.setFillColor(242, 183, 25) // f2b719
+          doc.rect(baseX, headerY2, colDepart, rowHeight, 'F')
+          doc.rect(baseX + colDepart, headerY2, colFrom, rowHeight, 'F')
+          doc.rect(baseX + colDepart + colFrom, headerY2, colTo, rowHeight, 'F')
           doc.rect(
             baseX + colDepart + colFrom + colTo,
-            y,
+            headerY2,
+            colTravel,
+            rowHeight,
+            'F'
+          )
+          doc.rect(
+            baseX + colDepart + colFrom + colTo + colTravel,
+            headerY2,
+            colArrival,
+            rowHeight,
+            'F'
+          )
+          doc.rect(
+            baseX + colDepart + colFrom + colTo + colTravel + colArrival,
+            headerY2,
+            colTimeLoc,
+            rowHeight,
+            'F'
+          )
+          // Bordes más finos
+          doc.setDrawColor(242, 183, 25)
+          doc.setLineWidth(0.2)
+          doc.rect(baseX, headerY2, colDepart, rowHeight, 'S')
+          doc.rect(baseX + colDepart, headerY2, colFrom, rowHeight, 'S')
+          doc.rect(baseX + colDepart + colFrom, headerY2, colTo, rowHeight, 'S')
+          doc.rect(
+            baseX + colDepart + colFrom + colTo,
+            headerY2,
             colTravel,
             rowHeight,
             'S'
           )
           doc.rect(
             baseX + colDepart + colFrom + colTo + colTravel,
-            y,
+            headerY2,
             colArrival,
             rowHeight,
             'S'
           )
           doc.rect(
             baseX + colDepart + colFrom + colTo + colTravel + colArrival,
-            y,
+            headerY2,
             colTimeLoc,
             rowHeight,
             'S'
           )
-
-          doc.text(row.departTime || '', baseX + 2, y + 5)
-          doc.text(row.from || '', baseX + colDepart + 2, y + 5)
-          doc.text(row.to || '', baseX + colDepart + colFrom + 2, y + 5)
-          doc.text(row.travelTime || '', baseX + colDepart + colFrom + colTo + 2, y + 5)
+          // Texto negro, alineado a la izquierda
+          doc.setFontSize(7)
+          doc.setTextColor(0, 0, 0)
+          doc.setFont('helvetica', 'bold')
+          doc.text('Depart', baseX + 2, headerY2 + 4)
+          doc.text('From', baseX + colDepart + 2, headerY2 + 4)
+          doc.text('To', baseX + colDepart + colFrom + 2, headerY2 + 4)
+          doc.text('Travel', baseX + colDepart + colFrom + colTo + 2, headerY2 + 4)
           doc.text(
-            row.arrivalTime || '',
+            'Arrival',
             baseX + colDepart + colFrom + colTo + colTravel + 2,
-            y + 5
+            headerY2 + 4
           )
           doc.text(
-            row.timeOnLocation || '',
+            'Time on loc.',
             baseX + colDepart + colFrom + colTo + colTravel + colArrival + 2,
-            y + 5
+            headerY2 + 4
           )
+          // Restaurar color y grosor de línea
+          doc.setDrawColor(0, 0, 0)
+          doc.setLineWidth(0.5)
 
           y += rowHeight
+
+          doc.setFontSize(8)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(50, 50, 50)
+
+          segment.rows.forEach((row) => {
+            if (y > pageHeight - marginBottom - 20) {
+              doc.addPage()
+              y = marginTop
+            }
+
+            doc.rect(baseX, y, colDepart, rowHeight, 'S')
+            doc.rect(baseX + colDepart, y, colFrom, rowHeight, 'S')
+            doc.rect(baseX + colDepart + colFrom, y, colTo, rowHeight, 'S')
+            doc.rect(
+              baseX + colDepart + colFrom + colTo,
+              y,
+              colTravel,
+              rowHeight,
+              'S'
+            )
+            doc.rect(
+              baseX + colDepart + colFrom + colTo + colTravel,
+              y,
+              colArrival,
+              rowHeight,
+              'S'
+            )
+            doc.rect(
+              baseX + colDepart + colFrom + colTo + colTravel + colArrival,
+              y,
+              colTimeLoc,
+              rowHeight,
+              'S'
+            )
+
+            doc.text(row.departTime || '', baseX + 2, y + 5)
+            doc.text(row.from || '', baseX + colDepart + 2, y + 5)
+            doc.text(row.to || '', baseX + colDepart + colFrom + 2, y + 5)
+            doc.text(
+              row.travelTime || '',
+              baseX + colDepart + colFrom + colTo + 2,
+              y + 5
+            )
+            doc.text(
+              row.arrivalTime || '',
+              baseX + colDepart + colFrom + colTo + colTravel + 2,
+              y + 5
+            )
+            doc.text(
+              row.timeOnLocation || '',
+              baseX + colDepart + colFrom + colTo + colTravel + colArrival + 2,
+              y + 5
+            )
+
+            y += rowHeight
+          })
         })
 
         y += 10
