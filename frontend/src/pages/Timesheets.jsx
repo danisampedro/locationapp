@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import axios, { API_URL } from '../config/axios.js'
 
 const DAYS = [
@@ -242,7 +243,35 @@ function getYearWeekFromMonday(mondayStr) {
   return { year, weekNumber }
 }
 
+// Dado año y semana ISO, devuelve el lunes (YYYY-MM-DD)
+function getWeekStartDateFromYearWeek(year, weekNumber) {
+  const jan4 = new Date(year, 0, 4)
+  const dow = (jan4.getDay() + 6) % 7
+  const mondayWeek1 = new Date(year, 0, 4 - dow)
+  const weekStart = new Date(mondayWeek1)
+  weekStart.setDate(mondayWeek1.getDate() + (weekNumber - 1) * 7)
+  return weekStart.toISOString().slice(0, 10)
+}
+
+const initialDays = () =>
+  DAYS.map(d => ({
+    dayKey: d.key,
+    label: d.label,
+    inicio: '',
+    fin: '',
+    horas: 0,
+    horasExtra: 0,
+    modeloId: 'normal',
+    shortRest: false,
+    catering: false,
+    notas: '',
+    tipoDia: 'libre'
+  }))
+
 export default function Timesheets() {
+  const [searchParams] = useSearchParams()
+  const editId = searchParams.get('edit')
+
   const [proyectos, setProyectos] = useState([])
   const [crew, setCrew] = useState([])
   const [selectedProyectoId, setSelectedProyectoId] = useState('')
@@ -251,23 +280,9 @@ export default function Timesheets() {
     getMondayOfWeek(new Date().toISOString().slice(0, 10))
   )
   const [freeText, setFreeText] = useState('')
-  const [days, setDays] = useState(() =>
-    DAYS.map(d => ({
-      dayKey: d.key,
-      label: d.label,
-      inicio: '',
-      fin: '',
-      horas: 0,
-      horasExtra: 0,
-      // Por defecto aplicamos Jornada normal
-      modeloId: 'normal',
-      shortRest: false,
-      catering: false,
-      notas: '',
-      tipoDia: 'libre'
-    }))
-  )
+  const [days, setDays] = useState(() => initialDays())
   const [warnings, setWarnings] = useState([])
+  const [loadingEdit, setLoadingEdit] = useState(!!editId)
 
   const totalHours = useMemo(
     () => days.reduce((acc, d) => acc + (d.horas || 0), 0),
@@ -293,6 +308,58 @@ export default function Timesheets() {
     }
     loadData()
   }, [])
+
+  // Cargar timesheet existente para editar (?edit=id)
+  useEffect(() => {
+    if (!editId) {
+      setLoadingEdit(false)
+      return
+    }
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/timesheets/${editId}`, {
+          withCredentials: true
+        })
+        const ts = res.data
+        if (cancelled || !ts) return
+        setSelectedProyectoId(String(ts.proyectoId))
+        setSelectedCrewId(String(ts.crewId))
+        setSelectedWeekStart(
+          ts.weekStartDate || getWeekStartDateFromYearWeek(ts.year, ts.weekNumber)
+        )
+        const rawDays = Array.isArray(ts.days)
+          ? ts.days
+          : typeof ts.days === 'string'
+            ? (() => {
+                try {
+                  const p = JSON.parse(ts.days)
+                  return Array.isArray(p) ? p : []
+                } catch {
+                  return []
+                }
+              })()
+            : []
+        setDays(
+          DAYS.map((def, i) => ({
+            ...def,
+            ...(rawDays[i] || {}),
+            dayKey: def.key,
+            label: def.label
+          }))
+        )
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error cargando timesheet para editar:', error)
+          alert(error.response?.data?.error || 'Error al cargar el timesheet')
+        }
+      } finally {
+        if (!cancelled) setLoadingEdit(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [editId])
 
   const handleProcess = () => {
     const result = parseFreeTextWeek(freeText)
@@ -425,7 +492,16 @@ export default function Timesheets() {
         <p className="text-gray-500 text-sm">
           Introduce la jornada semanal en texto libre y revisa el resumen día a día.
         </p>
+        {editId && (
+          <p className="text-sm text-dark-blue font-medium">
+            Editando timesheet guardado. Los cambios se guardarán sobre el mismo registro.
+          </p>
+        )}
       </div>
+
+      {loadingEdit && (
+        <p className="text-sm text-gray-500 mb-4">Cargando timesheet…</p>
+      )}
 
       {/* Selección de semana, proyecto y trabajador */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
@@ -668,7 +744,7 @@ export default function Timesheets() {
             className="px-4 py-2 bg-accent-green text-white rounded-lg text-sm hover:bg-accent-green-dark disabled:opacity-50"
             disabled={!selectedProyectoId || !selectedCrewId}
           >
-            Guardar semana
+            {editId ? 'Actualizar semana' : 'Guardar semana'}
           </button>
         </div>
       </div>

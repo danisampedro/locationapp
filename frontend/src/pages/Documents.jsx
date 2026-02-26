@@ -658,21 +658,34 @@ export default function Documents() {
       const usableWidth = pageWidth - marginSides * 2
 
       // ===== CABECERA NUEVA LOCATION RECCE =====
-      const headerHeight = 22
-      const headerY = 0
-      const logoMaxWidth = 28
-      const logoMaxHeight = 14
-      const secondaryLogoMaxWidth = 22
-      const secondaryLogoMaxHeight = 12
+      const headerHeight = 32
+      const headerY = 8
 
-      // Banda superior
-      doc.setFillColor(10, 25, 47)
-      doc.rect(0, headerY, pageWidth, headerHeight, 'F')
+      // Marco blanco con borde negro fino que envuelve toda la cabecera
+      doc.setDrawColor(0, 0, 0)
+      doc.setLineWidth(0.3)
+      doc.setFillColor(255, 255, 255)
+      doc.rect(marginSides, headerY, usableWidth, headerHeight, 'FD')
 
-      // Logo izquierdo
-      if (proyecto.logoUrl) {
+      // Zonas: izquierda (logo secundario + datos empresa), centro (títulos), derecha (contactos)
+      const sectionPadding = 4
+      const leftWidth = usableWidth * 0.28
+      const rightWidth = usableWidth * 0.34
+      const centerWidth = usableWidth - leftWidth - rightWidth
+
+      const leftX = marginSides + sectionPadding
+      const centerX = marginSides + leftWidth
+      const rightX = marginSides + leftWidth + centerWidth
+
+      // --- Izquierda: logo secundario + datos empresa del proyecto ---
+      const leftContentWidth = leftWidth - sectionPadding * 2
+      const logoMaxWidth = leftContentWidth
+      const logoMaxHeight = 10
+      let currentYLeft = headerY + sectionPadding
+
+      if (proyecto.secondaryLogoUrl) {
         try {
-          const logoImg = await loadImage(proyecto.logoUrl)
+          const logoImg = await loadImage(proyecto.secondaryLogoUrl)
           const aspect = logoImg.width / logoImg.height
           let w = logoMaxWidth
           let h = logoMaxHeight
@@ -681,57 +694,90 @@ export default function Documents() {
           } else {
             w = h * aspect
           }
-          const logoX = marginSides
-          const logoY = headerY + (headerHeight - h) / 2
-          // Detectar formato de imagen y usar el formato correcto para preservar transparencia
+          const logoX = leftX + (leftContentWidth - w) / 2
+          const logoY = currentYLeft
           const isPng = logoImg.src.toLowerCase().includes('.png') || logoImg.src.toLowerCase().includes('data:image/png')
           const imageFormat = isPng ? 'PNG' : 'JPEG'
           doc.addImage(logoImg, imageFormat, logoX, logoY, w, h)
+          currentYLeft += h + 2
         } catch (e) {
-          console.error('Error cargando logo principal en Location Recce:', e)
+          console.error('Error cargando logo secundario en Location Recce:', e)
         }
       }
 
-      // Logo derecho (solo secondaryLogoUrl, sin fallback)
-      if (proyecto.secondaryLogoUrl) {
-        try {
-          const logoImgRight = await loadImage(proyecto.secondaryLogoUrl)
-          const aspectRight = logoImgRight.width / logoImgRight.height
-          let wRight = secondaryLogoMaxWidth
-          let hRight = secondaryLogoMaxHeight
-          if (aspectRight > secondaryLogoMaxWidth / secondaryLogoMaxHeight) {
-            hRight = wRight / aspectRight
-          } else {
-            wRight = hRight * aspectRight
-          }
-          const logoRightX = pageWidth - marginSides - wRight
-          const logoRightY = headerY + (headerHeight - hRight) / 2
-          // Detectar formato de imagen y usar el formato correcto para preservar transparencia
-          const isPngRight = logoImgRight.src.toLowerCase().includes('.png') || logoImgRight.src.toLowerCase().includes('data:image/png')
-          const imageFormatRight = isPngRight ? 'PNG' : 'JPEG'
-          doc.addImage(logoImgRight, imageFormatRight, logoRightX, logoRightY, wRight, hRight)
-        } catch (e) {
-          console.error('Error cargando segundo logo en Location Recce:', e)
-        }
+      // Datos de empresa (company, cif, address)
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(0, 0, 0)
+      const companyLines = [
+        proyecto.company || '',
+        proyecto.cif || '',
+        proyecto.address || ''
+      ].filter(Boolean)
+      if (companyLines.length > 0) {
+        const text = doc.splitTextToSize(companyLines.join(' · '), leftContentWidth)
+        doc.text(text, leftX, currentYLeft)
       }
 
-      // Nombre del proyecto y "LOCATION RECCE" en el centro
+      // --- Centro: título de proyecto y título del documento ---
       const projectTitle = (proyecto.nombre || '').toUpperCase()
       const documentTitle = recceConfig.documentTitle || 'LOCATION RECCE'
 
-      // Nombre de proyecto (arriba, grande, blanco, centrado)
+      const centerMidX = centerX + centerWidth / 2
+      const titleY = headerY + 12
+
+      // Nombre de proyecto (arriba, grande, centrado)
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(11)
-      doc.setTextColor(255, 255, 255)
-      doc.text(projectTitle, pageWidth / 2, headerY + 7, { align: 'center' })
+      doc.setTextColor(0, 0, 0)
+      doc.text(projectTitle, centerMidX, titleY, { align: 'center' })
 
-      // Tipo de documento (debajo, pequeño, gris claro, centrado)
-      doc.setFontSize(8)
+      // Tipo de documento (debajo, más pequeño, centrado)
+      doc.setFontSize(9)
       doc.setFont('helvetica', 'bold')
-      doc.setTextColor(185, 193, 210)
-      doc.text(documentTitle, pageWidth / 2, headerY + 7 + 6, { align: 'center' })
+      doc.setTextColor(80, 80, 80)
+      doc.text(documentTitle, centerMidX, titleY + 6, { align: 'center' })
 
-      let y = marginTop + 8 // Margen adicional entre cabecera y primera tabla
+      // --- Derecha: texto libre + Location Manager / Coordinator ---
+      const rightContentWidth = rightWidth - sectionPadding * 2
+      let currentYRight = headerY + sectionPadding + 1
+
+      // Campo de texto libre (puede reutilizarse sunriseTime o notes cortas; si quieres otro lo podemos añadir a recceConfig)
+      const freeHeaderText = recceConfig.weatherForecast || ''
+      if (freeHeaderText) {
+        doc.setFontSize(7)
+        doc.setFont('helvetica', 'italic')
+        const freeLines = doc.splitTextToSize(freeHeaderText, rightContentWidth)
+        doc.text(freeLines, rightX + sectionPadding, currentYRight)
+        currentYRight += freeLines.length * 3.5 + 2
+      }
+
+      // Bloque contactos: posición, nombre y teléfono de LM y LC
+      const lmName = recceConfig.locationManagerName || proyecto.locationManager || ''
+      const lmPhone = recceConfig.locationManagerPhone || proyecto.locationManagerPhone || ''
+      const lcName = recceConfig.locationCoordinatorName || proyecto.locationCoordinator || ''
+      const lcPhone = recceConfig.locationCoordinatorPhone || proyecto.locationCoordinatorPhone || ''
+
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+
+      const drawContact = (label, name, phone) => {
+        if (!name && !phone) return
+        doc.text(label.toUpperCase(), rightX + sectionPadding, currentYRight)
+        currentYRight += 3.2
+        doc.setFont('helvetica', 'normal')
+        const line = [name, phone].filter(Boolean).join(' · ')
+        const lineText = doc.splitTextToSize(line, rightContentWidth)
+        doc.text(lineText, rightX + sectionPadding, currentYRight)
+        currentYRight += lineText.length * 3.2 + 2
+        doc.setFont('helvetica', 'bold')
+      }
+
+      drawContact('Location Manager', lmName, lmPhone)
+      drawContact('Location Coordinator', lcName, lcPhone)
+
+      let y = marginTop + 12 // Margen adicional entre cabecera y primera tabla
 
       // ===== SECCIÓN 2: TABLA DATOS GENERALES =====
       const rowHeight = 8

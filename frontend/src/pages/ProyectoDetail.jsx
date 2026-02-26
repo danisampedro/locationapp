@@ -96,6 +96,22 @@ export default function ProyectoDetail() {
     return map[modeloId] || modeloId || 'Sin modelo'
   }
 
+  // Asegura que days sea un array (el API a veces devuelve JSON como string)
+  const getTimesheetDays = (ts) => {
+    if (!ts) return []
+    let d = ts.days
+    if (Array.isArray(d)) return d
+    if (typeof d === 'string') {
+      try {
+        const parsed = JSON.parse(d)
+        return Array.isArray(parsed) ? parsed : []
+      } catch {
+        return []
+      }
+    }
+    return []
+  }
+
   const exportTimesheetToPdf = (ts) => {
     const crewMember = availableCrew.find((c) => c.id === ts.crewId)
     const workerLabel = ts.workerName || crewMember?.nombre || `Crew #${ts.crewId}`
@@ -113,7 +129,7 @@ export default function ProyectoDetail() {
     doc.text(`Trabajador: ${workerLabel}${workerRole ? ` (${workerRole})` : ''}`, 14, 30)
     doc.text(`Semana: ${ts.weekNumber} / ${ts.year} — ${weekRange}`, 14, 36)
 
-    const days = Array.isArray(ts.days) ? ts.days : []
+    const days = getTimesheetDays(ts)
     const head = [['Día', 'Fecha', 'Modelo', 'Inicio', 'Fin', 'Horas', 'H. extra', 'Catering', 'Notas']]
     const body = days.map((d, i) => [
       d.label || '',
@@ -248,6 +264,18 @@ export default function ProyectoDetail() {
       setProjectTimesheets([])
     } finally {
       setLoadingTimesheets(false)
+    }
+  }
+
+  const handleDeleteTimesheet = async (ts) => {
+    if (!window.confirm(`¿Eliminar el timesheet de la semana ${ts.weekNumber}/${ts.year} (${getWeekRangeString(ts)})?`)) return
+    try {
+      await axios.delete(`${API_URL}/timesheets/${ts.id}`, { withCredentials: true })
+      if (expandedTimesheetId === ts.id) setExpandedTimesheetId(null)
+      loadProjectTimesheets()
+    } catch (error) {
+      console.error('Error eliminando timesheet:', error)
+      alert(error.response?.data?.error || 'Error al eliminar el timesheet')
     }
   }
 
@@ -1518,7 +1546,7 @@ export default function ProyectoDetail() {
                           : ''
                         const weekRange = getWeekRangeString(ts)
                         const isExpanded = expandedTimesheetId === ts.id
-                        const days = Array.isArray(ts.days) ? ts.days : []
+                        const days = getTimesheetDays(ts)
 
                         return (
                           <React.Fragment key={ts.id}>
@@ -1568,10 +1596,24 @@ export default function ProyectoDetail() {
                                   </button>
                                   <button
                                     type="button"
+                                    onClick={() => navigate(`/timesheets?edit=${ts.id}`)}
+                                    className="px-2 py-1 text-xs rounded border border-dark-blue text-dark-blue hover:bg-dark-blue hover:text-white"
+                                  >
+                                    Editar
+                                  </button>
+                                  <button
+                                    type="button"
                                     onClick={() => exportTimesheetToPdf(ts)}
                                     className="px-2 py-1 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
                                   >
                                     Exportar PDF
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteTimesheet(ts)}
+                                    className="px-2 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50"
+                                  >
+                                    Eliminar
                                   </button>
                                 </div>
                               </td>
@@ -1598,19 +1640,23 @@ export default function ProyectoDetail() {
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {days.map((d, dayIndex) => (
-                                          <tr key={d.dayKey || dayIndex} className="bg-white">
-                                            <td className="border border-gray-200 px-2 py-1">{d.label || ''}</td>
-                                            <td className="border border-gray-200 px-2 py-1 text-gray-600">{getDayDateForTimesheet(ts, dayIndex)}</td>
-                                            <td className="border border-gray-200 px-2 py-1">{getModeloLabel(d.modeloId)}</td>
-                                            <td className="border border-gray-200 px-2 py-1">{d.inicio || '—'}</td>
-                                            <td className="border border-gray-200 px-2 py-1">{d.fin || '—'}</td>
-                                            <td className="border border-gray-200 px-2 py-1 text-center">{typeof d.horas === 'number' ? d.horas.toFixed(2) : '0.00'}</td>
-                                            <td className="border border-gray-200 px-2 py-1 text-center">{typeof d.horasExtra === 'number' ? d.horasExtra.toFixed(2) : '0.00'}</td>
-                                            <td className="border border-gray-200 px-2 py-1 text-center">{d.catering ? 'Sí' : '—'}</td>
-                                            <td className="border border-gray-200 px-2 py-1 max-w-[200px] truncate" title={d.notas}>{d.notas || '—'}</td>
-                                          </tr>
-                                        ))}
+                                        {Array.from({ length: 7 }, (_, dayIndex) => {
+                                          const d = days[dayIndex] || {}
+                                          const dayLabels = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+                                          return (
+                                            <tr key={d.dayKey || dayIndex} className="bg-white">
+                                              <td className="border border-gray-200 px-2 py-1 font-medium">{d.label || dayLabels[dayIndex]}</td>
+                                              <td className="border border-gray-200 px-2 py-1 text-gray-600">{getDayDateForTimesheet(ts, dayIndex)}</td>
+                                              <td className="border border-gray-200 px-2 py-1">{getModeloLabel(d.modeloId)}</td>
+                                              <td className="border border-gray-200 px-2 py-1">{d.inicio || '—'}</td>
+                                              <td className="border border-gray-200 px-2 py-1">{d.fin || '—'}</td>
+                                              <td className="border border-gray-200 px-2 py-1 text-center font-medium">{typeof d.horas === 'number' ? d.horas.toFixed(2) : '0.00'}</td>
+                                              <td className="border border-gray-200 px-2 py-1 text-center">{typeof d.horasExtra === 'number' ? d.horasExtra.toFixed(2) : '0.00'}</td>
+                                              <td className="border border-gray-200 px-2 py-1 text-center">{d.catering ? 'Sí' : '—'}</td>
+                                              <td className="border border-gray-200 px-2 py-1 max-w-[200px] truncate" title={d.notas}>{d.notas || '—'}</td>
+                                            </tr>
+                                          )
+                                        })}
                                       </tbody>
                                     </table>
                                   </div>
