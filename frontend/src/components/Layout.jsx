@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -108,10 +109,12 @@ export default function Layout({ children }) {
     navigate('/login')
   }
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className="w-64 bg-dark-blue shadow-lg flex flex-col">
+      {/* Sidebar (solo escritorio) */}
+      <aside className="hidden md:flex w-64 bg-dark-blue shadow-lg flex flex-col">
         <div className="p-6">
           <div className="flex items-center gap-3">
             <AppLogo />
@@ -207,14 +210,93 @@ export default function Layout({ children }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-        {location.pathname === '/mapas' || location.pathname === '/visor' ? (
-          children
-        ) : (
-          <div className="p-4 md:p-8">
-            {children}
+      <main className="flex-1 overflow-y-auto flex flex-col">
+        {/* Header móvil */}
+        <div className="md:hidden flex items-center justify-between px-4 py-3 bg-dark-blue text-white">
+          <div className="flex items-center gap-2">
+            <AppLogo />
+            <span className="font-semibold">Location App</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(prev => !prev)}
+            className="inline-flex items-center justify-center p-2 rounded-md bg-white/10 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white"
+            aria-label="Abrir menú de navegación"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24" stroke="currentColor" fill="none">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d={mobileMenuOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'}
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Menú móvil desplegable */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-dark-blue text-white border-b border-white/10">
+            <nav className="flex overflow-x-auto scrollbar-hide px-2 py-2 gap-2">
+              {menuItems.map((item) => {
+                const isActive = location.pathname === item.path
+                const IconComponent = item.icon
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center px-3 py-2 rounded-lg text-xs whitespace-nowrap ${
+                      isActive ? 'bg-dark-blue-light text-white' : 'text-white/80 hover:bg-dark-blue-light hover:text-white'
+                    }`}
+                  >
+                    <span className="mr-2"><IconComponent /></span>
+                    <span className="font-medium">{item.label}</span>
+                  </Link>
+                )
+              })}
+
+              {isInProject && projectId && (
+                <Link
+                  to={`/proyectos/${projectId}/documents`}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center px-3 py-2 rounded-lg text-xs whitespace-nowrap ${
+                    location.pathname === `/proyectos/${projectId}/documents`
+                      ? 'bg-dark-blue-light text-white'
+                      : 'text-white/80 hover:bg-dark-blue-light hover:text-white'
+                  }`}
+                >
+                  <span className="mr-2"><DocumentsIcon /></span>
+                  <span className="font-medium">Documentos</span>
+                </Link>
+              )}
+
+              {user?.role === 'admin' &&
+                adminMenuItems.map((item) => {
+                  const isActive = location.pathname === item.path
+                  const IconComponent = item.icon
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center px-3 py-2 rounded-lg text-xs whitespace-nowrap ${
+                        isActive ? 'bg-dark-blue-light text-white' : 'text-white/80 hover:bg-dark-blue-light hover:text-white'
+                      }`}
+                    >
+                      <span className="mr-2"><IconComponent /></span>
+                      <span className="font-medium">{item.label}</span>
+                    </Link>
+                  )
+                })}
+            </nav>
           </div>
         )}
+
+        {/* Contenido principal */}
+        <div className={location.pathname === '/mapas' || location.pathname === '/visor' ? 'flex-1' : 'flex-1 p-4 md:p-8'}>
+          {children}
+        </div>
       </main>
     </div>
   )
