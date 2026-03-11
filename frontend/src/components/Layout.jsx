@@ -207,11 +207,11 @@ export default function Layout({ children }) {
       </aside>
 
       {/* Main Content */}
-      <main className={`flex-1 overflow-y-auto ${location.pathname === '/mapas' || location.pathname === '/visor' ? '' : 'p-8'}`}>
+      <main className="flex-1 overflow-y-auto">
         {location.pathname === '/mapas' || location.pathname === '/visor' ? (
           children
         ) : (
-          <div className="p-8">
+          <div className="p-4 md:p-8">
             {children}
           </div>
         )}
