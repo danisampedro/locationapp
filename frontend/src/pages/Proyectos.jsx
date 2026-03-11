@@ -227,14 +227,14 @@ export default function Proyectos() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {proyectos.map((proyecto) => (
-          <div 
-            key={proyecto.id} 
-            onClick={() => navigate(`/proyectos/${proyecto.id}`)}
-            className="bg-white rounded-2xl shadow-md p-6 hover:shadow-2xl transition-shadow border border-gray-100 cursor-pointer hover:border-accent-green/40"
-          >
-            <div className="flex items-start gap-4 mb-4">
+        <div className="space-y-4">
+          {proyectos.map((proyecto) => (
+            <div
+              key={proyecto.id}
+              onClick={() => navigate(`/proyectos/${proyecto.id}`)}
+              className="bg-white rounded-2xl shadow-md p-6 hover:shadow-2xl transition-shadow border border-gray-100 cursor-pointer hover:border-accent-green/40"
+            >
+              <div className="flex items-start gap-4 mb-4">
               {proyecto.logoUrl && (
                 <img
                   src={proyecto.logoUrl}
@@ -272,8 +272,8 @@ export default function Proyectos() {
               </p>
             )}
             
-            {(proyecto.locationManager || proyecto.locationCoordinator) && (
-              <div className="mb-3 space-y-0.5">
+              {(proyecto.locationManager || proyecto.locationCoordinator) && (
+                <div className="mb-3 space-y-0.5">
                 {proyecto.locationManager && (
                   <p className="text-xs text-gray-600">
                     <span className="font-semibold text-gray-800">Manager: </span>
@@ -286,25 +286,25 @@ export default function Proyectos() {
                     {proyecto.locationCoordinator}
                   </p>
                 )}
-              </div>
-            )}
-            
-            <div className="flex gap-4 text-xs text-gray-500 pt-3 border-t border-gray-100">
-              <div className="flex items-center gap-1.5">
-                <LocationIcon />
-                <span>{proyecto.Locations?.length || 0}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <CrewIcon />
-                <span>{proyecto.Crews?.length || 0}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <VendorIcon />
-                <span>{proyecto.Vendors?.length || 0}</span>
+                </div>
+              )}
+
+              <div className="flex gap-4 text-xs text-gray-500 pt-3 border-t border-gray-100">
+                <div className="flex items-center gap-1.5">
+                  <LocationIcon />
+                  <span>{proyecto.Locations?.length || 0}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CrewIcon />
+                  <span>{proyecto.Crews?.length || 0}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <VendorIcon />
+                  <span>{proyecto.Vendors?.length || 0}</span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
         </div>
       )}
 
